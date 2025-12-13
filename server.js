@@ -35,6 +35,14 @@ const Follow = sequelize.define('Follow', {
     image: { type: DataTypes.STRING } // New: Store artist image
 });
 
+const AlbumFollow = sequelize.define('AlbumFollow', {
+    userId: { type: DataTypes.INTEGER, allowNull: false },
+    albumId: { type: DataTypes.STRING, allowNull: false },
+    albumName: { type: DataTypes.STRING },
+    image: { type: DataTypes.STRING },
+    artistName: { type: DataTypes.STRING }
+});
+
 const Like = sequelize.define('Like', {
     userId: { type: DataTypes.INTEGER, allowNull: false },
     trackId: { type: DataTypes.STRING, allowNull: false },
@@ -43,12 +51,29 @@ const Like = sequelize.define('Like', {
     previewUrl: { type: DataTypes.STRING } // New: Store preview audio
 });
 
+const Playlist = sequelize.define('Playlist', {
+    userId: { type: DataTypes.INTEGER, allowNull: false },
+    name: { type: DataTypes.STRING, allowNull: false }
+});
+
+const PlaylistTrack = sequelize.define('PlaylistTrack', {
+    playlistId: { type: DataTypes.INTEGER, allowNull: false },
+    trackId: { type: DataTypes.STRING, allowNull: false },
+    trackName: { type: DataTypes.STRING },
+    image: { type: DataTypes.STRING },
+    previewUrl: { type: DataTypes.STRING }
+});
+
 // Relationships
 User.hasMany(Follow, { foreignKey: 'userId' });
+User.hasMany(AlbumFollow, { foreignKey: 'userId' });
 User.hasMany(Like, { foreignKey: 'userId' });
+User.hasMany(Playlist, { foreignKey: 'userId' });
+Playlist.hasMany(PlaylistTrack, { foreignKey: 'playlistId' });
 
 // Sync Database
-sequelize.sync().then(() => console.log('Database & Tables created!'));
+// Sync Database
+sequelize.sync({ force: false }).then(() => console.log('Database & Tables synced!'));
 
 // --- Spotify Token Management ---
 let spotifyToken = null;
@@ -112,26 +137,29 @@ app.post('/api/login', async (req, res) => {
 
 // --- Routes: Data (Public + Protected) ---
 
-// Search (Public)
+// Search (Public) - Updated for Tracks
 app.get('/api/search', async (req, res) => {
     try {
-        const { artist } = req.query;
-        if (!artist) return res.status(400).json({ error: 'Missing artist' });
+        const { artist, type } = req.query;
+        if (!artist) return res.status(400).json({ error: 'Missing query' });
 
         const token = await getSpotifyToken();
-        const searchResp = await axios.get(`https://api.spotify.com/v1/search?q=${encodeURIComponent(artist)}&type=artist&limit=5`, { // Limit 5 for autocomplete/search
+
+        // Autocomplete or Track Search
+        const searchType = type === 'track' ? 'track' : 'artist';
+        const searchLimit = type === 'track' ? 10 : 5;
+
+        const searchResp = await axios.get(`https://api.spotify.com/v1/search?q=${encodeURIComponent(artist)}&type=${searchType}&limit=${searchLimit}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        // If simple search (top result)
-        if (req.query.type === 'simple') {
+        if (type === 'simple') {
+            // ... existing simple logic (unchanged fallback) ...
             const artistData = searchResp.data.artists.items[0];
             if (!artistData) return res.status(404).json({ error: 'Artist not found' });
-
             const albumsResp = await axios.get(`https://api.spotify.com/v1/artists/${artistData.id}/albums?include_groups=album,single&limit=20`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-
             return res.json({
                 id: artistData.id,
                 name: artistData.name,
@@ -145,13 +173,24 @@ app.get('/api/search', async (req, res) => {
             });
         }
 
-        // Return full list for autocomplete
-        res.json(searchResp.data.artists.items.map(a => ({
-            id: a.id,
-            name: a.name,
-            image: a.images[0]?.url || null,
-            genres: a.genres.slice(0, 2).join(', ')
-        })));
+        if (searchType === 'track') {
+            res.json(searchResp.data.tracks.items.map(t => ({
+                id: t.id,
+                name: t.name,
+                artist: t.artists[0].name,
+                image: t.album.images[0]?.url,
+                preview_url: t.preview_url,
+                duration_ms: t.duration_ms
+            })));
+        } else {
+            // Artist Autocomplete
+            res.json(searchResp.data.artists.items.map(a => ({
+                id: a.id,
+                name: a.name,
+                image: a.images[0]?.url || null,
+                genres: a.genres.slice(0, 2).join(', ')
+            })));
+        }
 
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -190,9 +229,11 @@ app.get('/api/me', authenticateToken, async (req, res) => {
         // Return FULL objects now, not just IDs
         const follows = await Follow.findAll({ where: { userId: req.user.id } });
         const likes = await Like.findAll({ where: { userId: req.user.id } });
+        const albumFollows = await AlbumFollow.findAll({ where: { userId: req.user.id } });
         res.json({
             follows, // Returns array of Follow objects (artistId, artistName, image)
-            likes    // Returns array of Like objects (trackId, trackName, image, previewUrl)
+            likes,    // Returns array of Like objects (trackId, trackName, image, previewUrl)
+            albumFollows // Returns array of AlbumFollow objects
         });
     } catch (e) {
         res.status(500).json({ error: 'Failed to fetch user data' });
@@ -227,6 +268,52 @@ app.post('/api/like', authenticateToken, async (req, res) => {
     } catch (e) {
         res.status(500).json({ error: 'Action failed' });
     }
+});
+
+// Album Follow
+app.post('/api/follow-album', authenticateToken, async (req, res) => {
+    try {
+        const { albumId, albumName, image, artistName } = req.body;
+        const existing = await AlbumFollow.findOne({ where: { userId: req.user.id, albumId } });
+        if (existing) {
+            await existing.destroy();
+            return res.json({ status: 'unfollowed' });
+        }
+        await AlbumFollow.create({ userId: req.user.id, albumId, albumName, image, artistName });
+        res.json({ status: 'followed' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Playlist Routes ---
+app.get('/api/playlists', authenticateToken, async (req, res) => {
+    try {
+        const playlists = await Playlist.findAll({
+            where: { userId: req.user.id },
+            include: [PlaylistTrack]
+        });
+        res.json(playlists);
+    } catch (e) { res.status(500).json({ error: 'Failed to fetch playlists' }); }
+});
+
+app.post('/api/playlists', authenticateToken, async (req, res) => {
+    try {
+        const { name } = req.body;
+        const playlist = await Playlist.create({ userId: req.user.id, name });
+        res.json(playlist);
+    } catch (e) { res.status(500).json({ error: 'Failed to create playlist' }); }
+});
+
+app.post('/api/playlists/:id/add', authenticateToken, async (req, res) => {
+    try {
+        const { trackId, trackName, image, previewUrl } = req.body;
+        const playlist = await Playlist.findOne({ where: { id: req.params.id, userId: req.user.id } });
+        if (!playlist) return res.status(404).json({ error: 'Playlist not found' });
+
+        await PlaylistTrack.create({
+            playlistId: playlist.id, trackId, trackName, image, previewUrl
+        });
+        res.json({ status: 'added' });
+    } catch (e) { res.status(500).json({ error: 'Failed to add track' }); }
 });
 
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
