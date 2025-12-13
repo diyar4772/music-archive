@@ -31,13 +31,16 @@ const User = sequelize.define('User', {
 const Follow = sequelize.define('Follow', {
     userId: { type: DataTypes.INTEGER, allowNull: false },
     artistId: { type: DataTypes.STRING, allowNull: false },
-    artistName: { type: DataTypes.STRING }
+    artistName: { type: DataTypes.STRING },
+    image: { type: DataTypes.STRING } // New: Store artist image
 });
 
 const Like = sequelize.define('Like', {
     userId: { type: DataTypes.INTEGER, allowNull: false },
     trackId: { type: DataTypes.STRING, allowNull: false },
-    trackName: { type: DataTypes.STRING }
+    trackName: { type: DataTypes.STRING },
+    image: { type: DataTypes.STRING }, // New: Store album art
+    previewUrl: { type: DataTypes.STRING } // New: Store preview audio
 });
 
 // Relationships
@@ -116,28 +119,40 @@ app.get('/api/search', async (req, res) => {
         if (!artist) return res.status(400).json({ error: 'Missing artist' });
 
         const token = await getSpotifyToken();
-        const searchResp = await axios.get(`https://api.spotify.com/v1/search?q=${encodeURIComponent(artist)}&type=artist&limit=1`, {
+        const searchResp = await axios.get(`https://api.spotify.com/v1/search?q=${encodeURIComponent(artist)}&type=artist&limit=5`, { // Limit 5 for autocomplete/search
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        const artistData = searchResp.data.artists.items[0];
-        if (!artistData) return res.status(404).json({ error: 'Artist not found' });
+        // If simple search (top result)
+        if (req.query.type === 'simple') {
+            const artistData = searchResp.data.artists.items[0];
+            if (!artistData) return res.status(404).json({ error: 'Artist not found' });
 
-        const albumsResp = await axios.get(`https://api.spotify.com/v1/artists/${artistData.id}/albums?include_groups=album,single&limit=20`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+            const albumsResp = await axios.get(`https://api.spotify.com/v1/artists/${artistData.id}/albums?include_groups=album,single&limit=20`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-        res.json({
-            id: artistData.id,
-            name: artistData.name,
-            image: artistData.images[0]?.url,
-            albums: albumsResp.data.items.map(a => ({
-                id: a.id,
-                name: a.name,
-                image: a.images[0]?.url,
-                year: a.release_date.split('-')[0]
-            }))
-        });
+            return res.json({
+                id: artistData.id,
+                name: artistData.name,
+                image: artistData.images[0]?.url,
+                albums: albumsResp.data.items.map(a => ({
+                    id: a.id,
+                    name: a.name,
+                    image: a.images[0]?.url,
+                    year: a.release_date.split('-')[0]
+                }))
+            });
+        }
+
+        // Return full list for autocomplete
+        res.json(searchResp.data.artists.items.map(a => ({
+            id: a.id,
+            name: a.name,
+            image: a.images[0]?.url || null,
+            genres: a.genres.slice(0, 2).join(', ')
+        })));
+
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -172,11 +187,12 @@ app.get('/api/album/:id', async (req, res) => {
 // User Actions (Protected)
 app.get('/api/me', authenticateToken, async (req, res) => {
     try {
+        // Return FULL objects now, not just IDs
         const follows = await Follow.findAll({ where: { userId: req.user.id } });
         const likes = await Like.findAll({ where: { userId: req.user.id } });
         res.json({
-            follows: follows.map(f => f.artistId),
-            likes: likes.map(l => l.trackId)
+            follows, // Returns array of Follow objects (artistId, artistName, image)
+            likes    // Returns array of Like objects (trackId, trackName, image, previewUrl)
         });
     } catch (e) {
         res.status(500).json({ error: 'Failed to fetch user data' });
@@ -185,13 +201,13 @@ app.get('/api/me', authenticateToken, async (req, res) => {
 
 app.post('/api/follow', authenticateToken, async (req, res) => {
     try {
-        const { artistId, artistName } = req.body;
+        const { artistId, artistName, image } = req.body;
         const exists = await Follow.findOne({ where: { userId: req.user.id, artistId } });
         if (exists) {
             await exists.destroy();
             return res.json({ status: 'unfollowed' });
         }
-        await Follow.create({ userId: req.user.id, artistId, artistName });
+        await Follow.create({ userId: req.user.id, artistId, artistName, image });
         res.json({ status: 'followed' });
     } catch (e) {
         res.status(500).json({ error: 'Action failed' });
@@ -200,13 +216,13 @@ app.post('/api/follow', authenticateToken, async (req, res) => {
 
 app.post('/api/like', authenticateToken, async (req, res) => {
     try {
-        const { trackId, trackName } = req.body;
+        const { trackId, trackName, image, previewUrl } = req.body; // Expect extra data
         const exists = await Like.findOne({ where: { userId: req.user.id, trackId } });
         if (exists) {
             await exists.destroy();
             return res.json({ status: 'unliked' });
         }
-        await Like.create({ userId: req.user.id, trackId, trackName });
+        await Like.create({ userId: req.user.id, trackId, trackName, image, previewUrl });
         res.json({ status: 'liked' });
     } catch (e) {
         res.status(500).json({ error: 'Action failed' });

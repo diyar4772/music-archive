@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Music Library V2</title>
+    <title>Music Library V3</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -30,7 +30,6 @@
             background-color: #1ed760;
         }
 
-        /* Modal Animation */
         .modal {
             transition: opacity 0.3s ease-in-out;
         }
@@ -44,35 +43,88 @@
             opacity: 1;
             pointer-events: auto;
         }
+
+        /* Autocomplete */
+        .autocomplete-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #282828;
+            border-radius: 0 0 8px 8px;
+            z-index: 50;
+            max-height: 300px;
+            overflow-y: auto;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .autocomplete-item:hover {
+            background: #333;
+        }
+
+        /* Audio Player */
+        .playing-row {
+            background-color: rgba(29, 185, 84, 0.1);
+        }
+
+        .playing-icon {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.5;
+            }
+        }
     </style>
 </head>
 
 <body class="min-h-screen flex flex-col items-center py-6 px-4">
 
     <!-- Top Bar -->
-    <div class="w-full max-w-6xl flex justify-between items-center mb-10">
+    <div class="w-full max-w-6xl flex justify-between items-center mb-10 relative">
         <h1 class="text-3xl font-bold">Music <span class="spotify-green">Library</span></h1>
-        <div id="authSection">
+
+        <!-- Auth / Profile Section -->
+        <div id="authSection" class="relative">
             <!-- Injected by JS -->
-            <button onclick="openAuthModal()"
-                class="bg-white text-black font-bold px-4 py-2 rounded-full hover:bg-gray-200">
-                Log In
-            </button>
+        </div>
+
+        <!-- Profile Dropdown (Hidden by default) -->
+        <div id="profileDropdown"
+            class="hidden absolute right-0 top-12 bg-[#282828] w-48 rounded shadow-xl z-50 border border-gray-700">
+            <button onclick="openProfileModal('likes')"
+                class="w-full text-left px-4 py-3 hover:bg-[#333] border-b border-gray-700">Liked Songs</button>
+            <button onclick="openProfileModal('follows')"
+                class="w-full text-left px-4 py-3 hover:bg-[#333] border-b border-gray-700">Following</button>
+            <button onclick="logout()" class="w-full text-left px-4 py-3 hover:bg-[#333] text-red-400">Log Out</button>
         </div>
     </div>
 
     <!-- Search Section -->
-    <div class="w-full max-w-xl flex gap-3 mb-12">
-        <input type="text" id="searchInput" placeholder="Search for an artist..."
-            class="flex-1 px-5 py-3 rounded-full bg-gray-800 border-none focus:ring-2 focus:ring-[#1DB954] text-white outline-none">
-        <button onclick="searchArtist()" class="btn-spotify text-black font-bold px-6 py-3 rounded-full">
-            <i class="fa-solid fa-magnifying-glass"></i>
-        </button>
+    <div class="w-full max-w-xl mb-12 relative z-40">
+        <div class="flex gap-3 relative">
+            <input type="text" id="searchInput" placeholder="Search for an artist..."
+                class="flex-1 px-5 py-3 rounded-full bg-gray-800 border-none focus:ring-2 focus:ring-[#1DB954] text-white outline-none"
+                autocomplete="off">
+            <button onclick="searchArtist(null)" class="btn-spotify text-black font-bold px-6 py-3 rounded-full">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </button>
+        </div>
+        <!-- Autocomplete List -->
+        <div id="autocompleteList" class="autocomplete-list hidden"></div>
     </div>
 
     <!-- Main Content -->
     <div id="results" class="w-full max-w-6xl hidden animate-fade-in">
-
         <!-- Artist Header -->
         <div
             class="flex flex-col md:flex-row items-center gap-8 mb-12 bg-gradient-to-r from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl relative group">
@@ -85,10 +137,7 @@
                         class="border border-gray-500 hover:border-white px-6 py-2 rounded-full font-bold uppercase text-xs tracking-widest transition">
                         Follow
                     </button>
-                    <!-- Smart Links -->
-                    <div id="smartLinks" class="flex gap-4 ml-4 text-xl text-gray-400">
-                        <!-- Links injected here -->
-                    </div>
+                    <div id="smartLinks" class="flex gap-4 ml-4 text-xl text-gray-400"></div>
                 </div>
             </div>
         </div>
@@ -102,7 +151,7 @@
     <!-- --- Modals --- -->
 
     <!-- Auth Modal -->
-    <div id="authModal" class="modal hidden fixed inset-0 bg-black/80 flex justify-center items-center z-50">
+    <div id="authModal" class="modal hidden fixed inset-0 bg-black/80 flex justify-center items-center z-[60]">
         <div class="bg-gray-900 p-8 rounded-xl shadow-2xl w-full max-w-sm border border-gray-800">
             <div class="flex justify-between mb-6">
                 <h2 class="text-2xl font-bold" id="authTitle">Log In</h2>
@@ -116,17 +165,14 @@
             <button onclick="handleAuth()"
                 class="w-full btn-spotify text-black font-bold py-3 rounded-full mb-4">Submit</button>
             <p class="text-center text-sm text-gray-400 cursor-pointer hover:underline" onclick="toggleAuthMode()"
-                id="authSwitch">
-                Don't have an account? Register
-            </p>
+                id="authSwitch">Don't have an account? Register</p>
         </div>
     </div>
 
     <!-- Album Details Modal -->
-    <div id="albumModal" class="modal hidden fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
+    <div id="albumModal" class="modal hidden fixed inset-0 bg-black/80 flex justify-center items-center z-[60] p-4">
         <div
-            class="bg-gray-900 rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col border border-gray-800 overflow-hidden">
-            <!-- Header -->
+            class="bg-gray-900 rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col border border-gray-800 overflow-hidden">
             <div class="p-6 bg-gradient-to-b from-gray-800 to-gray-900 flex gap-6 items-end relative">
                 <img id="modalAlbumCover" src="" class="w-32 h-32 shadow-lg rounded">
                 <div class="flex-1">
@@ -137,50 +183,61 @@
                 <button onclick="closeAlbumModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i
                         class="fa-solid fa-xmark fa-xl"></i></button>
             </div>
+            <div class="flex-1 overflow-y-auto p-4" id="tracksList"></div>
+        </div>
+    </div>
 
-            <!-- Tracks List -->
-            <div class="flex-1 overflow-y-auto p-2" id="tracksList">
-                <!-- Tracks Injected Here -->
+    <!-- Profile Modal -->
+    <div id="profileModal" class="modal hidden fixed inset-0 bg-black/80 flex justify-center items-center z-[60] p-4">
+        <div
+            class="bg-gray-900 rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col border border-gray-800">
+            <div class="p-6 border-b border-gray-800 flex justify-between items-center">
+                <h2 id="profileModalTitle" class="text-2xl font-bold">My Library</h2>
+                <button onclick="closeProfileModal()" class="text-gray-400 hover:text-white"><i
+                        class="fa-solid fa-xmark fa-xl"></i></button>
             </div>
+            <div id="profileGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 overflow-y-auto"></div>
         </div>
     </div>
 
     <script>
-        // --- State Management ---
         const API_URL = 'http://localhost:3000/api';
         let currentUser = localStorage.getItem('userUsername');
         let token = localStorage.getItem('userToken');
-        let currentArtistId = null;
-        let followedArtists = [];
-        let likedTracks = [];
-        let isLoginMode = true;
 
-        // --- Init ---
+        // State
+        let currentArtistId = null;
+        let followedArtists = []; // Objects: {artistId, artistName, image}
+        let likedTracks = [];     // Objects: {trackId, trackName, image, previewUrl}
+
+        let isLoginMode = true;
+        let currentAudio = null;
+        let playingTrackId = null;
+
         document.addEventListener('DOMContentLoaded', () => {
             updateAuthUI();
             if (token) fetchUserData();
 
-            // Allow Enter key to search
-            document.getElementById('searchInput').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') searchArtist();
+            // Autocomplete Listeners
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('input', debounce((e) => handleAutocomplete(e.target.value), 400));
+
+            // Allow Enter to search directly
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    document.getElementById('autocompleteList').classList.add('hidden');
+                    searchArtist(null);
+                }
+            });
+
+            // Close dropdowns on outside click
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#authSection')) document.getElementById('profileDropdown').classList.add('hidden');
+                if (!e.target.closest('.w-full.max-w-xl')) document.getElementById('autocompleteList').classList.add('hidden');
             });
         });
 
-        // --- Auth Logic ---
-        function updateAuthUI() {
-            const section = document.getElementById('authSection');
-            if (currentUser) {
-                section.innerHTML = `
-                    <div class="flex items-center gap-4">
-                        <span class="font-medium text-gray-300">Welcome, ${currentUser}</span>
-                        <button onclick="logout()" class="text-white hover:text-red-400"><i class="fa-solid fa-right-from-bracket"></i></button>
-                    </div>
-                `;
-            } else {
-                section.innerHTML = `<button onclick="openAuthModal()" class="bg-white text-black font-bold px-6 py-2 rounded-full hover:scale-105 transition">Log In</button>`;
-            }
-        }
-
+        // --- Data & Auth ---
         async function fetchUserData() {
             if (!token) return;
             try {
@@ -195,86 +252,118 @@
             }
         }
 
-        function openAuthModal() {
-            document.getElementById('authModal').classList.remove('hidden');
-            setTimeout(() => document.getElementById('authModal').classList.add('visible'), 10);
-        }
-        function closeAuthModal() {
-            document.getElementById('authModal').classList.remove('visible');
-            setTimeout(() => document.getElementById('authModal').classList.add('hidden'), 300);
-        }
-        function toggleAuthMode() {
-            isLoginMode = !isLoginMode;
-            document.getElementById('authTitle').innerText = isLoginMode ? 'Log In' : 'Register';
-            document.getElementById('authSwitch').innerText = isLoginMode ? "Don't have an account? Register" : "Already have an account? Log In";
+        // --- Search & Autocomplete ---
+        function debounce(func, wait) {
+            let timeout;
+            return function (...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
         }
 
-        async function handleAuth() {
-            const u = document.getElementById('authUsername').value;
-            const p = document.getElementById('authPassword').value;
-            const endpoint = isLoginMode ? '/login' : '/register';
-
-            try {
-                const res = await fetch(`${API_URL}${endpoint}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: u, password: p })
-                });
-                const data = await res.json();
-
-                if (data.token) {
-                    token = data.token;
-                    currentUser = data.username;
-                    localStorage.setItem('userToken', token);
-                    localStorage.setItem('userUsername', currentUser);
-                    updateAuthUI();
-                    closeAuthModal();
-                    fetchUserData();
-                } else {
-                    alert(data.error);
-                }
-            } catch (e) {
-                alert('Auth failed');
+        async function handleAutocomplete(query) {
+            const list = document.getElementById('autocompleteList');
+            if (query.length < 2) {
+                list.classList.add('hidden');
+                return;
             }
+
+            list.innerHTML = '';
+            let hasResults = false;
+
+            // 1. Local Matches (Followed Artists)
+            const localMatches = followedArtists.filter(a => a.artistName.toLowerCase().includes(query.toLowerCase()));
+            if (localMatches.length > 0) {
+                const header = document.createElement('div');
+                header.className = 'px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider bg-[#303030]';
+                header.innerText = 'From Your Library';
+                list.appendChild(header);
+
+                localMatches.forEach(artist => {
+                    const div = document.createElement('div');
+                    div.className = 'autocomplete-item flex items-center gap-3 p-3 cursor-pointer text-white transition border-l-4 border-green-500 bg-[#333]';
+                    div.onclick = () => {
+                        document.getElementById('searchInput').value = artist.artistName;
+                        list.classList.add('hidden');
+                        searchArtist(artist.artistName);
+                    };
+                    div.innerHTML = `
+                        <img src="${artist.image || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full object-cover">
+                        <div>
+                            <div class="font-bold text-sm">${artist.artistName} <i class="fa-solid fa-heart text-green-500 ml-1 text-xs"></i></div>
+                            <div class="text-xs text-gray-400">Following</div>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+                hasResults = true;
+            }
+
+            // 2. Remote Matches (Spotify)
+            try {
+                const res = await fetch(`${API_URL}/search?artist=${encodeURIComponent(query)}`);
+                const results = await res.json();
+
+                if (results.length > 0) {
+                    if (hasResults) { // Add separator if we have legacy results
+                        const header = document.createElement('div');
+                        header.className = 'px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider bg-[#303030]';
+                        header.innerText = 'Spotify Results';
+                        list.appendChild(header);
+                    }
+
+                    results.forEach(artist => {
+                        // Skip if already shown in local matches
+                        if (localMatches.some(l => l.artistId === artist.id)) return;
+
+                        const div = document.createElement('div');
+                        div.className = 'autocomplete-item flex items-center gap-3 p-3 cursor-pointer text-white transition';
+                        div.onclick = () => {
+                            document.getElementById('searchInput').value = artist.name;
+                            list.classList.add('hidden');
+                            searchArtist(artist.name);
+                        };
+                        div.innerHTML = `
+                            <img src="${artist.image || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full object-cover">
+                            <div>
+                                <div class="font-bold text-sm">${artist.name}</div>
+                                <div class="text-xs text-gray-400 truncate">${artist.genres || 'Artist'}</div>
+                            </div>
+                        `;
+                        list.appendChild(div);
+                    });
+                    hasResults = true;
+                }
+            } catch (e) { console.error('Autocomplete Error', e); }
+
+            if (hasResults) list.classList.remove('hidden');
+            else list.classList.add('hidden');
         }
 
-        function logout() {
-            token = null;
-            currentUser = null;
-            followedArtists = [];
-            likedTracks = [];
-            localStorage.clear();
-            updateAuthUI();
-            updateUIState();
-        }
-
-        // --- Main App Logic ---
-        async function searchArtist() {
-            const query = document.getElementById('searchInput').value;
+        async function searchArtist(nameOverride) {
+            const query = nameOverride || document.getElementById('searchInput').value;
             if (!query) return;
 
             document.getElementById('albumsGrid').innerHTML = '<div class="col-span-full text-center py-10"><i class="fa-solid fa-circle-notch fa-spin fa-2xl text-green-500"></i></div>';
             document.getElementById('results').classList.remove('hidden');
 
             try {
-                // Fetch public search
-                const res = await fetch(`${API_URL}/search?artist=${encodeURIComponent(query)}`);
+                // type=simple forces the old backend behavior to return the full artist + albums object
+                const res = await fetch(`${API_URL}/search?artist=${encodeURIComponent(query)}&type=simple`);
                 const data = await res.json();
 
                 if (data.error) throw new Error(data.error);
 
-                // Update Artist Header
                 currentArtistId = data.id;
                 document.getElementById('artistName').innerText = data.name;
                 document.getElementById('artistImage').src = data.image || 'https://via.placeholder.com/300';
 
                 // Smart Links
-                const linksHtml = `
+                document.getElementById('smartLinks').innerHTML = `
                     <a href="https://open.spotify.com/artist/${data.id}" target="_blank" class="hover:text-green-500"><i class="fa-brands fa-spotify"></i></a>
                     <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(data.name)}" target="_blank" class="hover:text-red-500"><i class="fa-brands fa-youtube"></i></a>
                     <a href="https://en.wikipedia.org/wiki/Special:Search?search=${encodeURIComponent(data.name)}" target="_blank" class="hover:text-white"><i class="fa-brands fa-wikipedia-w"></i></a>
                 `;
-                document.getElementById('smartLinks').innerHTML = linksHtml;
 
                 // Render Albums
                 const grid = document.getElementById('albumsGrid');
@@ -305,6 +394,7 @@
             }
         }
 
+        // --- Album & Audio ---
         async function openAlbumModal(albumId) {
             const modal = document.getElementById('albumModal');
             modal.classList.remove('hidden');
@@ -323,19 +413,33 @@
 
                 list.innerHTML = '';
                 data.tracks.forEach((track, i) => {
-                    const isLiked = likedTracks.includes(track.id);
+                    const isLiked = likedTracks.some(l => l.trackId === track.id);
+                    const isPlaying = playingTrackId === track.id;
                     const row = document.createElement('div');
-                    row.className = 'flex items-center gap-4 p-3 hover:bg-white/10 rounded group';
+                    row.className = `flex items-center gap-4 p-3 hover:bg-white/10 rounded group transition ${isPlaying ? 'playing-row' : ''}`;
+                    row.id = `track-${track.id}`;
+
+                    // Small Image from Album (Spotify tracks don't have unique images per track usually, so we use album cover)
                     row.innerHTML = `
-                        <span class="text-gray-400 w-6 text-center">${i + 1}</span>
-                        <div class="flex-1">
-                            <p class="text-white font-medium ${isLiked ? 'text-green-500' : ''}">${track.name}</p>
+                        <div class="relative w-10 h-10 flex-shrink-0">
+                            <img src="${data.image}" class="w-full h-full rounded object-cover">
+                            ${track.preview_url ? `
+                                <button onclick="playTrack('${track.id}', '${track.preview_url}')" class="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center text-white">
+                                    <i class="fa-solid ${isPlaying ? 'fa-pause' : 'fa-play'}"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                        <span class="text-gray-400 w-6 text-center text-sm">${i + 1}</span>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-white font-medium truncate ${isLiked ? 'text-green-500' : ''}">${track.name}</p>
+                            <p class="text-xs text-gray-400 truncate">${data.artist}</p>
                         </div>
                         <div class="flex items-center gap-4">
-                            <button onclick="toggleLike('${track.id}', '${track.name.replace(/'/g, "\\'")}')" class="${isLiked ? 'text-green-500' : 'text-gray-400 hover:text-white'}">
+                            <button onclick="toggleLike('${track.id}', '${track.name.replace(/'/g, "\\'")}', '${data.image}', '${track.preview_url}')" 
+                                    class="${isLiked ? 'text-green-500' : 'text-gray-400 hover:text-white'}">
                                 <i class="${isLiked ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
                             </button>
-                            <span class="text-gray-400 text-sm">${fmtTime(track.duration_ms)}</span>
+                            <span class="text-gray-400 text-sm w-10 text-right">${fmtTime(track.duration_ms)}</span>
                         </div>
                     `;
                     list.appendChild(row);
@@ -346,61 +450,133 @@
             }
         }
 
+        function playTrack(id, url) {
+            if (currentAudio && playingTrackId === id) {
+                // Toggle Pause
+                if (currentAudio.paused) {
+                    currentAudio.play();
+                    updateTrackIcon(id, true);
+                } else {
+                    currentAudio.pause();
+                    updateTrackIcon(id, false);
+                }
+            } else {
+                // New Track
+                if (currentAudio) {
+                    currentAudio.pause();
+                    const prevId = playingTrackId;
+                    if (prevId) updateTrackIcon(prevId, false); // Reset icon of previous
+                }
+                currentAudio = new Audio(url);
+                currentAudio.volume = 0.5;
+                playingTrackId = id;
+
+                currentAudio.play();
+                updateTrackIcon(id, true);
+
+                // Reset styling on all rows
+                document.querySelectorAll('.playing-row').forEach(r => r.classList.remove('playing-row'));
+                const row = document.getElementById(`track-${id}`);
+                if (row) row.classList.add('playing-row');
+
+                currentAudio.onended = () => {
+                    playingTrackId = null;
+                    updateTrackIcon(id, false);
+                    if (row) row.classList.remove('playing-row');
+                };
+            }
+        }
+
+        function updateTrackIcon(id, isPlaying) {
+            const row = document.getElementById(`track-${id}`);
+            if (!row) return;
+            const btnIcon = row.querySelector('.absolute i');
+            if (btnIcon) {
+                btnIcon.className = `fa-solid ${isPlaying ? 'fa-pause' : 'fa-play'}`;
+            }
+        }
+
         function closeAlbumModal() {
+            if (currentAudio) { currentAudio.pause(); currentAudio = null; playingTrackId = null; }
             document.getElementById('albumModal').classList.remove('visible');
             setTimeout(() => document.getElementById('albumModal').classList.add('hidden'), 300);
         }
 
-        // --- Interaction Logic ---
-        async function toggleFollow() {
-            if (!token) return openAuthModal();
-            const btn = document.getElementById('followBtn');
-            const artistName = document.getElementById('artistName').innerText;
+        // --- Profile ---
+        function toggleProfileMenu() {
+            document.getElementById('profileDropdown').classList.toggle('hidden');
+        }
 
-            // Optimistic update
-            const isFollowing = followedArtists.includes(currentArtistId);
-            if (isFollowing) {
-                followedArtists = followedArtists.filter(id => id !== currentArtistId);
-            } else {
-                followedArtists.push(currentArtistId);
-            }
-            updateButtonState(btn, !isFollowing);
+        function openProfileModal(type) {
+            document.getElementById('profileDropdown').classList.add('hidden'); // Close dropdown
+            const modal = document.getElementById('profileModal');
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.add('visible'), 10);
 
-            try {
-                await fetch(`${API_URL}/follow`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ artistId: currentArtistId, artistName })
+            const title = document.getElementById('profileModalTitle');
+            const grid = document.getElementById('profileGrid');
+            grid.innerHTML = '';
+
+            if (type === 'likes') {
+                title.innerText = 'Liked Songs';
+                if (likedTracks.length === 0) grid.innerHTML = '<p class="text-gray-500">No liked tracks yet.</p>';
+                likedTracks.forEach(track => {
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center gap-3 bg-white/5 p-3 rounded hover:bg-white/10 transition';
+                    div.innerHTML = `
+                         <img src="${track.image || 'https://via.placeholder.com/40'}" class="w-12 h-12 rounded object-cover">
+                         <div class="flex-1 min-w-0">
+                             <p class="font-bold truncate text-sm">${track.trackName}</p>
+                         </div>
+                         ${track.previewUrl ? `
+                            <button onclick="playTrack('${track.trackId}', '${track.previewUrl}')" class="text-green-500 hover:text-white p-2">
+                                <i class="fa-solid fa-play"></i>
+                            </button>
+                         ` : ''}
+                     `;
+                    grid.appendChild(div);
                 });
-            } catch (e) {
-                console.error('Follow failed');
-                // Revert if failed (omitted for brevity)
+            } else {
+                title.innerText = 'Following';
+                if (followedArtists.length === 0) grid.innerHTML = '<p class="text-gray-500">Not following anyone yet.</p>';
+                followedArtists.forEach(artist => {
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center gap-3 bg-white/5 p-3 rounded hover:bg-white/10 transition cursor-pointer';
+                    div.onclick = () => { closeProfileModal(); searchArtist(artist.artistName); };
+                    div.innerHTML = `
+                         <img src="${artist.image || 'https://via.placeholder.com/40'}" class="w-12 h-12 rounded-full object-cover">
+                         <p class="font-bold truncate text-sm">${artist.artistName}</p>
+                     `;
+                    grid.appendChild(div);
+                });
             }
         }
 
-        async function toggleLike(trackId, trackName) {
+        function closeProfileModal() {
+            if (currentAudio) { currentAudio.pause(); currentAudio = null; playingTrackId = null; }
+            document.getElementById('profileModal').classList.remove('visible');
+            setTimeout(() => document.getElementById('profileModal').classList.add('hidden'), 300);
+        }
+
+        // --- Interaction Logic ---
+        async function toggleLike(trackId, trackName, image, previewUrl) {
             if (!token) return openAuthModal();
 
-            // Optimistic Update
-            if (likedTracks.includes(trackId)) {
-                likedTracks = likedTracks.filter(id => id !== trackId);
+            const existing = likedTracks.find(l => l.trackId === trackId);
+            if (existing) {
+                likedTracks = likedTracks.filter(l => l.trackId !== trackId);
             } else {
-                likedTracks.push(trackId);
+                likedTracks.push({ trackId, trackName, image, previewUrl });
             }
-            // Re-render tracks list (simpler than finding specific element row)
-            // Ideally we'd update specific DOM element but this is fast enough
-            const openAlbumId = document.querySelector('#albumModal.visible') ? true : false;
-            // Only re-open/render if modal is open, technically we just updated state variable
-            // Real-time update:
+
+            // Real-time UI update for hearts
             const heartIcons = document.querySelectorAll(`button[onclick*="${trackId}"] i`);
             heartIcons.forEach(icon => {
-                if (likedTracks.includes(trackId)) {
-                    icon.classList.remove('fa-regular');
-                    icon.classList.add('fa-solid', 'text-green-500');
+                if (!existing) { // It is now liked
+                    icon.className = 'fa-solid fa-heart text-green-500';
                     icon.parentElement.classList.add('text-green-500');
                 } else {
-                    icon.classList.add('fa-regular');
-                    icon.classList.remove('fa-solid', 'text-green-500');
+                    icon.className = 'fa-regular fa-heart';
                     icon.parentElement.classList.remove('text-green-500');
                 }
             });
@@ -409,17 +585,56 @@
                 await fetch(`${API_URL}/like`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ trackId, trackName })
+                    body: JSON.stringify({ trackId, trackName, image, previewUrl })
                 });
             } catch (e) { console.error('Like failed'); }
         }
 
+        async function toggleFollow() {
+            if (!token) return openAuthModal();
+            const artistImage = document.getElementById('artistImage').src;
+            const artistName = document.getElementById('artistName').innerText;
+
+            const existing = followedArtists.find(f => f.artistId === currentArtistId);
+            if (existing) {
+                followedArtists = followedArtists.filter(f => f.artistId !== currentArtistId);
+                updateButtonState(document.getElementById('followBtn'), false);
+            } else {
+                followedArtists.push({ artistId: currentArtistId, artistName, image: artistImage });
+                updateButtonState(document.getElementById('followBtn'), true);
+            }
+
+            try {
+                await fetch(`${API_URL}/follow`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ artistId: currentArtistId, artistName, image: artistImage })
+                });
+            } catch (e) { console.error('Follow failed'); }
+        }
+
+        // --- Utility ---
+        function updateAuthUI() {
+            const section = document.getElementById('authSection');
+            if (currentUser) {
+                section.innerHTML = `
+                    <button onclick="toggleProfileMenu()" class="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-full transition">
+                        <div class="bg-green-500 w-6 h-6 rounded-full flex items-center justify-center text-xs text-black font-bold">
+                            ${currentUser.charAt(0).toUpperCase()}
+                        </div>
+                        <span class="font-medium text-sm">${currentUser}</span>
+                        <i class="fa-solid fa-caret-down text-xs text-gray-400"></i>
+                    </button>
+                `;
+            } else {
+                section.innerHTML = `<button onclick="openAuthModal()" class="bg-white text-black font-bold px-6 py-2 rounded-full hover:scale-105 transition">Log In</button>`;
+            }
+        }
+
         function updateUIState() {
-            // Update Follow Button
             if (currentArtistId) {
-                const isFollowed = followedArtists.includes(currentArtistId);
-                const btn = document.getElementById('followBtn');
-                updateButtonState(btn, isFollowed);
+                const isFollowed = followedArtists.some(f => f.artistId === currentArtistId);
+                updateButtonState(document.getElementById('followBtn'), isFollowed);
             }
         }
 
@@ -433,12 +648,24 @@
             }
         }
 
-        function fmtTime(ms) {
-            const min = Math.floor(ms / 60000);
-            const sec = ((ms % 60000) / 1000).toFixed(0);
-            return min + ":" + (sec < 10 ? '0' : '') + sec;
+        // Auth Helpers (Unchanged Logic basically)
+        function openAuthModal() { document.getElementById('authModal').classList.remove('hidden'); setTimeout(() => document.getElementById('authModal').classList.add('visible'), 10); }
+        function closeAuthModal() { document.getElementById('authModal').classList.remove('visible'); setTimeout(() => document.getElementById('authModal').classList.add('hidden'), 300); }
+        function toggleAuthMode() { isLoginMode = !isLoginMode; document.getElementById('authTitle').innerText = isLoginMode ? 'Log In' : 'Register'; document.getElementById('authSwitch').innerText = isLoginMode ? "Don't have an account? Register" : "Already have an account? Log In"; }
+        function logout() { token = null; currentUser = null; followedArtists = []; likedTracks = []; localStorage.clear(); updateAuthUI(); document.getElementById('profileDropdown').classList.add('hidden'); window.location.reload(); }
+        async function handleAuth() {
+            const u = document.getElementById('authUsername').value;
+            const p = document.getElementById('authPassword').value;
+            try {
+                const res = await fetch(`${API_URL}${isLoginMode ? '/login' : '/register'}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u, password: p }) });
+                const data = await res.json();
+                if (data.token) {
+                    token = data.token; currentUser = data.username; localStorage.setItem('userToken', token); localStorage.setItem('userUsername', currentUser);
+                    updateAuthUI(); closeAuthModal(); fetchUserData();
+                } else { alert(data.error); }
+            } catch (e) { alert('Auth failed'); }
         }
-
+        function fmtTime(ms) { const min = Math.floor(ms / 60000); const sec = ((ms % 60000) / 1000).toFixed(0); return min + ":" + (sec < 10 ? '0' : '') + sec; }
     </script>
 </body>
 
