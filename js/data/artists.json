@@ -1,0 +1,24 @@
+[
+    {
+        "id": "sebnem-ferah",
+        "name": "Şebnem Ferah",
+        "spotifyId": "3fQz041pXFP7Tj4P44K3M9",
+        "genre": "Rock",
+        "image": "https://i.scdn.co/image/ab6761610000e5eb65e2e9e0e4e0e0e0e0e0e0e0",
+        "bio": "Şebnem Ferah (d. 12 Nisan 1972, Yalova), Türk rock müziği sanatçısıdır. 1994 yılında Volvox grubunun dağılmasından sonra solo kariyerine başlamıştır. Güçlü sesi ve şarkı sözleriyle Türk rock müziğinin en önemli kadın vokallerinden biri kabul edilir.",
+        "albums": [
+            {
+                "id": "4K5mXcZVzMBHUVqapPRKcH",
+                "title": "Kadın",
+                "year": "1996",
+                "image": "https://i.scdn.co/image/ab67616d0000b273a1b5e5c9e0e0e0e0e0e0e0e0"
+            },
+            {
+                "id": "1vJcIbXWVqGCCxgkNb9Hfj",
+                "title": "Artık Kısa Cümleler Kuruyorum",
+                "year": "1999",
+                "image": "https://i.scdn.co/image/ab67616d0000b273b1b5e5c9e0e0e0e0e0e0e0e0"
+            }
+        ]
+    }
+]
