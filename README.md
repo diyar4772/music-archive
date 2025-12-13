@@ -1,71 +1,87 @@
-# 🎵 Müzik Arşivi (V3)
+# 🎵 Music Archive
 
-Spotify API entegrasyonlu, kullanıcı verilerini yerel veritabanında saklayan modern bir kişisel müzik kütüphanesi uygulaması.
+A modern music library web application with Spotify integration, user authentication, and personalized playlists.
 
-![Screenshot](file:///C:/Users/samed/.gemini/antigravity/brain/f8ba0cdc-9bdd-4173-af7f-73d84d2ea364/v3_artist_page_1765634096984.png)
+## Features
 
-## Özellikler (V3)
+- 🔍 **Search Artists & Tracks** - Powered by Spotify API
+- ❤️ **Like Songs** - Save your favorite tracks
+- 👤 **Follow Artists** - Keep track of your favorite artists
+- 💿 **Follow Albums** - Save albums to your library
+- 📝 **Create Playlists** - Build custom playlists
+- 🌙 **Dark/Light Theme** - Customizable UI
+- 🌍 **Multi-language** - Turkish, English, Kurdish support
 
-- 🔍 **Akıllı Arama (Autocomplete)**: Yazarken anlık Spotify sonuçları ve kütüphanenizden öneriler.
-- 🎧 **Müzik Çalar**: Albüm detaylarında 30 saniyelik şarkı önizlemeleri.
-- 📂 **Detaylı Görünüm**: Albüm içeriklerini ve şarkı sürelerini listeleyen modal pencereler.
-- 👤 **Kullanıcı Profili**:
-  - **Giriş Sistemi**: JWT tabanlı güvenli kimlik doğrulama.
-  - **Kütüphanem**: Beğendiğiniz şarkılar ve takip ettiğiniz sanatçılar listesi.
-- ❤️ **Kişiselleştirme**: Veriler SQLite veritabanında kalıcı olarak saklanır.
-- 🎨 **Modern Arayüz**: Dark mode, responsive tasarım ve Tailwind CSS.
+## Tech Stack
 
-## Başka Bilgisayarda Nasıl Çalıştırılır?
+- **Frontend**: HTML5, Tailwind CSS, Vanilla JavaScript
+- **Backend**: Node.js, Express.js
+- **Database**: MongoDB (Mongoose ODM)
+- **Auth**: JWT + bcrypt
+- **API**: Spotify Web API
 
-Bu projeyi kendi bilgisayarınızda çalıştırmak için aşağıdaki adımları izleyin.
+## Deployment (Render.com)
 
-### 1. Gereksinimler
+### Prerequisites
+1. [MongoDB Atlas](https://www.mongodb.com/atlas) free cluster
+2. [Spotify Developer](https://developer.spotify.com/dashboard) app credentials
+3. [Render.com](https://render.com) account
 
-- [Node.js](https://nodejs.org/) (Sürüm 14 veya üzeri) yüklü olmalıdır.
-- [Git](https://git-scm.com/) yüklü olmalıdır.
+### Environment Variables
+Set these in Render Dashboard → Your Service → Environment:
 
-### 2. Kurulum
+| Variable | Description |
+|----------|-------------|
+| `MONGO_URI` | MongoDB connection string |
+| `SPOTIFY_CLIENT_ID` | Spotify app client ID |
+| `SPOTIFY_CLIENT_SECRET` | Spotify app client secret |
+| `JWT_SECRET` | Random secret string for JWT |
 
-Terminali veya Komut İstemi'ni (CMD) açın ve sırasıyla şu komutları girin:
+### Deploy Steps
+1. Push code to GitHub
+2. Create new **Web Service** on Render
+3. Connect your GitHub repo
+4. Set **Build Command**: `npm install`
+5. Set **Start Command**: `npm start`
+6. Add environment variables
+7. Deploy!
+
+## Local Development
 
 ```bash
-# 1. Projeyi klonlayın
+# Clone repository
 git clone https://github.com/diyar4772/music-archive.git
-
-# 2. Proje klasörüne girin
 cd music-archive
 
-# 3. Gerekli kütüphaneleri yükleyin
+# Install dependencies
 npm install
+
+# Create .env file (copy from .env.example)
+cp .env.example .env
+# Edit .env with your credentials
+
+# Start development server
+npm run dev
 ```
 
-### 3. Ayarlar (.env Dosyası)
+## API Endpoints
 
-Bu proje Spotify API kullanır, bu yüzden kendi API anahtarlarınızı oluşturmalısınız.
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/register` | ❌ | Create account |
+| POST | `/api/login` | ❌ | Login |
+| GET | `/api/search` | ❌ | Search artists/tracks |
+| GET | `/api/album/:id` | ❌ | Get album details |
+| GET | `/api/me` | ✅ | Get user data |
+| POST | `/api/follow` | ✅ | Follow/unfollow artist |
+| POST | `/api/like` | ✅ | Like/unlike track |
+| POST | `/api/follow-album` | ✅ | Follow/unfollow album |
+| GET | `/api/playlists` | ✅ | Get user playlists |
+| POST | `/api/playlists` | ✅ | Create playlist |
+| POST | `/api/playlists/:id/add` | ✅ | Add track to playlist |
+| DELETE | `/api/playlists/:id` | ✅ | Delete playlist |
+| DELETE | `/api/playlists/:id/tracks/:trackId` | ✅ | Remove track |
 
-1.  Proje klasöründe `.env.example` dosyasının adını `.env` olarak değiştirin (veya yeni bir `.env` dosyası oluşturun).
-2.  [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/applications) adresine gidin.
-3.  "Create an App" diyerek yeni bir uygulama oluşturun.
-4.  Size verilen **Client ID** ve **Client Secret** bilgilerini `.env` dosyasına yapıştırın:
+## License
 
-```env
-SPOTIFY_CLIENT_ID=buraya_client_id_yapistir
-SPOTIFY_CLIENT_SECRET=buraya_client_secret_yapistir
-JWT_SECRET=rastgele_guvenli_bir_kelime_yaz
-```
-
-### 4. Çalıştırma
-
-Her şey hazır! Şimdi sunucuyu başlatın:
-
-```bash
-node server.js
-```
-
-Tarayıcınızı açıp `http://localhost:3000` adresine gidin.
-
-## Lisans
-
-Bu proje **MIT Lisansı** ile lisanslanmıştır. Detaylar için [LICENSE](LICENSE) dosyasına bakabilirsiniz.
-
-Copyright (c) 2024 Samed Yolcu.
+MIT License - See [LICENSE](LICENSE) file

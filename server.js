@@ -2,78 +2,76 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const dotenv = require('dotenv');
-const { Sequelize, DataTypes } = require('sequelize');
+const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_music_key';
 
 app.use(cors());
 app.use(express.static('.'));
 app.use(express.json());
 
-// --- Database Setup (SQLite + Sequelize) ---
-const sequelize = new Sequelize({
-    dialect: 'sqlite',
-    storage: 'database.sqlite',
-    logging: false // Disable console logging for SQL queries
-});
+// --- MongoDB Connection ---
+mongoose.connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+}).then(() => console.log('✅ MongoDB Connected!'))
+    .catch(err => console.error('❌ MongoDB Connection Error:', err.message));
 
-const User = sequelize.define('User', {
-    username: { type: DataTypes.STRING, unique: true, allowNull: false },
-    password: { type: DataTypes.STRING, allowNull: false }
-});
+// --- Mongoose Schemas ---
+const userSchema = new mongoose.Schema({
+    username: { type: String, unique: true, required: true },
+    password: { type: String, required: true }
+}, { timestamps: true });
 
-const Follow = sequelize.define('Follow', {
-    userId: { type: DataTypes.INTEGER, allowNull: false },
-    artistId: { type: DataTypes.STRING, allowNull: false },
-    artistName: { type: DataTypes.STRING },
-    image: { type: DataTypes.STRING } // New: Store artist image
-});
+const followSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    artistId: { type: String, required: true },
+    artistName: { type: String },
+    image: { type: String }
+}, { timestamps: true });
 
-const AlbumFollow = sequelize.define('AlbumFollow', {
-    userId: { type: DataTypes.INTEGER, allowNull: false },
-    albumId: { type: DataTypes.STRING, allowNull: false },
-    albumName: { type: DataTypes.STRING },
-    image: { type: DataTypes.STRING },
-    artistName: { type: DataTypes.STRING }
-});
+const albumFollowSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    albumId: { type: String, required: true },
+    albumName: { type: String },
+    image: { type: String },
+    artistName: { type: String }
+}, { timestamps: true });
 
-const Like = sequelize.define('Like', {
-    userId: { type: DataTypes.INTEGER, allowNull: false },
-    trackId: { type: DataTypes.STRING, allowNull: false },
-    trackName: { type: DataTypes.STRING },
-    image: { type: DataTypes.STRING }, // New: Store album art
-    previewUrl: { type: DataTypes.STRING } // New: Store preview audio
-});
+const likeSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    trackId: { type: String, required: true },
+    trackName: { type: String },
+    image: { type: String },
+    previewUrl: { type: String }
+}, { timestamps: true });
 
-const Playlist = sequelize.define('Playlist', {
-    userId: { type: DataTypes.INTEGER, allowNull: false },
-    name: { type: DataTypes.STRING, allowNull: false }
-});
+const playlistSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    name: { type: String, required: true }
+}, { timestamps: true });
 
-const PlaylistTrack = sequelize.define('PlaylistTrack', {
-    playlistId: { type: DataTypes.INTEGER, allowNull: false },
-    trackId: { type: DataTypes.STRING, allowNull: false },
-    trackName: { type: DataTypes.STRING },
-    image: { type: DataTypes.STRING },
-    previewUrl: { type: DataTypes.STRING }
-});
+const playlistTrackSchema = new mongoose.Schema({
+    playlistId: { type: mongoose.Schema.Types.ObjectId, ref: 'Playlist', required: true },
+    trackId: { type: String, required: true },
+    trackName: { type: String },
+    image: { type: String },
+    previewUrl: { type: String }
+}, { timestamps: true });
 
-// Relationships
-User.hasMany(Follow, { foreignKey: 'userId' });
-User.hasMany(AlbumFollow, { foreignKey: 'userId' });
-User.hasMany(Like, { foreignKey: 'userId' });
-User.hasMany(Playlist, { foreignKey: 'userId' });
-Playlist.hasMany(PlaylistTrack, { foreignKey: 'playlistId' });
-
-// Sync Database
-// Sync Database
-sequelize.sync({ force: false }).then(() => console.log('Database & Tables synced!'));
+// --- Mongoose Models ---
+const User = mongoose.model('User', userSchema);
+const Follow = mongoose.model('Follow', followSchema);
+const AlbumFollow = mongoose.model('AlbumFollow', albumFollowSchema);
+const Like = mongoose.model('Like', likeSchema);
+const Playlist = mongoose.model('Playlist', playlistSchema);
+const PlaylistTrack = mongoose.model('PlaylistTrack', playlistTrackSchema);
 
 // --- Spotify Token Management ---
 let spotifyToken = null;
@@ -99,10 +97,10 @@ const getSpotifyToken = async () => {
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-    if (!token) return res.sendStatus(401); // Unauthorized
+    if (!token) return res.sendStatus(401);
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) return res.sendStatus(403); // Forbidden
+        if (err) return res.sendStatus(403);
         req.user = user;
         next();
     });
@@ -114,7 +112,7 @@ app.post('/api/register', async (req, res) => {
         const { username, password } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
         const user = await User.create({ username, password: hashedPassword });
-        const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET);
+        const token = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET);
         res.json({ token, username });
     } catch (e) {
         res.status(400).json({ error: 'Username likely taken' });
@@ -124,28 +122,26 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
-        const user = await User.findOne({ where: { username } });
+        const user = await User.findOne({ username });
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
-        const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET);
+        const token = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET);
         res.json({ token, username });
     } catch (e) {
         res.status(500).json({ error: 'Login failed' });
     }
 });
 
-// --- Routes: Data (Public + Protected) ---
+// --- Routes: Data (Public) ---
 
-// Search (Public) - Updated for Tracks
+// Search
 app.get('/api/search', async (req, res) => {
     try {
         const { artist, type } = req.query;
         if (!artist) return res.status(400).json({ error: 'Missing query' });
 
         const token = await getSpotifyToken();
-
-        // Autocomplete or Track Search
         const searchType = type === 'track' ? 'track' : 'artist';
         const searchLimit = type === 'track' ? 10 : 5;
 
@@ -154,7 +150,6 @@ app.get('/api/search', async (req, res) => {
         });
 
         if (type === 'simple') {
-            // ... existing simple logic (unchanged fallback) ...
             const artistData = searchResp.data.artists.items[0];
             if (!artistData) return res.status(404).json({ error: 'Artist not found' });
             const albumsResp = await axios.get(`https://api.spotify.com/v1/artists/${artistData.id}/albums?include_groups=album,single&limit=20`, {
@@ -183,7 +178,6 @@ app.get('/api/search', async (req, res) => {
                 duration_ms: t.duration_ms
             })));
         } else {
-            // Artist Autocomplete
             res.json(searchResp.data.artists.items.map(a => ({
                 id: a.id,
                 name: a.name,
@@ -191,13 +185,12 @@ app.get('/api/search', async (req, res) => {
                 genres: a.genres.slice(0, 2).join(', ')
             })));
         }
-
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
-// Album Details (Public) - New Feature
+// Album Details
 app.get('/api/album/:id', async (req, res) => {
     try {
         const token = await getSpotifyToken();
@@ -223,29 +216,32 @@ app.get('/api/album/:id', async (req, res) => {
     }
 });
 
-// User Actions (Protected)
+// --- Routes: User Data (Protected) ---
+
+// Get User Data
 app.get('/api/me', authenticateToken, async (req, res) => {
     try {
-        // Return FULL objects now, not just IDs
-        const follows = await Follow.findAll({ where: { userId: req.user.id } });
-        const likes = await Like.findAll({ where: { userId: req.user.id } });
-        const albumFollows = await AlbumFollow.findAll({ where: { userId: req.user.id } });
+        const follows = await Follow.find({ userId: req.user.id });
+        const likes = await Like.find({ userId: req.user.id });
+        const albumFollows = await AlbumFollow.find({ userId: req.user.id });
+
         res.json({
-            follows, // Returns array of Follow objects (artistId, artistName, image)
-            likes,    // Returns array of Like objects (trackId, trackName, image, previewUrl)
-            albumFollows // Returns array of AlbumFollow objects
+            follows: follows.map(f => ({ artistId: f.artistId, artistName: f.artistName, image: f.image })),
+            likes: likes.map(l => ({ trackId: l.trackId, trackName: l.trackName, image: l.image, previewUrl: l.previewUrl })),
+            albumFollows: albumFollows.map(a => ({ albumId: a.albumId, albumName: a.albumName, image: a.image, artistName: a.artistName }))
         });
     } catch (e) {
         res.status(500).json({ error: 'Failed to fetch user data' });
     }
 });
 
+// Follow Artist
 app.post('/api/follow', authenticateToken, async (req, res) => {
     try {
         const { artistId, artistName, image } = req.body;
-        const exists = await Follow.findOne({ where: { userId: req.user.id, artistId } });
+        const exists = await Follow.findOne({ userId: req.user.id, artistId });
         if (exists) {
-            await exists.destroy();
+            await Follow.deleteOne({ _id: exists._id });
             return res.json({ status: 'unfollowed' });
         }
         await Follow.create({ userId: req.user.id, artistId, artistName, image });
@@ -255,12 +251,13 @@ app.post('/api/follow', authenticateToken, async (req, res) => {
     }
 });
 
+// Like Track
 app.post('/api/like', authenticateToken, async (req, res) => {
     try {
-        const { trackId, trackName, image, previewUrl } = req.body; // Expect extra data
-        const exists = await Like.findOne({ where: { userId: req.user.id, trackId } });
+        const { trackId, trackName, image, previewUrl } = req.body;
+        const exists = await Like.findOne({ userId: req.user.id, trackId });
         if (exists) {
-            await exists.destroy();
+            await Like.deleteOne({ _id: exists._id });
             return res.json({ status: 'unliked' });
         }
         await Like.create({ userId: req.user.id, trackId, trackName, image, previewUrl });
@@ -270,50 +267,91 @@ app.post('/api/like', authenticateToken, async (req, res) => {
     }
 });
 
-// Album Follow
+// Follow Album
 app.post('/api/follow-album', authenticateToken, async (req, res) => {
     try {
         const { albumId, albumName, image, artistName } = req.body;
-        const existing = await AlbumFollow.findOne({ where: { userId: req.user.id, albumId } });
+        const existing = await AlbumFollow.findOne({ userId: req.user.id, albumId });
         if (existing) {
-            await existing.destroy();
+            await AlbumFollow.deleteOne({ _id: existing._id });
             return res.json({ status: 'unfollowed' });
         }
         await AlbumFollow.create({ userId: req.user.id, albumId, albumName, image, artistName });
         res.json({ status: 'followed' });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // --- Playlist Routes ---
 app.get('/api/playlists', authenticateToken, async (req, res) => {
     try {
-        const playlists = await Playlist.findAll({
-            where: { userId: req.user.id },
-            include: [PlaylistTrack]
-        });
-        res.json(playlists);
-    } catch (e) { res.status(500).json({ error: 'Failed to fetch playlists' }); }
+        const playlists = await Playlist.find({ userId: req.user.id });
+        const result = await Promise.all(playlists.map(async (pl) => {
+            const tracks = await PlaylistTrack.find({ playlistId: pl._id });
+            return {
+                id: pl._id,
+                name: pl.name,
+                PlaylistTracks: tracks
+            };
+        }));
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to fetch playlists' });
+    }
 });
 
 app.post('/api/playlists', authenticateToken, async (req, res) => {
     try {
         const { name } = req.body;
         const playlist = await Playlist.create({ userId: req.user.id, name });
-        res.json(playlist);
-    } catch (e) { res.status(500).json({ error: 'Failed to create playlist' }); }
+        res.json({ id: playlist._id, name: playlist.name });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to create playlist' });
+    }
 });
 
 app.post('/api/playlists/:id/add', authenticateToken, async (req, res) => {
     try {
         const { trackId, trackName, image, previewUrl } = req.body;
-        const playlist = await Playlist.findOne({ where: { id: req.params.id, userId: req.user.id } });
+        const playlist = await Playlist.findOne({ _id: req.params.id, userId: req.user.id });
         if (!playlist) return res.status(404).json({ error: 'Playlist not found' });
 
         await PlaylistTrack.create({
-            playlistId: playlist.id, trackId, trackName, image, previewUrl
+            playlistId: playlist._id, trackId, trackName, image, previewUrl
         });
         res.json({ status: 'added' });
-    } catch (e) { res.status(500).json({ error: 'Failed to add track' }); }
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to add track' });
+    }
 });
 
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+// Delete Playlist
+app.delete('/api/playlists/:id', authenticateToken, async (req, res) => {
+    try {
+        const playlist = await Playlist.findOne({ _id: req.params.id, userId: req.user.id });
+        if (!playlist) return res.status(404).json({ error: 'Playlist not found' });
+
+        await PlaylistTrack.deleteMany({ playlistId: playlist._id });
+        await Playlist.deleteOne({ _id: playlist._id });
+        res.json({ status: 'deleted' });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to delete playlist' });
+    }
+});
+
+// Remove Track from Playlist
+app.delete('/api/playlists/:id/tracks/:trackId', authenticateToken, async (req, res) => {
+    try {
+        const result = await PlaylistTrack.deleteOne({
+            playlistId: req.params.id,
+            trackId: req.params.trackId
+        });
+        if (result.deletedCount === 0) return res.status(404).json({ error: 'Track not found' });
+        res.json({ status: 'removed' });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to remove track' });
+    }
+});
+
+app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));

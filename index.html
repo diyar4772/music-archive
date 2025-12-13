@@ -80,17 +80,61 @@
             class="hidden absolute right-0 top-12 bg-[#282828] w-56 rounded shadow-xl z-50 border border-gray-700">
             <button onclick="openProfileModal('likes')"
                 class="w-full text-left px-4 py-3 hover:bg-[#333] border-b border-gray-700 flex justify-between items-center">
-                Liked Songs <i class="fa-solid fa-heart text-green-500"></i>
+                <span data-lang="liked_songs">Beğenilen Şarkılar</span> <i class="fa-solid fa-heart text-green-500"></i>
             </button>
             <button onclick="openProfileModal('follows')"
                 class="w-full text-left px-4 py-3 hover:bg-[#333] border-b border-gray-700 flex justify-between items-center">
-                Following <i class="fa-solid fa-user text-blue-400"></i>
+                <span data-lang="following">Takip Edilenler</span> <i class="fa-solid fa-user text-blue-400"></i>
+            </button>
+            <button onclick="openProfileModal('playlists')"
+                class="w-full text-left px-4 py-3 hover:bg-[#333] border-b border-gray-700 flex justify-between items-center">
+                <span data-lang="playlists">Listelerim</span> <i class="fa-solid fa-music text-green-500"></i>
             </button>
             <button onclick="createPlaylist()"
                 class="w-full text-left px-4 py-3 hover:bg-[#333] border-b border-gray-700 flex justify-between items-center">
-                Create Playlist <i class="fa-solid fa-plus"></i>
+                <span data-lang="create_playlist">Liste Oluştur</span> <i class="fa-solid fa-plus"></i>
             </button>
-            <button onclick="logout()" class="w-full text-left px-4 py-3 hover:bg-[#333] text-red-400">Log Out</button>
+            <button onclick="openSettingsModal()"
+                class="w-full text-left px-4 py-3 hover:bg-[#333] border-b border-gray-700 flex justify-between items-center">
+                <span data-lang="settings">Ayarlar</span> <i class="fa-solid fa-gear text-gray-400"></i>
+            </button>
+            <button onclick="logout()" class="w-full text-left px-4 py-3 hover:bg-[#333] text-red-400">
+                <span data-lang="logout">Çıkış Yap</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal hidden fixed inset-0 bg-black/80 z-[70] flex items-center justify-center p-4">
+        <div class="bg-[#282828] w-full max-w-md rounded-2xl p-6 relative">
+            <button onclick="closeSettingsModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-times text-xl"></i>
+            </button>
+            <h2 class="text-2xl font-bold mb-6" data-lang="settings">Ayarlar</h2>
+
+            <div class="space-y-6">
+                <!-- Theme -->
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold" data-lang="theme">Tema</h3>
+                        <p class="text-xs text-gray-400" data-lang="theme_desc">Koyu/Açık mod değiştir</p>
+                    </div>
+                    <button onclick="toggleTheme()" class="bg-[#333] p-3 rounded-lg hover:bg-[#444] transition">
+                        <i id="themeIcon" class="fa-solid fa-moon text-yellow-400 text-xl"></i>
+                    </button>
+                </div>
+
+                <!-- Language -->
+                <div>
+                    <h3 class="font-bold mb-2" data-lang="language">Dil</h3>
+                    <select id="languageSelect" onchange="changeLanguage(this.value)"
+                        class="w-full bg-[#333] border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-green-500">
+                        <option value="tr">🇹🇷 Türkçe</option>
+                        <option value="en">🇬🇧 English</option>
+                        <option value="ku">🟢 Kurdî (Kurmancî)</option>
+                    </select>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -580,6 +624,34 @@
             const isFollowed = followedArtists.some(f => f.artistId === data.id);
             updateFollowBtn(isFollowed);
 
+            // External Links Section
+            let linksDiv = document.getElementById('artistLinks');
+            if (!linksDiv) {
+                linksDiv = document.createElement('div');
+                linksDiv.id = 'artistLinks';
+                linksDiv.className = 'flex gap-4 mt-4';
+                btn.parentElement.appendChild(linksDiv);
+            }
+            const encodedName = encodeURIComponent(data.name);
+            linksDiv.innerHTML = `
+                <a href="https://open.spotify.com/artist/${data.id}" target="_blank" 
+                   class="flex items-center gap-2 px-3 py-1.5 bg-[#1DB954] hover:bg-[#1ed760] text-black rounded-full text-xs font-bold transition">
+                    <i class="fa-brands fa-spotify"></i> Spotify
+                </a>
+                <a href="https://www.youtube.com/results?search_query=${encodedName}" target="_blank"
+                   class="flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-full text-xs font-bold transition">
+                    <i class="fa-brands fa-youtube"></i> YouTube
+                </a>
+                <a href="https://en.wikipedia.org/wiki/${encodedName.replace(/%20/g, '_')}" target="_blank"
+                   class="flex items-center gap-2 px-3 py-1.5 bg-gray-600 hover:bg-gray-500 text-white rounded-full text-xs font-bold transition">
+                    <i class="fa-brands fa-wikipedia-w"></i> Wiki
+                </a>
+                <a href="https://music.apple.com/search?term=${encodedName}" target="_blank"
+                   class="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-pink-500 to-orange-400 hover:opacity-90 text-white rounded-full text-xs font-bold transition">
+                    <i class="fa-brands fa-apple"></i> Apple
+                </a>
+            `;
+
             // Render Albums
             const grid = document.getElementById('albumsGrid');
             grid.innerHTML = '';
@@ -665,22 +737,90 @@
         }
 
 
+        let currentPlaylistId = null; // Store for track removal
+
         function openPlaylistDetails(playlist) {
+            currentPlaylistId = playlist.id;
             const modal = document.getElementById('detailsModal');
             modal.classList.remove('hidden');
             setTimeout(() => modal.classList.add('visible'), 10);
 
             document.getElementById('modalCover').src = 'https://via.placeholder.com/150/1DB954/FFFFFF?text=PL';
             document.getElementById('modalTitle').innerText = playlist.name;
-            document.getElementById('modalType').innerText = 'Custom Playlist';
+
+            // Add delete button to modal type area
+            const typeArea = document.getElementById('modalType');
+            typeArea.innerHTML = `
+                <span class="text-gray-400">Özel Liste</span>
+                <button onclick="deletePlaylist(${playlist.id})" class="ml-4 text-red-400 hover:text-red-300 text-xs">
+                    <i class="fa-solid fa-trash"></i> Listeyi Sil
+                </button>
+            `;
 
             const list = document.getElementById('modalTracks');
             list.innerHTML = '';
-            if (playlist.PlaylistTracks) {
+            if (playlist.PlaylistTracks && playlist.PlaylistTracks.length > 0) {
                 playlist.PlaylistTracks.forEach(pt => {
-                    list.appendChild(createTrackRow(pt, {}));
+                    const row = createTrackRowWithRemove(pt, playlist.id);
+                    list.appendChild(row);
                 });
+            } else {
+                list.innerHTML = '<p class="text-gray-500 text-center py-8">Bu listede henüz şarkı yok.</p>';
             }
+        }
+
+        function createTrackRowWithRemove(track, playlistId) {
+            const div = document.createElement('div');
+            div.className = 'flex items-center gap-4 p-3 hover:bg-white/10 rounded group';
+            div.id = `pl-track-${track.trackId}`;
+
+            const isLiked = likedTracks.some(t => t.trackId === track.trackId);
+
+            div.innerHTML = `
+                <div class="relative w-12 h-12 flex-shrink-0">
+                    <img src="${track.image || 'https://via.placeholder.com/48'}" class="w-full h-full rounded object-cover">
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="font-bold truncate ${isLiked ? 'text-green-500' : ''}">${track.trackName}</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleLike('${track.trackId}', '${(track.trackName || '').replace(/'/g, "\\'")}', '${track.image}', '${track.previewUrl}')" 
+                            class="${isLiked ? 'text-green-500' : 'text-gray-400 hover:text-white'} p-1" title="Beğen">
+                        <i class="${isLiked ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
+                    </button>
+                    <button onclick="removeFromPlaylist(${playlistId}, '${track.trackId}')" 
+                            class="text-red-400 hover:text-red-300 p-1" title="Listeden Kaldır">
+                        <i class="fa-solid fa-minus"></i>
+                    </button>
+                </div>
+            `;
+            return div;
+        }
+
+        async function deletePlaylist(playlistId) {
+            if (!confirm('Bu listeyi silmek istediğinize emin misiniz?')) return;
+
+            try {
+                await fetch(`${API_URL}/playlists/${playlistId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                closeDetailsModal();
+                fetchUserData();
+            } catch (e) { alert('Liste silinemedi'); }
+        }
+
+        async function removeFromPlaylist(playlistId, trackId) {
+            try {
+                await fetch(`${API_URL}/playlists/${playlistId}/tracks/${trackId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                // Remove from UI
+                const row = document.getElementById(`pl-track-${trackId}`);
+                if (row) row.remove();
+                fetchUserData(); // Refresh counts
+            } catch (e) { alert('Şarkı kaldırılamadı'); }
         }
 
         function openProfileModal(type) {
