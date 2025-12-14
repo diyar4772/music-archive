@@ -1082,8 +1082,13 @@
                     token = d.token; currentUser = d.username;
                     localStorage.setItem('userToken', token); localStorage.setItem('userUsername', currentUser);
                     closeAuthModal(); updateAuthUI(); fetchUserData();
-                } else alert(d.error);
-            } catch (e) { alert('Error'); }
+                } else {
+                    alert('Giriş Başarısız: ' + (d.error || 'Bilinmeyen Hata'));
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Bağlantı Hatası: ' + e.message + '\nLütfen internet bağlantınızı ve sunucu durumunu kontrol edin.');
+            }
         }
         function logout() { localStorage.clear(); location.reload(); }
         function updateFollowBtn(isFollowing) {
