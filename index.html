@@ -300,6 +300,9 @@
         let albumFollows = [];
         let playlists = [];
         let searchType = 'artist'; // 'artist' or 'track'
+        let currentAudio = null;
+        let playingTrackId = null;
+        let tempTrackToAdd = null;
 
         // Settings Data
         const translations = {
