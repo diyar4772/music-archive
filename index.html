@@ -280,12 +280,14 @@
     </div>
 
     <!-- Add to Playlist Modal -->
-    <div id="addToPlaylistModal" class="modal hidden fixed inset-0 bg-black/90 flex justify-center items-center z-[80]">
-        <div class="bg-gray-800 p-6 rounded-lg w-full max-w-sm">
-            <h3 class="text-xl font-bold mb-4">Add to Playlist</h3>
+    <div id="addToPlaylistModal" class="modal hidden fixed inset-0 bg-black/90 flex justify-center items-center z-[80]"
+        onclick="this.classList.add('hidden'); this.classList.remove('visible');">
+        <div class="bg-gray-800 p-6 rounded-lg w-full max-w-sm" onclick="event.stopPropagation();">
+            <h3 class="text-xl font-bold mb-4">Listeye Ekle</h3>
             <div id="playlistOptions" class="space-y-2 max-h-60 overflow-y-auto mb-4"></div>
-            <button onclick="closePlaylistModal()"
-                class="w-full py-2 bg-gray-700 rounded text-gray-300 hover:bg-gray-600">İptal</button>
+            <button
+                onclick="document.getElementById('addToPlaylistModal').classList.add('hidden'); document.getElementById('addToPlaylistModal').classList.remove('visible');"
+                class="w-full py-2 bg-gray-700 rounded text-gray-300 hover:bg-gray-600 transition">İptal</button>
         </div>
     </div>
 
@@ -970,23 +972,44 @@
 
         async function saveToPlaylist(plId) {
             try {
-                await fetch(`${API_URL}/playlists/${plId}/add`, {
+                const res = await fetch(`${API_URL}/playlists/${plId}/add`, {
                     method: 'POST', body: JSON.stringify(tempTrackToAdd),
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
                 });
-                closePlaylistModal();
-                alert('Listeye eklendi!');
+
+                // Modal'ı kapat
+                const modal = document.getElementById('addToPlaylistModal');
+                modal.classList.add('hidden');
+                modal.classList.remove('visible');
+
+                // Başarı bildirimi göster
+                showToast('✅ Listeye eklendi!');
                 fetchUserData(); // Refresh playlists
             } catch (e) {
                 console.error(e);
-                alert('Listeye eklenirken hata oluştu');
+                showToast('❌ Listeye eklenirken hata oluştu');
             }
         }
 
         function closePlaylistModal() {
             const modal = document.getElementById('addToPlaylistModal');
+            modal.classList.add('hidden');
             modal.classList.remove('visible');
-            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        // Toast bildirim sistemi
+        function showToast(message) {
+            // Varsa eski toast'ı kaldır
+            const oldToast = document.getElementById('toast');
+            if (oldToast) oldToast.remove();
+
+            const toast = document.createElement('div');
+            toast.id = 'toast';
+            toast.className = 'fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg z-[100] animate-pulse';
+            toast.innerText = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => toast.remove(), 3000);
         }
 
         async function toggleLike(id, name, img, prev) {
