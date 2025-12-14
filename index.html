@@ -600,6 +600,15 @@
 
             try {
                 const res = await fetch(`${API_URL}/search?artist=${encodeURIComponent(query)}&type=${searchType === 'artist' ? 'simple' : 'track'}`);
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        throw new Error(errorJson.error || `Sunucu Hatası (${res.status})`);
+                    } catch (parseError) {
+                        throw new Error(`Sunucu Hatası (${res.status}): ${res.statusText}`);
+                    }
+                }
                 const data = await res.json();
 
                 if (searchType === 'artist') {
@@ -608,7 +617,11 @@
                 } else {
                     renderTrackResults(data);
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error(e);
+                alert('Arama başarısız: ' + e.message + '\nLütfen Render panelinden API anahtarlarınızı (SPOTIFY_CLIENT_ID vs.) kontrol edin.');
+                showDashboard();
+            }
         }
 
         function renderArtistPage(data) {
