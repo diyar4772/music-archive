@@ -5,16 +5,50 @@ const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const { body, validationResult } = require('express-validator');
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_music_key';
+
+// 🔒 SECURITY: Strong JWT Secret with fallback warning
+const JWT_SECRET = process.env.JWT_SECRET || (() => {
+    console.warn('⚠️ WARNING: Using default JWT_SECRET! Set a strong secret in .env for production!');
+    return 'super_secret_music_key_CHANGE_ME_IN_PRODUCTION_' + Date.now();
+})();
+
+// 🔒 SECURITY: Admin credentials (change in production!)
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+
+// 🔒 SECURITY: Helmet for secure HTTP headers
+app.use(helmet({
+    contentSecurityPolicy: false, // Disable for CDN scripts
+    crossOriginEmbedderPolicy: false
+}));
+
+// 🔒 SECURITY: Rate limiting for auth endpoints
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // 10 attempts per window
+    message: { error: 'Too many login attempts. Please try again after 15 minutes.' },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
+const generalLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 100, // 100 requests per minute
+    message: { error: 'Too many requests. Please slow down.' }
+});
 
 app.use(cors());
 app.use(express.static('.'));
-app.use(express.json());
+app.use(express.json({ limit: '5mb' })); // Limit payload size
+app.use(generalLimiter);
 
 // --- In-Memory Fallback Database ---
 let useInMemory = false;
@@ -48,8 +82,11 @@ if (process.env.MONGO_URI) {
 
 // --- Mongoose Schemas ---
 const userSchema = new mongoose.Schema({
-    username: { type: String, unique: true, required: true },
-    password: { type: String, required: true }
+    username: { type: String, unique: true, required: true, minlength: 3, maxlength: 30 },
+    password: { type: String, required: true },
+    isAdmin: { type: Boolean, default: false },
+    lastLogin: { type: Date, default: null },
+    loginCount: { type: Number, default: 0 }
 }, { timestamps: true });
 
 const followSchema = new mongoose.Schema({
@@ -130,52 +167,88 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
+// --- Input Validation Helpers ---
+const validateUsername = body('username')
+    .trim()
+    .isLength({ min: 3, max: 30 }).withMessage('Username must be 3-30 characters')
+    .matches(/^[a-zA-Z0-9_]+$/).withMessage('Username can only contain letters, numbers, and underscores')
+    .escape();
+
+const validatePassword = body('password')
+    .isLength({ min: 6, max: 100 }).withMessage('Password must be at least 6 characters');
+
 // --- Routes: Auth ---
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', authLimiter, [validateUsername, validatePassword], async (req, res) => {
     try {
+        // Check validation errors
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ error: errors.array()[0].msg });
+        }
+
         const { username, password } = req.body;
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const hashedPassword = await bcrypt.hash(password, 12); // Increased from 10 to 12
 
         if (useInMemory) {
             // In-memory registration
-            if (inMemoryDB.users.find(u => u.username === username)) {
-                return res.status(400).json({ error: 'Username likely taken' });
+            if (inMemoryDB.users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
+                return res.status(400).json({ error: 'Username already taken' });
             }
             const userId = generateId();
-            inMemoryDB.users.push({ _id: userId, username, password: hashedPassword });
-            const token = jwt.sign({ id: userId, username }, JWT_SECRET);
+            inMemoryDB.users.push({ _id: userId, username, password: hashedPassword, createdAt: new Date(), isAdmin: false });
+            const token = jwt.sign({ id: userId, username }, JWT_SECRET, { expiresIn: '7d' });
             return res.json({ token, username });
+        }
+
+        // Check if username exists (case-insensitive)
+        const existingUser = await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } });
+        if (existingUser) {
+            return res.status(400).json({ error: 'Username already taken' });
         }
 
         const user = await User.create({ username, password: hashedPassword });
-        const token = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET);
+        const token = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
         res.json({ token, username });
     } catch (e) {
-        res.status(400).json({ error: 'Username likely taken' });
+        console.error('Registration error:', e.message);
+        res.status(400).json({ error: 'Registration failed. Please try again.' });
     }
 });
 
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', authLimiter, async (req, res) => {
     try {
         const { username, password } = req.body;
 
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Username and password are required' });
+        }
+
         if (useInMemory) {
             // In-memory login
-            const user = inMemoryDB.users.find(u => u.username === username);
+            const user = inMemoryDB.users.find(u => u.username.toLowerCase() === username.toLowerCase());
             if (!user || !(await bcrypt.compare(password, user.password))) {
                 return res.status(401).json({ error: 'Invalid credentials' });
             }
-            const token = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET);
-            return res.json({ token, username });
+            user.lastLogin = new Date();
+            user.loginCount = (user.loginCount || 0) + 1;
+            const token = jwt.sign({ id: user._id, username: user.username, isAdmin: user.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
+            return res.json({ token, username: user.username });
         }
 
-        const user = await User.findOne({ username });
+        const user = await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } });
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
-        const token = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET);
-        res.json({ token, username });
+
+        // Update login stats
+        user.lastLogin = new Date();
+        user.loginCount = (user.loginCount || 0) + 1;
+        await user.save();
+
+        const token = jwt.sign({ id: user._id, username: user.username, isAdmin: user.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
+        res.json({ token, username: user.username });
     } catch (e) {
+        console.error('Login error:', e.message);
         res.status(500).json({ error: 'Login failed' });
     }
 });
@@ -591,5 +664,224 @@ app.put('/api/playlists/:id/cover', authenticateToken, async (req, res) => {
     }
 });
 
-app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+// ============================================
+// 🔒 ADMIN ROUTES - User Management
+// ============================================
 
+// Admin authentication middleware
+const authenticateAdmin = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+
+    // Check for Basic Auth (admin:password)
+    if (authHeader && authHeader.startsWith('Basic ')) {
+        const base64Credentials = authHeader.split(' ')[1];
+        const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
+        const [username, password] = credentials.split(':');
+
+        if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+            return next();
+        }
+    }
+
+    // Check for JWT with admin flag
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        try {
+            const decoded = jwt.verify(token, JWT_SECRET);
+            if (decoded.isAdmin) {
+                req.user = decoded;
+                return next();
+            }
+        } catch (e) { }
+    }
+
+    res.status(403).json({ error: 'Admin access required' });
+};
+
+// 📊 Get all users with stats
+app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
+    try {
+        if (useInMemory) {
+            const users = inMemoryDB.users.map(u => ({
+                id: u._id,
+                username: u.username,
+                createdAt: u.createdAt,
+                lastLogin: u.lastLogin,
+                loginCount: u.loginCount || 0,
+                isAdmin: u.isAdmin || false,
+                likesCount: inMemoryDB.likes.filter(l => l.userId === u._id).length,
+                followsCount: inMemoryDB.follows.filter(f => f.userId === u._id).length,
+                playlistsCount: inMemoryDB.playlists.filter(p => p.userId === u._id).length
+            }));
+            return res.json({ total: users.length, users });
+        }
+
+        const users = await User.find({}, '-password').sort({ createdAt: -1 });
+        const userStats = await Promise.all(users.map(async (user) => {
+            const [likesCount, followsCount, albumFollowsCount, playlistsCount] = await Promise.all([
+                Like.countDocuments({ userId: user._id }),
+                Follow.countDocuments({ userId: user._id }),
+                AlbumFollow.countDocuments({ userId: user._id }),
+                Playlist.countDocuments({ userId: user._id })
+            ]);
+            return {
+                id: user._id,
+                username: user.username,
+                createdAt: user.createdAt,
+                lastLogin: user.lastLogin,
+                loginCount: user.loginCount || 0,
+                isAdmin: user.isAdmin || false,
+                likesCount,
+                followsCount,
+                albumFollowsCount,
+                playlistsCount
+            };
+        }));
+
+        res.json({ total: userStats.length, users: userStats });
+    } catch (e) {
+        console.error('Admin users error:', e.message);
+        res.status(500).json({ error: 'Failed to fetch users' });
+    }
+});
+
+// 📊 Get specific user's activity
+app.get('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        if (useInMemory) {
+            const user = inMemoryDB.users.find(u => u._id === userId);
+            if (!user) return res.status(404).json({ error: 'User not found' });
+
+            return res.json({
+                user: { id: user._id, username: user.username, createdAt: user.createdAt, lastLogin: user.lastLogin },
+                likes: inMemoryDB.likes.filter(l => l.userId === userId),
+                follows: inMemoryDB.follows.filter(f => f.userId === userId),
+                playlists: inMemoryDB.playlists.filter(p => p.userId === userId).map(p => ({
+                    ...p,
+                    tracks: inMemoryDB.playlistTracks.filter(t => t.playlistId === p._id)
+                }))
+            });
+        }
+
+        const user = await User.findById(userId, '-password');
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        const [likes, follows, albumFollows, playlists] = await Promise.all([
+            Like.find({ userId }),
+            Follow.find({ userId }),
+            AlbumFollow.find({ userId }),
+            Playlist.find({ userId })
+        ]);
+
+        const playlistsWithTracks = await Promise.all(playlists.map(async (pl) => {
+            const tracks = await PlaylistTrack.find({ playlistId: pl._id });
+            return { ...pl.toObject(), tracks };
+        }));
+
+        res.json({
+            user: {
+                id: user._id,
+                username: user.username,
+                createdAt: user.createdAt,
+                lastLogin: user.lastLogin,
+                loginCount: user.loginCount
+            },
+            likes,
+            follows,
+            albumFollows,
+            playlists: playlistsWithTracks
+        });
+    } catch (e) {
+        console.error('Admin user detail error:', e.message);
+        res.status(500).json({ error: 'Failed to fetch user details' });
+    }
+});
+
+// 📊 Get system stats
+app.get('/api/admin/stats', authenticateAdmin, async (req, res) => {
+    try {
+        if (useInMemory) {
+            return res.json({
+                totalUsers: inMemoryDB.users.length,
+                totalLikes: inMemoryDB.likes.length,
+                totalFollows: inMemoryDB.follows.length,
+                totalPlaylists: inMemoryDB.playlists.length,
+                totalPlaylistTracks: inMemoryDB.playlistTracks.length,
+                recentUsers: inMemoryDB.users.slice(-5).reverse()
+            });
+        }
+
+        const [totalUsers, totalLikes, totalFollows, totalAlbumFollows, totalPlaylists] = await Promise.all([
+            User.countDocuments(),
+            Like.countDocuments(),
+            Follow.countDocuments(),
+            AlbumFollow.countDocuments(),
+            Playlist.countDocuments()
+        ]);
+
+        const recentUsers = await User.find({}, 'username createdAt lastLogin').sort({ createdAt: -1 }).limit(5);
+
+        res.json({
+            totalUsers,
+            totalLikes,
+            totalFollows,
+            totalAlbumFollows,
+            totalPlaylists,
+            recentUsers
+        });
+    } catch (e) {
+        console.error('Admin stats error:', e.message);
+        res.status(500).json({ error: 'Failed to fetch stats' });
+    }
+});
+
+// 🗑️ Delete user (admin only)
+app.delete('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        if (useInMemory) {
+            const userIdx = inMemoryDB.users.findIndex(u => u._id === userId);
+            if (userIdx === -1) return res.status(404).json({ error: 'User not found' });
+
+            // Delete all user data
+            inMemoryDB.users.splice(userIdx, 1);
+            inMemoryDB.likes = inMemoryDB.likes.filter(l => l.userId !== userId);
+            inMemoryDB.follows = inMemoryDB.follows.filter(f => f.userId !== userId);
+            inMemoryDB.albumFollows = inMemoryDB.albumFollows.filter(a => a.userId !== userId);
+            const userPlaylists = inMemoryDB.playlists.filter(p => p.userId === userId);
+            userPlaylists.forEach(p => {
+                inMemoryDB.playlistTracks = inMemoryDB.playlistTracks.filter(t => t.playlistId !== p._id);
+            });
+            inMemoryDB.playlists = inMemoryDB.playlists.filter(p => p.userId !== userId);
+
+            return res.json({ status: 'deleted' });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        // Delete all user data
+        await Promise.all([
+            Like.deleteMany({ userId }),
+            Follow.deleteMany({ userId }),
+            AlbumFollow.deleteMany({ userId }),
+            PlaylistTrack.deleteMany({ playlistId: { $in: await Playlist.find({ userId }).distinct('_id') } }),
+            Playlist.deleteMany({ userId }),
+            User.findByIdAndDelete(userId)
+        ]);
+
+        res.json({ status: 'deleted', username: user.username });
+    } catch (e) {
+        console.error('Admin delete user error:', e.message);
+        res.status(500).json({ error: 'Failed to delete user' });
+    }
+});
+
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`🔒 Admin panel: http://localhost:${PORT}/admin.html`);
+    console.log(`📊 Admin API: /api/admin/users, /api/admin/stats`);
+});

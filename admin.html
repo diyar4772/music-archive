@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Music Library</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .stat-card {
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .user-row:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen text-white p-6">
+    <!-- Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+        <div class="glass p-8 rounded-2xl w-full max-w-sm">
+            <div class="text-center mb-6">
+                <div
+                    class="w-16 h-16 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-shield-halved text-2xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold">Admin Girişi</h2>
+                <p class="text-gray-400 text-sm">Yönetim paneline erişmek için giriş yapın</p>
+            </div>
+            <input type="text" id="adminUser" placeholder="Admin Kullanıcı Adı" value="admin"
+                class="w-full bg-white/10 border border-white/20 p-3 rounded-lg mb-3 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500">
+            <input type="password" id="adminPass" placeholder="Admin Şifresi"
+                class="w-full bg-white/10 border border-white/20 p-3 rounded-lg mb-4 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500">
+            <button onclick="login()"
+                class="w-full bg-gradient-to-r from-blue-500 to-purple-600 py-3 rounded-lg font-bold hover:opacity-90 transition">
+                <i class="fa-solid fa-right-to-bracket mr-2"></i>Giriş Yap
+            </button>
+            <p id="loginError" class="text-red-400 text-sm text-center mt-3 hidden"></p>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="mainContent" class="hidden max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-bold">🔐 Admin Panel</h1>
+                <p class="text-gray-400">Music Library Yönetim Sistemi</p>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="loadStats()" class="glass px-4 py-2 rounded-lg hover:bg-white/10 transition">
+                    <i class="fa-solid fa-rotate mr-2"></i>Yenile
+                </button>
+                <button onclick="logout()"
+                    class="bg-red-500/20 border border-red-500/50 px-4 py-2 rounded-lg text-red-400 hover:bg-red-500/30 transition">
+                    <i class="fa-solid fa-power-off mr-2"></i>Çıkış
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+            <div class="stat-card glass p-5 rounded-xl text-center">
+                <i class="fa-solid fa-users text-3xl text-blue-400 mb-2"></i>
+                <p class="text-3xl font-bold" id="statUsers">-</p>
+                <p class="text-gray-400 text-sm">Kullanıcı</p>
+            </div>
+            <div class="stat-card glass p-5 rounded-xl text-center">
+                <i class="fa-solid fa-heart text-3xl text-pink-400 mb-2"></i>
+                <p class="text-3xl font-bold" id="statLikes">-</p>
+                <p class="text-gray-400 text-sm">Beğeni</p>
+            </div>
+            <div class="stat-card glass p-5 rounded-xl text-center">
+                <i class="fa-solid fa-user-plus text-3xl text-green-400 mb-2"></i>
+                <p class="text-3xl font-bold" id="statFollows">-</p>
+                <p class="text-gray-400 text-sm">Takip</p>
+            </div>
+            <div class="stat-card glass p-5 rounded-xl text-center">
+                <i class="fa-solid fa-compact-disc text-3xl text-purple-400 mb-2"></i>
+                <p class="text-3xl font-bold" id="statAlbums">-</p>
+                <p class="text-gray-400 text-sm">Albüm Takip</p>
+            </div>
+            <div class="stat-card glass p-5 rounded-xl text-center">
+                <i class="fa-solid fa-list-ul text-3xl text-yellow-400 mb-2"></i>
+                <p class="text-3xl font-bold" id="statPlaylists">-</p>
+                <p class="text-gray-400 text-sm">Playlist</p>
+            </div>
+        </div>
+
+        <!-- Users Table -->
+        <div class="glass rounded-2xl overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-600/30 to-purple-600/30 p-4 border-b border-white/10">
+                <h2 class="text-xl font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-users"></i>
+                    Kayıtlı Kullanıcılar
+                </h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-white/5">
+                        <tr class="text-left text-gray-400 text-sm">
+                            <th class="p-4">Kullanıcı</th>
+                            <th class="p-4">Kayıt Tarihi</th>
+                            <th class="p-4">Son Giriş</th>
+                            <th class="p-4">Giriş Sayısı</th>
+                            <th class="p-4">Beğeniler</th>
+                            <th class="p-4">Takipler</th>
+                            <th class="p-4">Playlistler</th>
+                            <th class="p-4">İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTable" class="divide-y divide-white/5">
+                        <tr>
+                            <td colspan="8" class="p-8 text-center text-gray-500 pulse">Yükleniyor...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- User Detail Modal -->
+        <div id="userDetailModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div class="glass w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl">
+                <div
+                    class="bg-gradient-to-r from-green-600/30 to-emerald-600/30 p-4 flex justify-between items-center sticky top-0">
+                    <h3 class="text-xl font-bold" id="detailUsername">Kullanıcı Detayları</h3>
+                    <button onclick="closeUserDetail()" class="text-gray-400 hover:text-white">
+                        <i class="fa-solid fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6" id="userDetailContent">
+                    <!-- Content loaded dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let authHeader = '';
+
+        function login() {
+            const user = document.getElementById('adminUser').value;
+            const pass = document.getElementById('adminPass').value;
+
+            authHeader = 'Basic ' + btoa(user + ':' + pass);
+
+            // Test auth by fetching stats
+            fetch('/api/admin/stats', { headers: { 'Authorization': authHeader } })
+                .then(r => {
+                    if (r.ok) {
+                        document.getElementById('loginModal').classList.add('hidden');
+                        document.getElementById('mainContent').classList.remove('hidden');
+                        loadStats();
+                        loadUsers();
+                    } else {
+                        document.getElementById('loginError').textContent = 'Geçersiz kullanıcı adı veya şifre';
+                        document.getElementById('loginError').classList.remove('hidden');
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('loginError').textContent = 'Sunucuya bağlanılamıyor';
+                    document.getElementById('loginError').classList.remove('hidden');
+                });
+        }
+
+        function logout() {
+            authHeader = '';
+            document.getElementById('loginModal').classList.remove('hidden');
+            document.getElementById('mainContent').classList.add('hidden');
+            document.getElementById('adminPass').value = '';
+        }
+
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/admin/stats', { headers: { 'Authorization': authHeader } });
+                const data = await res.json();
+
+                document.getElementById('statUsers').textContent = data.totalUsers || 0;
+                document.getElementById('statLikes').textContent = data.totalLikes || 0;
+                document.getElementById('statFollows').textContent = data.totalFollows || 0;
+                document.getElementById('statAlbums').textContent = data.totalAlbumFollows || 0;
+                document.getElementById('statPlaylists').textContent = data.totalPlaylists || 0;
+            } catch (e) {
+                console.error('Stats load error:', e);
+            }
+        }
+
+        async function loadUsers() {
+            try {
+                const res = await fetch('/api/admin/users', { headers: { 'Authorization': authHeader } });
+                const data = await res.json();
+
+                const tbody = document.getElementById('usersTable');
+
+                if (!data.users || data.users.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-gray-500">Henüz kullanıcı yok</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.users.map(user => `
+                    <tr class="user-row transition cursor-pointer" onclick="viewUserDetail('${user.id}')">
+                        <td class="p-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center font-bold">
+                                    ${user.username[0].toUpperCase()}
+                                </div>
+                                <div>
+                                    <p class="font-bold">${escapeHtml(user.username)}</p>
+                                    ${user.isAdmin ? '<span class="text-xs bg-red-500/30 text-red-400 px-2 py-0.5 rounded">Admin</span>' : ''}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="p-4 text-gray-400 text-sm">${formatDate(user.createdAt)}</td>
+                        <td class="p-4 text-gray-400 text-sm">${user.lastLogin ? formatDate(user.lastLogin) : 'Hiç giriş yapmadı'}</td>
+                        <td class="p-4">${user.loginCount || 0}</td>
+                        <td class="p-4"><span class="bg-pink-500/20 text-pink-400 px-2 py-1 rounded">${user.likesCount || 0}</span></td>
+                        <td class="p-4"><span class="bg-green-500/20 text-green-400 px-2 py-1 rounded">${user.followsCount || 0}</span></td>
+                        <td class="p-4"><span class="bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded">${user.playlistsCount || 0}</span></td>
+                        <td class="p-4">
+                            <button onclick="event.stopPropagation(); deleteUser('${user.id}', '${escapeHtml(user.username)}')" 
+                                class="text-red-400 hover:text-red-300 p-2" title="Kullanıcıyı Sil">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('Users load error:', e);
+                document.getElementById('usersTable').innerHTML = '<tr><td colspan="8" class="p-8 text-center text-red-400">Kullanıcılar yüklenemedi</td></tr>';
+            }
+        }
+
+        async function viewUserDetail(userId) {
+            try {
+                const res = await fetch(`/api/admin/users/${userId}`, { headers: { 'Authorization': authHeader } });
+                const data = await res.json();
+
+                document.getElementById('detailUsername').textContent = `📊 ${data.user.username} - Detaylar`;
+
+                const content = document.getElementById('userDetailContent');
+                content.innerHTML = `
+                    <div class="grid md:grid-cols-2 gap-6 mb-6">
+                        <div class="glass p-4 rounded-xl">
+                            <h4 class="font-bold text-lg mb-3"><i class="fa-solid fa-user text-blue-400 mr-2"></i>Kullanıcı Bilgileri</h4>
+                            <p class="text-gray-400">ID: <span class="text-white">${data.user.id}</span></p>
+                            <p class="text-gray-400">Kullanıcı Adı: <span class="text-white">${escapeHtml(data.user.username)}</span></p>
+                            <p class="text-gray-400">Kayıt: <span class="text-white">${formatDate(data.user.createdAt)}</span></p>
+                            <p class="text-gray-400">Son Giriş: <span class="text-white">${data.user.lastLogin ? formatDate(data.user.lastLogin) : 'Hiç'}</span></p>
+                            <p class="text-gray-400">Toplam Giriş: <span class="text-white">${data.user.loginCount || 0}</span></p>
+                        </div>
+                        <div class="glass p-4 rounded-xl">
+                            <h4 class="font-bold text-lg mb-3"><i class="fa-solid fa-chart-bar text-green-400 mr-2"></i>İstatistikler</h4>
+                            <p class="text-gray-400">Beğenilen Şarkılar: <span class="text-pink-400 font-bold">${data.likes?.length || 0}</span></p>
+                            <p class="text-gray-400">Takip Edilen Sanatçılar: <span class="text-green-400 font-bold">${data.follows?.length || 0}</span></p>
+                            <p class="text-gray-400">Takip Edilen Albümler: <span class="text-purple-400 font-bold">${data.albumFollows?.length || 0}</span></p>
+                            <p class="text-gray-400">Playlistler: <span class="text-yellow-400 font-bold">${data.playlists?.length || 0}</span></p>
+                        </div>
+                    </div>
+                    
+                    ${data.likes?.length ? `
+                    <div class="mb-6">
+                        <h4 class="font-bold text-lg mb-3"><i class="fa-solid fa-heart text-pink-400 mr-2"></i>Beğenilen Şarkılar (${data.likes.length})</h4>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            ${data.likes.slice(0, 8).map(l => `
+                                <div class="glass p-3 rounded-lg flex items-center gap-3">
+                                    <img src="${l.image || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded object-cover">
+                                    <span class="text-sm truncate">${escapeHtml(l.trackName || 'Unknown')}</span>
+                                </div>
+                            `).join('')}
+                            ${data.likes.length > 8 ? `<div class="glass p-3 rounded-lg flex items-center justify-center text-gray-400">+${data.likes.length - 8} daha</div>` : ''}
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    ${data.follows?.length ? `
+                    <div class="mb-6">
+                        <h4 class="font-bold text-lg mb-3"><i class="fa-solid fa-user-plus text-green-400 mr-2"></i>Takip Edilen Sanatçılar (${data.follows.length})</h4>
+                        <div class="flex flex-wrap gap-3">
+                            ${data.follows.map(f => `
+                                <div class="glass px-4 py-2 rounded-full flex items-center gap-2">
+                                    <img src="${f.image || 'https://via.placeholder.com/24'}" class="w-6 h-6 rounded-full object-cover">
+                                    <span>${escapeHtml(f.artistName || 'Unknown')}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    ${data.playlists?.length ? `
+                    <div>
+                        <h4 class="font-bold text-lg mb-3"><i class="fa-solid fa-list-ul text-yellow-400 mr-2"></i>Playlistler (${data.playlists.length})</h4>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            ${data.playlists.map(p => `
+                                <div class="glass p-4 rounded-xl">
+                                    <p class="font-bold">${escapeHtml(p.name)}</p>
+                                    <p class="text-sm text-gray-400">${p.tracks?.length || 0} şarkı</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+                `;
+
+                document.getElementById('userDetailModal').classList.remove('hidden');
+            } catch (e) {
+                console.error('User detail error:', e);
+                alert('Kullanıcı detayları yüklenemedi');
+            }
+        }
+
+        function closeUserDetail() {
+            document.getElementById('userDetailModal').classList.add('hidden');
+        }
+
+        async function deleteUser(userId, username) {
+            if (!confirm(`"${username}" kullanıcısını silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz ve tüm kullanıcı verileri silinecektir!`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/admin/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': authHeader }
+                });
+
+                if (res.ok) {
+                    alert(`"${username}" kullanıcısı başarıyla silindi`);
+                    loadStats();
+                    loadUsers();
+                } else {
+                    const data = await res.json();
+                    alert('Hata: ' + (data.error || 'Kullanıcı silinemedi'));
+                }
+            } catch (e) {
+                console.error('Delete error:', e);
+                alert('Kullanıcı silinirken bir hata oluştu');
+            }
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('tr-TR', {
+                year: 'numeric', month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Enter key for login
+        document.getElementById('adminPass').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') login();
+        });
+    </script>
+</body>
+
+</html>
