@@ -24,6 +24,9 @@ const JWT_SECRET = process.env.JWT_SECRET || (() => {
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
+// 🔒 SECURITY: Trust proxy for Render.com (required for rate limiting behind proxy)
+app.set('trust proxy', 1);
+
 // 🔒 SECURITY: Helmet for secure HTTP headers
 app.use(helmet({
     contentSecurityPolicy: false, // Disable for CDN scripts
