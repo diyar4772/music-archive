@@ -188,10 +188,20 @@ app.get('/api/search', async (req, res) => {
         if (!artist) return res.status(400).json({ error: 'Missing query' });
 
         const token = await getSpotifyToken();
-        const searchType = type === 'track' ? 'track' : 'artist';
-        const searchLimit = type === 'track' ? 10 : 5;
 
-        const searchResp = await axios.get(`https://api.spotify.com/v1/search?q=${encodeURIComponent(artist)}&type=${searchType}&limit=${searchLimit}`, {
+        // Determine search type based on request
+        let spotifyType = 'artist';
+        let searchLimit = 5;
+
+        if (type === 'track') {
+            spotifyType = 'track';
+            searchLimit = 10;
+        } else if (type === 'album') {
+            spotifyType = 'album';
+            searchLimit = 10;
+        }
+
+        const searchResp = await axios.get(`https://api.spotify.com/v1/search?q=${encodeURIComponent(artist)}&type=${spotifyType}&limit=${searchLimit}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -214,8 +224,21 @@ app.get('/api/search', async (req, res) => {
             });
         }
 
-        if (searchType === 'track') {
-            res.json(searchResp.data.tracks.items.map(t => ({
+        // Album search results
+        if (type === 'album') {
+            return res.json(searchResp.data.albums.items.map(a => ({
+                id: a.id,
+                name: a.name,
+                artist: a.artists[0]?.name || 'Unknown',
+                image: a.images[0]?.url,
+                year: a.release_date?.split('-')[0] || '',
+                totalTracks: a.total_tracks
+            })));
+        }
+
+        // Track search results
+        if (type === 'track') {
+            return res.json(searchResp.data.tracks.items.map(t => ({
                 id: t.id,
                 name: t.name,
                 artist: t.artists[0].name,
@@ -223,14 +246,15 @@ app.get('/api/search', async (req, res) => {
                 preview_url: t.preview_url,
                 duration_ms: t.duration_ms
             })));
-        } else {
-            res.json(searchResp.data.artists.items.map(a => ({
-                id: a.id,
-                name: a.name,
-                image: a.images[0]?.url || null,
-                genres: a.genres.slice(0, 2).join(', ')
-            })));
         }
+
+        // Artist search results (default)
+        res.json(searchResp.data.artists.items.map(a => ({
+            id: a.id,
+            name: a.name,
+            image: a.images[0]?.url || null,
+            genres: a.genres.slice(0, 2).join(', ')
+        })));
     } catch (e) {
         res.status(500).json({ error: e.message });
     }

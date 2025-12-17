@@ -151,11 +151,13 @@
         <div id="autocompleteList" class="autocomplete-list hidden"></div>
 
         <!-- Filter Chips -->
-        <div class="flex gap-2 mt-4 justify-center">
+        <div class="flex gap-2 mt-4 justify-center flex-wrap">
             <button onclick="setSearchType('artist')" id="type-artist"
                 class="px-3 py-1 bg-[#282828] rounded-full text-sm font-medium hover:bg-[#333] ring-1 ring-transparent focus:ring-green-500 transition text-green-500">Musicians</button>
             <button onclick="setSearchType('track')" id="type-track"
                 class="px-3 py-1 bg-[#282828] rounded-full text-sm font-medium hover:bg-[#333] ring-1 ring-transparent focus:ring-green-500 transition">Songs</button>
+            <button onclick="setSearchType('album')" id="type-album"
+                class="px-3 py-1 bg-[#282828] rounded-full text-sm font-medium hover:bg-[#333] ring-1 ring-transparent focus:ring-green-500 transition">Albums</button>
         </div>
     </div>
 
@@ -695,6 +697,7 @@
             searchType = type;
             document.getElementById('type-artist').classList.toggle('text-green-500', type === 'artist');
             document.getElementById('type-track').classList.toggle('text-green-500', type === 'track');
+            document.getElementById('type-album').classList.toggle('text-green-500', type === 'album');
         }
 
         async function performSearch(overrideQuery) {
@@ -707,7 +710,12 @@
             document.getElementById('trackResults').classList.add('hidden');
 
             try {
-                const res = await fetch(`${API_URL}/search?artist=${encodeURIComponent(query)}&type=${searchType === 'artist' ? 'simple' : 'track'}`);
+                // Determine API type parameter
+                let apiType = 'simple';
+                if (searchType === 'track') apiType = 'track';
+                else if (searchType === 'album') apiType = 'album';
+
+                const res = await fetch(`${API_URL}/search?artist=${encodeURIComponent(query)}&type=${apiType}`);
                 if (!res.ok) {
                     const errorText = await res.text();
                     try {
@@ -722,12 +730,14 @@
                 if (searchType === 'artist') {
                     if (data.error) throw new Error(data.error);
                     renderArtistPage(data);
+                } else if (searchType === 'album') {
+                    renderAlbumResults(data);
                 } else {
                     renderTrackResults(data);
                 }
             } catch (e) {
                 console.error(e);
-                alert('Arama başarısız: ' + e.message + '\nLütfen Render panelinden API anahtarlarınızı (SPOTIFY_CLIENT_ID vs.) kontrol edin.');
+                showToast('❌ Arama başarısız: ' + e.message);
                 showDashboard();
             }
         }
@@ -802,6 +812,44 @@
             tracks.forEach(t => {
                 container.appendChild(createTrackRow(t, { artistName: t.artist }));
             });
+        }
+
+        function renderAlbumResults(albums) {
+            const container = document.getElementById('trackResults');
+            container.classList.remove('hidden');
+            container.innerHTML = '<h3 class="text-xl font-bold mb-4">Albums</h3>';
+
+            if (albums.length === 0) {
+                container.innerHTML += '<p class="text-gray-400">No albums found.</p>';
+                return;
+            }
+
+            const grid = document.createElement('div');
+            grid.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4';
+
+            albums.forEach(album => {
+                const isFollowed = albumFollows.some(a => a.albumId === album.id);
+                const card = document.createElement('div');
+                card.className = 'bg-gray-800 p-3 rounded-lg hover:bg-gray-700 transition cursor-pointer group';
+                card.innerHTML = `
+                    <div class="relative mb-3">
+                        <img src="${album.image || 'https://via.placeholder.com/150'}" 
+                             class="w-full aspect-square object-cover rounded shadow-lg">
+                        <button onclick="event.stopPropagation(); toggleAlbumFollow('${album.id}', '${album.name.replace(/'/g, "\\'")}', '${album.image || ''}', '${album.artist.replace(/'/g, "\\'")}')" 
+                                class="absolute bottom-2 right-2 w-10 h-10 rounded-full ${isFollowed ? 'bg-green-500' : 'bg-gray-900/80'} flex items-center justify-center opacity-0 group-hover:opacity-100 transition transform hover:scale-110"
+                                title="${isFollowed ? 'Kütüphaneden Kaldır' : 'Kütüphaneye Ekle'}">
+                            <i class="fa-solid ${isFollowed ? 'fa-check' : 'fa-plus'} text-white"></i>
+                        </button>
+                    </div>
+                    <p class="font-bold truncate">${album.name}</p>
+                    <p class="text-xs text-gray-400 truncate">${album.artist} • ${album.year}</p>
+                    <p class="text-xs text-gray-500">${album.totalTracks || ''} ${album.totalTracks ? 'songs' : ''}</p>
+                `;
+                card.onclick = () => openAlbumModal(album.id);
+                grid.appendChild(card);
+            });
+
+            container.appendChild(grid);
         }
 
         // --- Player (Disabled for now per user request) ---
@@ -1009,6 +1057,8 @@
             }
         }
 
+        let currentSortOrder = 'newest'; // newest, oldest, az, za
+
         function openProfileModal(type) {
             // Re-using details modal for profile lists
             const modal = document.getElementById('detailsModal');
@@ -1018,25 +1068,48 @@
             const list = document.getElementById('modalTracks');
             list.innerHTML = '';
 
+            // Add sort controls
+            const sortControls = document.createElement('div');
+            sortControls.className = 'flex items-center gap-2 mb-4 flex-wrap';
+            sortControls.innerHTML = `
+                <span class="text-gray-400 text-sm">Sırala:</span>
+                <button onclick="sortProfileList('${type}', 'newest')" class="sort-btn px-3 py-1 rounded-full text-xs ${currentSortOrder === 'newest' ? 'bg-green-500 text-black' : 'bg-gray-700 text-white'} hover:opacity-80 transition">
+                    <i class="fa-solid fa-clock mr-1"></i>Newest
+                </button>
+                <button onclick="sortProfileList('${type}', 'oldest')" class="sort-btn px-3 py-1 rounded-full text-xs ${currentSortOrder === 'oldest' ? 'bg-green-500 text-black' : 'bg-gray-700 text-white'} hover:opacity-80 transition">
+                    <i class="fa-solid fa-clock-rotate-left mr-1"></i>Oldest
+                </button>
+                <button onclick="sortProfileList('${type}', 'az')" class="sort-btn px-3 py-1 rounded-full text-xs ${currentSortOrder === 'az' ? 'bg-green-500 text-black' : 'bg-gray-700 text-white'} hover:opacity-80 transition">
+                    <i class="fa-solid fa-arrow-down-a-z mr-1"></i>A-Z
+                </button>
+                <button onclick="sortProfileList('${type}', 'za')" class="sort-btn px-3 py-1 rounded-full text-xs ${currentSortOrder === 'za' ? 'bg-green-500 text-black' : 'bg-gray-700 text-white'} hover:opacity-80 transition">
+                    <i class="fa-solid fa-arrow-up-z-a mr-1"></i>Z-A
+                </button>
+            `;
+
             if (type === 'likes') {
-                document.getElementById('modalTitle').innerText = 'Beğenilen Şarkılar';
-                document.getElementById('modalType').innerText = 'Kütüphanem';
+                document.getElementById('modalTitle').innerText = 'Liked Songs';
+                document.getElementById('modalType').innerText = 'My Library';
                 document.getElementById('modalCover').src = 'https://via.placeholder.com/150/6366f1/FFFFFF?text=%E2%99%A5';
 
                 if (likedTracks.length === 0) {
-                    list.innerHTML = '<p class="text-gray-500 text-center py-8">Henüz beğenilen şarkı yok.</p>';
+                    list.innerHTML = '<p class="text-gray-500 text-center py-8">No liked songs yet.</p>';
                 } else {
-                    likedTracks.forEach(t => list.appendChild(createTrackRow(t, {})));
+                    list.appendChild(sortControls);
+                    const sortedTracks = sortItems([...likedTracks], currentSortOrder, 'trackName');
+                    sortedTracks.forEach(t => list.appendChild(createTrackRow(t, {})));
                 }
             } else if (type === 'follows') {
-                document.getElementById('modalTitle').innerText = 'Takip Ettiklerim';
-                document.getElementById('modalType').innerText = 'Sanatçılar';
+                document.getElementById('modalTitle').innerText = 'Following';
+                document.getElementById('modalType').innerText = 'Musicians';
                 document.getElementById('modalCover').src = 'https://via.placeholder.com/150/0ea5e9/FFFFFF?text=%E2%99%AA';
 
                 if (followedArtists.length === 0) {
-                    list.innerHTML = '<p class="text-gray-500 text-center py-8">Henüz takip edilen sanatçı yok.</p>';
+                    list.innerHTML = '<p class="text-gray-500 text-center py-8">No followed musicians yet.</p>';
                 } else {
-                    followedArtists.forEach(a => {
+                    list.appendChild(sortControls);
+                    const sortedArtists = sortItems([...followedArtists], currentSortOrder, 'artistName');
+                    sortedArtists.forEach(a => {
                         const div = document.createElement('div');
                         div.className = 'flex items-center gap-4 p-3 hover:bg-white/10 rounded cursor-pointer';
                         div.onclick = () => { closeDetailsModal(); performSearch(a.artistName); };
@@ -1045,14 +1118,16 @@
                     });
                 }
             } else if (type === 'playlists') {
-                document.getElementById('modalTitle').innerText = 'Listelerim';
-                document.getElementById('modalType').innerText = 'Çalma Listeleri';
+                document.getElementById('modalTitle').innerText = 'My Playlists';
+                document.getElementById('modalType').innerText = 'Collections';
                 document.getElementById('modalCover').src = 'https://via.placeholder.com/150/22c55e/FFFFFF?text=%E2%99%AB';
 
                 if (playlists.length === 0) {
-                    list.innerHTML = '<p class="text-gray-500 text-center py-8">Henüz oluşturulmuş liste yok.</p>';
+                    list.innerHTML = '<p class="text-gray-500 text-center py-8">No playlists created yet.</p>';
                 } else {
-                    playlists.forEach(pl => {
+                    list.appendChild(sortControls);
+                    const sortedPlaylists = sortItems([...playlists], currentSortOrder, 'name');
+                    sortedPlaylists.forEach(pl => {
                         const div = document.createElement('div');
                         div.className = 'flex items-center gap-4 p-3 hover:bg-white/10 rounded cursor-pointer';
                         div.onclick = () => { closeDetailsModal(); openPlaylistDetails(pl); };
@@ -1062,13 +1137,33 @@
                             </div>
                             <div>
                                 <p class="font-bold">${pl.name}</p>
-                                <p class="text-xs text-gray-400">${pl.PlaylistTracks?.length || 0} şarkı</p>
+                                <p class="text-xs text-gray-400">${pl.PlaylistTracks?.length || 0} songs</p>
                             </div>
                         `;
                         list.appendChild(div);
                     });
                 }
             }
+        }
+
+        function sortItems(items, order, nameField) {
+            switch (order) {
+                case 'newest':
+                    return items.reverse(); // Assuming newest is last added
+                case 'oldest':
+                    return items; // Original order
+                case 'az':
+                    return items.sort((a, b) => (a[nameField] || '').localeCompare(b[nameField] || ''));
+                case 'za':
+                    return items.sort((a, b) => (b[nameField] || '').localeCompare(a[nameField] || ''));
+                default:
+                    return items;
+            }
+        }
+
+        function sortProfileList(type, order) {
+            currentSortOrder = order;
+            openProfileModal(type);
         }
 
         function createTrackRow(track, context) { // context has artistName etc
