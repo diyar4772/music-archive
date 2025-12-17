@@ -77,7 +77,8 @@ const likeSchema = new mongoose.Schema({
 
 const playlistSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    name: { type: String, required: true }
+    name: { type: String, required: true },
+    coverImage: { type: String, default: null } // Custom cover image URL
 }, { timestamps: true });
 
 const playlistTrackSchema = new mongoose.Schema({
@@ -560,6 +561,31 @@ app.delete('/api/playlists/:id/tracks/:trackId', authenticateToken, async (req, 
         res.json({ status: 'removed' });
     } catch (e) {
         res.status(500).json({ error: 'Failed to remove track' });
+    }
+});
+
+// Update Playlist Cover Image
+app.put('/api/playlists/:id/cover', authenticateToken, async (req, res) => {
+    try {
+        const { coverImage } = req.body;
+        const decodedId = decodeURIComponent(req.params.id);
+
+        if (useInMemory) {
+            const playlist = inMemoryDB.playlists.find(p => p._id === decodedId && p.userId === req.user.id);
+            if (!playlist) return res.status(404).json({ error: 'Playlist not found' });
+
+            playlist.coverImage = coverImage;
+            return res.json({ status: 'updated', coverImage });
+        }
+
+        const playlist = await Playlist.findOne({ _id: decodedId, userId: req.user.id });
+        if (!playlist) return res.status(404).json({ error: 'Playlist not found' });
+
+        playlist.coverImage = coverImage;
+        await playlist.save();
+        res.json({ status: 'updated', coverImage });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to update cover' });
     }
 });
 

@@ -605,12 +605,38 @@
                     const div = document.createElement('div');
                     div.className = 'bg-[#181818] p-4 rounded-lg hover:bg-[#282828] cursor-pointer transition group';
                     div.onclick = () => openPlaylistDetails(pl);
+
+                    // Determine cover content
+                    let coverHtml;
+                    if (pl.coverImage) {
+                        // Custom cover
+                        coverHtml = `<img src="${pl.coverImage}" class="w-full h-full object-cover rounded-lg">`;
+                    } else if (pl.PlaylistTracks && pl.PlaylistTracks.length >= 4) {
+                        // Mosaic grid of last 4 tracks
+                        const last4 = pl.PlaylistTracks.slice(-4);
+                        coverHtml = `
+                            <div class="w-full h-full grid grid-cols-2 grid-rows-2 gap-0.5 rounded-lg overflow-hidden">
+                                ${last4.map(t => `<img src="${t.image || 'https://via.placeholder.com/75/1DB954/FFFFFF?text=♪'}" class="w-full h-full object-cover">`).join('')}
+                            </div>
+                        `;
+                    } else if (pl.PlaylistTracks && pl.PlaylistTracks.length > 0) {
+                        // First track's image
+                        coverHtml = `<img src="${pl.PlaylistTracks[0].image || 'https://via.placeholder.com/150/1DB954/FFFFFF?text=♪'}" class="w-full h-full object-cover rounded-lg">`;
+                    } else {
+                        // Default placeholder
+                        coverHtml = `
+                            <div class="w-full h-full bg-gradient-to-br from-green-600 to-emerald-700 rounded-lg flex items-center justify-center">
+                                <i class="fa-solid fa-music text-4xl text-white/50"></i>
+                            </div>
+                        `;
+                    }
+
                     div.innerHTML = `
-                        <div class="w-full aspect-square bg-gradient-to-br from-gray-700 to-gray-800 rounded-lg mb-3 flex items-center justify-center">
-                            <i class="fa-solid fa-music text-4xl text-gray-500"></i>
+                        <div class="w-full aspect-square mb-3 rounded-lg overflow-hidden">
+                            ${coverHtml}
                         </div>
                         <p class="font-bold truncate">${pl.name}</p>
-                        <p class="text-xs text-gray-400">${pl.PlaylistTracks?.length || 0} şarkı</p>
+                        <p class="text-xs text-gray-400">${pl.PlaylistTracks?.length || 0} songs</p>
                     `;
                     container.appendChild(div);
                 });
@@ -921,36 +947,162 @@
 
         let currentPlaylistId = null; // Store for track removal
 
+        let playlistSortOrder = 'newest'; // Default: newest first
+
         function openPlaylistDetails(playlist) {
             currentPlaylistId = playlist.id;
             const modal = document.getElementById('detailsModal');
             modal.classList.remove('hidden');
             setTimeout(() => modal.classList.add('visible'), 10);
 
-            document.getElementById('modalCover').src = 'https://via.placeholder.com/150/1DB954/FFFFFF?text=PL';
             document.getElementById('modalTitle').innerText = playlist.name;
 
             // Ensure playlist.id is treated as string for in-memory IDs
             const plId = String(playlist.id);
 
-            // Add delete button to modal type area
+            // Generate cover image (custom, mosaic, or placeholder)
+            const coverImg = document.getElementById('modalCover');
+            if (playlist.coverImage) {
+                // Custom cover
+                coverImg.src = playlist.coverImage;
+            } else if (playlist.PlaylistTracks && playlist.PlaylistTracks.length >= 4) {
+                // Mosaic of last 4 tracks - use canvas
+                createMosaicCover(playlist.PlaylistTracks.slice(-4).map(t => t.image), coverImg);
+            } else if (playlist.PlaylistTracks && playlist.PlaylistTracks.length > 0) {
+                // Use first track's image
+                coverImg.src = playlist.PlaylistTracks[0].image || 'https://via.placeholder.com/150/1DB954/FFFFFF?text=♪';
+            } else {
+                coverImg.src = 'https://via.placeholder.com/150/1DB954/FFFFFF?text=♪';
+            }
+
+            // Add controls: change cover & delete
             const typeArea = document.getElementById('modalType');
             typeArea.innerHTML = `
-                <span class="text-gray-400">Özel Liste</span>
-                <button onclick="deletePlaylist('${plId}')" class="ml-4 text-red-400 hover:text-red-300 text-xs">
-                    <i class="fa-solid fa-trash"></i> Listeyi Sil
+                <span class="text-gray-400">Playlist</span>
+                <button onclick="promptChangeCover('${plId}')" class="ml-3 text-blue-400 hover:text-blue-300 text-xs">
+                    <i class="fa-solid fa-image"></i> Change Cover
+                </button>
+                <button onclick="deletePlaylist('${plId}')" class="ml-3 text-red-400 hover:text-red-300 text-xs">
+                    <i class="fa-solid fa-trash"></i> Delete
                 </button>
             `;
 
             const list = document.getElementById('modalTracks');
             list.innerHTML = '';
+
             if (playlist.PlaylistTracks && playlist.PlaylistTracks.length > 0) {
-                playlist.PlaylistTracks.forEach(pt => {
+                // Add sort controls
+                const sortControls = document.createElement('div');
+                sortControls.className = 'flex items-center gap-2 mb-4 flex-wrap';
+                sortControls.innerHTML = `
+                    <span class="text-gray-400 text-sm">Sort:</span>
+                    <button onclick="sortPlaylistTracks('${plId}', 'newest')" class="px-3 py-1 rounded-full text-xs ${playlistSortOrder === 'newest' ? 'bg-green-500 text-black' : 'bg-gray-700 text-white'} hover:opacity-80 transition">
+                        <i class="fa-solid fa-clock mr-1"></i>Newest
+                    </button>
+                    <button onclick="sortPlaylistTracks('${plId}', 'oldest')" class="px-3 py-1 rounded-full text-xs ${playlistSortOrder === 'oldest' ? 'bg-green-500 text-black' : 'bg-gray-700 text-white'} hover:opacity-80 transition">
+                        <i class="fa-solid fa-clock-rotate-left mr-1"></i>Oldest
+                    </button>
+                    <button onclick="sortPlaylistTracks('${plId}', 'az')" class="px-3 py-1 rounded-full text-xs ${playlistSortOrder === 'az' ? 'bg-green-500 text-black' : 'bg-gray-700 text-white'} hover:opacity-80 transition">
+                        <i class="fa-solid fa-arrow-down-a-z mr-1"></i>A-Z
+                    </button>
+                    <button onclick="sortPlaylistTracks('${plId}', 'za')" class="px-3 py-1 rounded-full text-xs ${playlistSortOrder === 'za' ? 'bg-green-500 text-black' : 'bg-gray-700 text-white'} hover:opacity-80 transition">
+                        <i class="fa-solid fa-arrow-up-z-a mr-1"></i>Z-A
+                    </button>
+                `;
+                list.appendChild(sortControls);
+
+                // Sort tracks
+                let sortedTracks = [...playlist.PlaylistTracks];
+                switch (playlistSortOrder) {
+                    case 'newest':
+                        sortedTracks = sortedTracks.reverse();
+                        break;
+                    case 'oldest':
+                        // Keep original order
+                        break;
+                    case 'az':
+                        sortedTracks.sort((a, b) => (a.trackName || '').localeCompare(b.trackName || ''));
+                        break;
+                    case 'za':
+                        sortedTracks.sort((a, b) => (b.trackName || '').localeCompare(a.trackName || ''));
+                        break;
+                }
+
+                sortedTracks.forEach(pt => {
                     const row = createTrackRowWithRemove(pt, plId);
                     list.appendChild(row);
                 });
             } else {
-                list.innerHTML = '<p class="text-gray-500 text-center py-8">Bu listede henüz şarkı yok.</p>';
+                list.innerHTML = '<p class="text-gray-500 text-center py-8">No songs in this playlist yet.</p>';
+            }
+        }
+
+        function sortPlaylistTracks(playlistId, order) {
+            playlistSortOrder = order;
+            const playlist = playlists.find(p => String(p.id) === playlistId);
+            if (playlist) openPlaylistDetails(playlist);
+        }
+
+        function createMosaicCover(images, imgElement) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 150;
+            canvas.height = 150;
+            const ctx = canvas.getContext('2d');
+
+            let loaded = 0;
+            const positions = [
+                { x: 0, y: 0 }, { x: 75, y: 0 },
+                { x: 0, y: 75 }, { x: 75, y: 75 }
+            ];
+
+            images.forEach((src, i) => {
+                if (!src) {
+                    loaded++;
+                    if (loaded === 4) imgElement.src = canvas.toDataURL();
+                    return;
+                }
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    ctx.drawImage(img, positions[i].x, positions[i].y, 75, 75);
+                    loaded++;
+                    if (loaded === 4) imgElement.src = canvas.toDataURL();
+                };
+                img.onerror = () => {
+                    ctx.fillStyle = '#1DB954';
+                    ctx.fillRect(positions[i].x, positions[i].y, 75, 75);
+                    loaded++;
+                    if (loaded === 4) imgElement.src = canvas.toDataURL();
+                };
+                img.src = src;
+            });
+        }
+
+        function promptChangeCover(playlistId) {
+            const url = prompt('Enter image URL for playlist cover:');
+            if (!url) return;
+
+            updatePlaylistCover(playlistId, url);
+        }
+
+        async function updatePlaylistCover(playlistId, coverUrl) {
+            try {
+                const res = await fetch(`${API_URL}/playlists/${encodeURIComponent(playlistId)}/cover`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ coverImage: coverUrl }),
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!res.ok) throw new Error('Failed to update cover');
+
+                showToast('🖼️ Cover updated!');
+                fetchUserData();
+
+                // Update displayed cover immediately
+                document.getElementById('modalCover').src = coverUrl;
+            } catch (e) {
+                console.error(e);
+                showToast('❌ Failed to update cover');
             }
         }
 
