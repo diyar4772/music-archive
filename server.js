@@ -441,6 +441,7 @@ app.get('/api/playlists', authenticateToken, async (req, res) => {
                 return {
                     id: pl._id,
                     name: pl.name,
+                    coverImage: pl.coverImage || null,
                     PlaylistTracks: tracks
                 };
             });
@@ -453,6 +454,7 @@ app.get('/api/playlists', authenticateToken, async (req, res) => {
             return {
                 id: pl._id,
                 name: pl.name,
+                coverImage: pl.coverImage || null,
                 PlaylistTracks: tracks
             };
         }));

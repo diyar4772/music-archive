@@ -348,6 +348,46 @@
         </div>
     </div>
 
+    <!-- Change Cover Modal -->
+    <div id="changeCoverModal"
+        class="modal hidden fixed inset-0 bg-black/90 z-[110] flex items-center justify-center p-4"
+        onclick="closeChangeCoverModal()">
+        <div class="bg-gradient-to-b from-gray-800 to-gray-900 p-6 rounded-2xl w-full max-w-md shadow-2xl border border-gray-700 animate-scale-in"
+            onclick="event.stopPropagation()">
+            <div class="text-center mb-4">
+                <div
+                    class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-image text-2xl text-white"></i>
+                </div>
+                <h3 class="text-xl font-bold">Change Cover</h3>
+                <p class="text-gray-400 text-sm mt-1">Enter an image URL for your playlist cover</p>
+            </div>
+
+            <div class="mb-4">
+                <input type="text" id="coverUrlInput" placeholder="https://example.com/image.jpg"
+                    class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none">
+            </div>
+
+            <!-- Preview -->
+            <div id="coverPreviewContainer" class="mb-4 hidden">
+                <p class="text-sm text-gray-400 mb-2">Preview:</p>
+                <img id="coverPreviewImg" src=""
+                    class="w-24 h-24 object-cover rounded-lg mx-auto border-2 border-gray-600">
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="confirmCoverChange()"
+                    class="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 text-white font-bold py-3 rounded-full transition transform hover:scale-105">
+                    <i class="fa-solid fa-check mr-2"></i>Save
+                </button>
+                <button onclick="closeChangeCoverModal()"
+                    class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-full transition">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_URL = '/api';
         let currentUser = localStorage.getItem('userUsername');
@@ -1078,11 +1118,51 @@
             });
         }
 
-        function promptChangeCover(playlistId) {
-            const url = prompt('Enter image URL for playlist cover:');
-            if (!url) return;
+        let changeCoverPlaylistId = null;
 
-            updatePlaylistCover(playlistId, url);
+        function promptChangeCover(playlistId) {
+            changeCoverPlaylistId = playlistId;
+            const modal = document.getElementById('changeCoverModal');
+            const input = document.getElementById('coverUrlInput');
+            const previewContainer = document.getElementById('coverPreviewContainer');
+
+            input.value = '';
+            previewContainer.classList.add('hidden');
+
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.add('visible'), 10);
+
+            // Add input listener for preview
+            input.oninput = () => {
+                const url = input.value.trim();
+                if (url && url.startsWith('http')) {
+                    const preview = document.getElementById('coverPreviewImg');
+                    preview.src = url;
+                    preview.onload = () => previewContainer.classList.remove('hidden');
+                    preview.onerror = () => previewContainer.classList.add('hidden');
+                } else {
+                    previewContainer.classList.add('hidden');
+                }
+            };
+
+            input.focus();
+        }
+
+        function closeChangeCoverModal() {
+            const modal = document.getElementById('changeCoverModal');
+            modal.classList.remove('visible');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function confirmCoverChange() {
+            const url = document.getElementById('coverUrlInput').value.trim();
+            if (!url) {
+                showToast('❌ Please enter an image URL');
+                return;
+            }
+
+            updatePlaylistCover(changeCoverPlaylistId, url);
+            closeChangeCoverModal();
         }
 
         async function updatePlaylistCover(playlistId, coverUrl) {
@@ -1096,10 +1176,14 @@
                 if (!res.ok) throw new Error('Failed to update cover');
 
                 showToast('🖼️ Cover updated!');
-                fetchUserData();
+                await fetchUserData();
 
                 // Update displayed cover immediately
                 document.getElementById('modalCover').src = coverUrl;
+
+                // Re-open playlist to show updated cover
+                const playlist = playlists.find(p => String(p.id) === String(playlistId));
+                if (playlist) openPlaylistDetails(playlist);
             } catch (e) {
                 console.error(e);
                 showToast('❌ Failed to update cover');
