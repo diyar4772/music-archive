@@ -23,3 +23,8 @@ Thumbs.db
 # Build outputs
 dist/
 build/
+
+# Temporary/test files
+Untitled*.txt
+*.txt
+\#\#*
