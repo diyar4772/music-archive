@@ -16,10 +16,35 @@ app.use(cors());
 app.use(express.static('.'));
 app.use(express.json());
 
+// --- In-Memory Fallback Database ---
+let useInMemory = false;
+const inMemoryDB = {
+    users: [],
+    follows: [],
+    albumFollows: [],
+    likes: [],
+    playlists: [],
+    playlistTracks: [],
+    nextId: 1
+};
+
+const generateId = () => {
+    return 'local_' + (inMemoryDB.nextId++).toString() + '_' + Date.now();
+};
+
 // --- MongoDB Connection ---
-mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log('✅ MongoDB Connected!'))
-    .catch(err => console.error('❌ MongoDB Connection Error:', err.message));
+if (process.env.MONGO_URI) {
+    mongoose.connect(process.env.MONGO_URI)
+        .then(() => console.log('✅ MongoDB Connected!'))
+        .catch(err => {
+            console.error('❌ MongoDB Connection Error:', err.message);
+            console.log('🔄 Switching to In-Memory Database for local testing...');
+            useInMemory = true;
+        });
+} else {
+    console.log('⚠️ MONGO_URI not set - Using In-Memory Database for local testing');
+    useInMemory = true;
+}
 
 // --- Mongoose Schemas ---
 const userSchema = new mongoose.Schema({
@@ -109,6 +134,18 @@ app.post('/api/register', async (req, res) => {
     try {
         const { username, password } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
+
+        if (useInMemory) {
+            // In-memory registration
+            if (inMemoryDB.users.find(u => u.username === username)) {
+                return res.status(400).json({ error: 'Username likely taken' });
+            }
+            const userId = generateId();
+            inMemoryDB.users.push({ _id: userId, username, password: hashedPassword });
+            const token = jwt.sign({ id: userId, username }, JWT_SECRET);
+            return res.json({ token, username });
+        }
+
         const user = await User.create({ username, password: hashedPassword });
         const token = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET);
         res.json({ token, username });
@@ -120,6 +157,17 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
+
+        if (useInMemory) {
+            // In-memory login
+            const user = inMemoryDB.users.find(u => u.username === username);
+            if (!user || !(await bcrypt.compare(password, user.password))) {
+                return res.status(401).json({ error: 'Invalid credentials' });
+            }
+            const token = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET);
+            return res.json({ token, username });
+        }
+
         const user = await User.findOne({ username });
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ error: 'Invalid credentials' });
@@ -219,6 +267,17 @@ app.get('/api/album/:id', async (req, res) => {
 // Get User Data
 app.get('/api/me', authenticateToken, async (req, res) => {
     try {
+        if (useInMemory) {
+            const follows = inMemoryDB.follows.filter(f => f.userId === req.user.id);
+            const likes = inMemoryDB.likes.filter(l => l.userId === req.user.id);
+            const albumFollows = inMemoryDB.albumFollows.filter(a => a.userId === req.user.id);
+            return res.json({
+                follows: follows.map(f => ({ artistId: f.artistId, artistName: f.artistName, image: f.image })),
+                likes: likes.map(l => ({ trackId: l.trackId, trackName: l.trackName, image: l.image, previewUrl: l.previewUrl })),
+                albumFollows: albumFollows.map(a => ({ albumId: a.albumId, albumName: a.albumName, image: a.image, artistName: a.artistName }))
+            });
+        }
+
         const follows = await Follow.find({ userId: req.user.id });
         const likes = await Like.find({ userId: req.user.id });
         const albumFollows = await AlbumFollow.find({ userId: req.user.id });
@@ -237,6 +296,17 @@ app.get('/api/me', authenticateToken, async (req, res) => {
 app.post('/api/follow', authenticateToken, async (req, res) => {
     try {
         const { artistId, artistName, image } = req.body;
+
+        if (useInMemory) {
+            const existsIdx = inMemoryDB.follows.findIndex(f => f.userId === req.user.id && f.artistId === artistId);
+            if (existsIdx !== -1) {
+                inMemoryDB.follows.splice(existsIdx, 1);
+                return res.json({ status: 'unfollowed' });
+            }
+            inMemoryDB.follows.push({ _id: generateId(), userId: req.user.id, artistId, artistName, image });
+            return res.json({ status: 'followed' });
+        }
+
         const exists = await Follow.findOne({ userId: req.user.id, artistId });
         if (exists) {
             await Follow.deleteOne({ _id: exists._id });
@@ -253,6 +323,17 @@ app.post('/api/follow', authenticateToken, async (req, res) => {
 app.post('/api/like', authenticateToken, async (req, res) => {
     try {
         const { trackId, trackName, image, previewUrl } = req.body;
+
+        if (useInMemory) {
+            const existsIdx = inMemoryDB.likes.findIndex(l => l.userId === req.user.id && l.trackId === trackId);
+            if (existsIdx !== -1) {
+                inMemoryDB.likes.splice(existsIdx, 1);
+                return res.json({ status: 'unliked' });
+            }
+            inMemoryDB.likes.push({ _id: generateId(), userId: req.user.id, trackId, trackName, image, previewUrl });
+            return res.json({ status: 'liked' });
+        }
+
         const exists = await Like.findOne({ userId: req.user.id, trackId });
         if (exists) {
             await Like.deleteOne({ _id: exists._id });
@@ -269,6 +350,17 @@ app.post('/api/like', authenticateToken, async (req, res) => {
 app.post('/api/follow-album', authenticateToken, async (req, res) => {
     try {
         const { albumId, albumName, image, artistName } = req.body;
+
+        if (useInMemory) {
+            const existsIdx = inMemoryDB.albumFollows.findIndex(a => a.userId === req.user.id && a.albumId === albumId);
+            if (existsIdx !== -1) {
+                inMemoryDB.albumFollows.splice(existsIdx, 1);
+                return res.json({ status: 'unfollowed' });
+            }
+            inMemoryDB.albumFollows.push({ _id: generateId(), userId: req.user.id, albumId, albumName, image, artistName });
+            return res.json({ status: 'followed' });
+        }
+
         const existing = await AlbumFollow.findOne({ userId: req.user.id, albumId });
         if (existing) {
             await AlbumFollow.deleteOne({ _id: existing._id });
@@ -284,6 +376,19 @@ app.post('/api/follow-album', authenticateToken, async (req, res) => {
 // --- Playlist Routes ---
 app.get('/api/playlists', authenticateToken, async (req, res) => {
     try {
+        if (useInMemory) {
+            const playlists = inMemoryDB.playlists.filter(p => p.userId === req.user.id);
+            const result = playlists.map(pl => {
+                const tracks = inMemoryDB.playlistTracks.filter(t => t.playlistId === pl._id);
+                return {
+                    id: pl._id,
+                    name: pl.name,
+                    PlaylistTracks: tracks
+                };
+            });
+            return res.json(result);
+        }
+
         const playlists = await Playlist.find({ userId: req.user.id });
         const result = await Promise.all(playlists.map(async (pl) => {
             const tracks = await PlaylistTrack.find({ playlistId: pl._id });
@@ -302,6 +407,13 @@ app.get('/api/playlists', authenticateToken, async (req, res) => {
 app.post('/api/playlists', authenticateToken, async (req, res) => {
     try {
         const { name } = req.body;
+
+        if (useInMemory) {
+            const playlistId = generateId();
+            inMemoryDB.playlists.push({ _id: playlistId, userId: req.user.id, name });
+            return res.json({ id: playlistId, name });
+        }
+
         const playlist = await Playlist.create({ userId: req.user.id, name });
         res.json({ id: playlist._id, name: playlist.name });
     } catch (e) {
@@ -312,6 +424,19 @@ app.post('/api/playlists', authenticateToken, async (req, res) => {
 app.post('/api/playlists/:id/add', authenticateToken, async (req, res) => {
     try {
         const { trackId, trackName, image, previewUrl } = req.body;
+
+        if (useInMemory) {
+            const playlist = inMemoryDB.playlists.find(p => p._id === req.params.id && p.userId === req.user.id);
+            if (!playlist) return res.status(404).json({ error: 'Playlist not found' });
+
+            inMemoryDB.playlistTracks.push({
+                _id: generateId(),
+                playlistId: playlist._id,
+                trackId, trackName, image, previewUrl
+            });
+            return res.json({ status: 'added' });
+        }
+
         const playlist = await Playlist.findOne({ _id: req.params.id, userId: req.user.id });
         if (!playlist) return res.status(404).json({ error: 'Playlist not found' });
 
@@ -327,7 +452,23 @@ app.post('/api/playlists/:id/add', authenticateToken, async (req, res) => {
 // Delete Playlist
 app.delete('/api/playlists/:id', authenticateToken, async (req, res) => {
     try {
-        const playlist = await Playlist.findOne({ _id: req.params.id, userId: req.user.id });
+        // Decode the playlist ID in case it was URL encoded
+        const decodedId = decodeURIComponent(req.params.id);
+        console.log('Delete playlist request for ID:', decodedId);
+
+        if (useInMemory) {
+            const playlistIdx = inMemoryDB.playlists.findIndex(p => p._id === decodedId && p.userId === req.user.id);
+            console.log('Found playlist at index:', playlistIdx);
+            if (playlistIdx === -1) return res.status(404).json({ error: 'Playlist not found' });
+
+            const playlistId = inMemoryDB.playlists[playlistIdx]._id;
+            inMemoryDB.playlistTracks = inMemoryDB.playlistTracks.filter(t => t.playlistId !== playlistId);
+            inMemoryDB.playlists.splice(playlistIdx, 1);
+            console.log('Playlist deleted successfully');
+            return res.json({ status: 'deleted' });
+        }
+
+        const playlist = await Playlist.findOne({ _id: decodedId, userId: req.user.id });
         if (!playlist) return res.status(404).json({ error: 'Playlist not found' });
 
         await PlaylistTrack.deleteMany({ playlistId: playlist._id });
@@ -341,9 +482,22 @@ app.delete('/api/playlists/:id', authenticateToken, async (req, res) => {
 // Remove Track from Playlist
 app.delete('/api/playlists/:id/tracks/:trackId', authenticateToken, async (req, res) => {
     try {
+        // Decode the trackId in case it was URL encoded
+        const decodedTrackId = decodeURIComponent(req.params.trackId);
+
+        if (useInMemory) {
+            const trackIdx = inMemoryDB.playlistTracks.findIndex(
+                t => t.playlistId === req.params.id && t.trackId === decodedTrackId
+            );
+            if (trackIdx === -1) return res.status(404).json({ error: 'Track not found' });
+
+            inMemoryDB.playlistTracks.splice(trackIdx, 1);
+            return res.json({ status: 'removed' });
+        }
+
         const result = await PlaylistTrack.deleteOne({
             playlistId: req.params.id,
-            trackId: req.params.trackId
+            trackId: decodedTrackId
         });
         if (result.deletedCount === 0) return res.status(404).json({ error: 'Track not found' });
         res.json({ status: 'removed' });
@@ -353,3 +507,4 @@ app.delete('/api/playlists/:id/tracks/:trackId', authenticateToken, async (req, 
 });
 
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+
