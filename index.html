@@ -360,10 +360,37 @@
                     <i class="fa-solid fa-image text-2xl text-white"></i>
                 </div>
                 <h3 class="text-xl font-bold">Change Cover</h3>
-                <p class="text-gray-400 text-sm mt-1">Enter an image URL for your playlist cover</p>
+                <p class="text-gray-400 text-sm mt-1">Upload an image or enter a URL</p>
             </div>
 
-            <div class="mb-4">
+            <!-- Tab Selection -->
+            <div class="flex gap-2 mb-4">
+                <button onclick="setCoverTab('upload')" id="coverTabUpload"
+                    class="flex-1 py-2 px-4 rounded-lg text-sm font-medium bg-blue-500 text-white transition">
+                    <i class="fa-solid fa-upload mr-2"></i>Upload
+                </button>
+                <button onclick="setCoverTab('url')" id="coverTabUrl"
+                    class="flex-1 py-2 px-4 rounded-lg text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600 transition">
+                    <i class="fa-solid fa-link mr-2"></i>URL
+                </button>
+            </div>
+
+            <!-- Upload Section -->
+            <div id="coverUploadSection" class="mb-4">
+                <label
+                    class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-600 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-gray-700/50 transition">
+                    <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                        <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-400 mb-2"></i>
+                        <p class="text-sm text-gray-400">Click to upload or drag & drop</p>
+                        <p class="text-xs text-gray-500">PNG, JPG, WEBP (Max 2MB)</p>
+                    </div>
+                    <input type="file" id="coverFileInput" accept="image/*" class="hidden"
+                        onchange="handleCoverFileSelect(event)">
+                </label>
+            </div>
+
+            <!-- URL Section -->
+            <div id="coverUrlSection" class="mb-4 hidden">
                 <input type="text" id="coverUrlInput" placeholder="https://example.com/image.jpg"
                     class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none">
             </div>
@@ -1148,20 +1175,90 @@
             input.focus();
         }
 
+        let currentCoverTab = 'upload';
+        let uploadedCoverBase64 = null;
+
+        function setCoverTab(tab) {
+            currentCoverTab = tab;
+            const uploadBtn = document.getElementById('coverTabUpload');
+            const urlBtn = document.getElementById('coverTabUrl');
+            const uploadSection = document.getElementById('coverUploadSection');
+            const urlSection = document.getElementById('coverUrlSection');
+
+            if (tab === 'upload') {
+                uploadBtn.className = 'flex-1 py-2 px-4 rounded-lg text-sm font-medium bg-blue-500 text-white transition';
+                urlBtn.className = 'flex-1 py-2 px-4 rounded-lg text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600 transition';
+                uploadSection.classList.remove('hidden');
+                urlSection.classList.add('hidden');
+            } else {
+                urlBtn.className = 'flex-1 py-2 px-4 rounded-lg text-sm font-medium bg-blue-500 text-white transition';
+                uploadBtn.className = 'flex-1 py-2 px-4 rounded-lg text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600 transition';
+                urlSection.classList.remove('hidden');
+                uploadSection.classList.add('hidden');
+            }
+        }
+
+        function handleCoverFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Validate file size (max 2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                showToast('❌ File too large. Max 2MB allowed.');
+                return;
+            }
+
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                showToast('❌ Please select an image file.');
+                return;
+            }
+
+            // Convert to base64
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                uploadedCoverBase64 = e.target.result;
+
+                // Show preview
+                const preview = document.getElementById('coverPreviewImg');
+                const previewContainer = document.getElementById('coverPreviewContainer');
+                preview.src = uploadedCoverBase64;
+                previewContainer.classList.remove('hidden');
+
+                showToast('✅ Image ready!');
+            };
+            reader.onerror = () => {
+                showToast('❌ Failed to read file.');
+            };
+            reader.readAsDataURL(file);
+        }
+
         function closeChangeCoverModal() {
             const modal = document.getElementById('changeCoverModal');
             modal.classList.remove('visible');
             setTimeout(() => modal.classList.add('hidden'), 300);
+            uploadedCoverBase64 = null;
         }
 
         function confirmCoverChange() {
-            const url = document.getElementById('coverUrlInput').value.trim();
-            if (!url) {
-                showToast('❌ Please enter an image URL');
-                return;
+            let coverData = null;
+
+            if (currentCoverTab === 'upload') {
+                if (!uploadedCoverBase64) {
+                    showToast('❌ Please select an image file.');
+                    return;
+                }
+                coverData = uploadedCoverBase64;
+            } else {
+                const url = document.getElementById('coverUrlInput').value.trim();
+                if (!url) {
+                    showToast('❌ Please enter an image URL.');
+                    return;
+                }
+                coverData = url;
             }
 
-            updatePlaylistCover(changeCoverPlaylistId, url);
+            updatePlaylistCover(changeCoverPlaylistId, coverData);
             closeChangeCoverModal();
         }
 
