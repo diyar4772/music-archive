@@ -208,18 +208,51 @@ app.get('/api/search', async (req, res) => {
         if (type === 'simple') {
             const artistData = searchResp.data.artists.items[0];
             if (!artistData) return res.status(404).json({ error: 'Artist not found' });
-            const albumsResp = await axios.get(`https://api.spotify.com/v1/artists/${artistData.id}/albums?include_groups=album,single&limit=20`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+
+            // Fetch ALL albums using pagination
+            let allAlbums = [];
+            let offset = 0;
+            const limit = 50; // Max allowed by Spotify
+            let hasMore = true;
+
+            while (hasMore) {
+                const albumsResp = await axios.get(
+                    `https://api.spotify.com/v1/artists/${artistData.id}/albums?include_groups=album,single&limit=${limit}&offset=${offset}`,
+                    { headers: { 'Authorization': `Bearer ${token}` } }
+                );
+
+                const items = albumsResp.data.items;
+                allAlbums = allAlbums.concat(items);
+
+                // Check if there are more albums
+                if (items.length < limit || allAlbums.length >= albumsResp.data.total) {
+                    hasMore = false;
+                } else {
+                    offset += limit;
+                }
+            }
+
+            // Remove duplicates by album name (Spotify sometimes returns same album in different versions)
+            const uniqueAlbums = [];
+            const seenNames = new Set();
+            for (const album of allAlbums) {
+                const normalizedName = album.name.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
+                if (!seenNames.has(normalizedName)) {
+                    seenNames.add(normalizedName);
+                    uniqueAlbums.push(album);
+                }
+            }
+
             return res.json({
                 id: artistData.id,
                 name: artistData.name,
                 image: artistData.images[0]?.url,
-                albums: albumsResp.data.items.map(a => ({
+                totalAlbums: uniqueAlbums.length,
+                albums: uniqueAlbums.map(a => ({
                     id: a.id,
                     name: a.name,
                     image: a.images[0]?.url,
-                    year: a.release_date.split('-')[0]
+                    year: a.release_date?.split('-')[0] || ''
                 }))
             });
         }
