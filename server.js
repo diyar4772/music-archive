@@ -144,6 +144,12 @@ const ratingSchema = new mongoose.Schema({
 // Aynı kullanıcı aynı item'ı sadece bir kez puanlayabilir
 ratingSchema.index({ userId: 1, itemId: 1, itemType: 1 }, { unique: true });
 
+// LoginHistory Schema - Kullanıcı giriş geçmişi
+const loginHistorySchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    loginAt: { type: Date, default: Date.now }
+}, { timestamps: false });
+
 // --- Mongoose Models ---
 const User = mongoose.model('User', userSchema);
 const Follow = mongoose.model('Follow', followSchema);
@@ -152,6 +158,7 @@ const Like = mongoose.model('Like', likeSchema);
 const Playlist = mongoose.model('Playlist', playlistSchema);
 const PlaylistTrack = mongoose.model('PlaylistTrack', playlistTrackSchema);
 const Rating = mongoose.model('Rating', ratingSchema);
+const LoginHistory = mongoose.model('LoginHistory', loginHistorySchema);
 
 // --- Spotify Token Management ---
 let spotifyToken = null;
@@ -308,6 +315,43 @@ const escapeRegex = (string) => {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 };
 
+// 🔍 SMART SEARCH: Rank results by relevance
+const rankSearchResults = (results, query, nameField = 'name') => {
+    const queryLower = query.toLowerCase().trim();
+
+    return results.map(item => {
+        const name = (item[nameField] || '').toLowerCase().trim();
+        let score = 0;
+
+        // Exact match = highest priority (10000 points)
+        if (name === queryLower) {
+            score = 10000;
+        }
+        // Name starts with query as complete word (e.g. "ye west" for "ye")
+        else if (name.startsWith(queryLower + ' ')) {
+            score = 5000;
+        }
+        // Name starts with query (e.g. "yeat" for "ye")
+        else if (name.startsWith(queryLower)) {
+            score = 1000;
+        }
+        // Name contains query as substring (e.g. "kanye" contains "ye")
+        else if (name.includes(queryLower)) {
+            score = 100;
+        }
+
+        // Add popularity bonus (0-100 from Spotify) * 5 = max 500 points
+        // This makes very popular artists rank highly even with weaker name matches
+        if (item.popularity) {
+            score += item.popularity * 5;
+        }
+
+        return { ...item, _relevanceScore: score };
+    })
+        .sort((a, b) => b._relevanceScore - a._relevanceScore)
+        .map(({ _relevanceScore, ...item }) => item);
+};
+
 // --- Routes: Auth ---
 app.post('/api/register', authLimiter, [validateUsername, validatePassword], async (req, res) => {
     try {
@@ -362,6 +406,17 @@ app.post('/api/login', authLimiter, async (req, res) => {
             }
             user.lastLogin = new Date();
             user.loginCount = (user.loginCount || 0) + 1;
+
+            // Record login history (in-memory)
+            if (!inMemoryDB.loginHistory) inMemoryDB.loginHistory = [];
+            inMemoryDB.loginHistory.push({ userId: user._id, loginAt: new Date() });
+            // Keep only last 10 per user
+            const userHistory = inMemoryDB.loginHistory.filter(h => h.userId === user._id);
+            if (userHistory.length > 10) {
+                const toRemove = userHistory.slice(0, userHistory.length - 10);
+                inMemoryDB.loginHistory = inMemoryDB.loginHistory.filter(h => !toRemove.includes(h));
+            }
+
             const token = jwt.sign({ id: user._id, username: user.username, isAdmin: user.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
             return res.json({ token, username: user.username });
         }
@@ -375,6 +430,18 @@ app.post('/api/login', authLimiter, async (req, res) => {
         user.lastLogin = new Date();
         user.loginCount = (user.loginCount || 0) + 1;
         await user.save();
+
+        // Record login history
+        await LoginHistory.create({ userId: user._id });
+
+        // Keep only last 10 login records per user
+        const historyCount = await LoginHistory.countDocuments({ userId: user._id });
+        if (historyCount > 10) {
+            const oldRecords = await LoginHistory.find({ userId: user._id })
+                .sort({ loginAt: 1 })
+                .limit(historyCount - 10);
+            await LoginHistory.deleteMany({ _id: { $in: oldRecords.map(r => r._id) } });
+        }
 
         const token = jwt.sign({ id: user._id, username: user.username, isAdmin: user.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
         res.json({ token, username: user.username });
@@ -396,14 +463,14 @@ app.get('/api/search', async (req, res) => {
 
         // Determine search type based on request
         let spotifyType = 'artist';
-        let searchLimit = 5;
+        let searchLimit = 20; // Increased for better ranking
 
         if (type === 'track') {
             spotifyType = 'track';
-            searchLimit = 10;
+            searchLimit = 20;
         } else if (type === 'album') {
             spotifyType = 'album';
-            searchLimit = 10;
+            searchLimit = 20;
         }
 
         const searchResp = await axios.get(`https://api.spotify.com/v1/search?q=${encodeURIComponent(artist)}&type=${spotifyType}&limit=${searchLimit}`, {
@@ -462,19 +529,22 @@ app.get('/api/search', async (req, res) => {
             });
         }
 
-        // Album search results
+        // Album search results - with smart ranking
         if (type === 'album') {
-            return res.json(searchResp.data.albums.items.map(a => ({
+            const albums = searchResp.data.albums.items.map(a => ({
                 id: a.id,
                 name: a.name,
                 artist: a.artists[0]?.name || 'Unknown',
                 image: a.images[0]?.url,
                 year: a.release_date?.split('-')[0] || '',
-                totalTracks: a.total_tracks
-            })));
+                totalTracks: a.total_tracks,
+                popularity: a.popularity
+            }));
+            const rankedAlbums = rankSearchResults(albums, artist, 'name');
+            return res.json(rankedAlbums);
         }
 
-        // Track search results
+        // Track search results - with smart ranking
         if (type === 'track') {
             // Spotify'dan gelen track verilerini formatla
             const tracks = searchResp.data.tracks.items.map(t => ({
@@ -483,22 +553,31 @@ app.get('/api/search', async (req, res) => {
                 artist: t.artists[0].name,
                 image: t.album.images[0]?.url,
                 preview_url: t.preview_url,
-                duration_ms: t.duration_ms
+                duration_ms: t.duration_ms,
+                popularity: t.popularity
             }));
 
+            // Smart rank first
+            const rankedTracks = rankSearchResults(tracks, artist, 'name');
+
             // Spotify preview yoksa iTunes'dan al (enrichTracksWithPreviews fonksiyonu)
-            const enrichedTracks = await enrichTracksWithPreviews(tracks);
+            const enrichedTracks = await enrichTracksWithPreviews(rankedTracks);
 
             return res.json(enrichedTracks);
         }
 
-        // Artist search results (default)
-        res.json(searchResp.data.artists.items.map(a => ({
+        // Artist search results (default) - with smart ranking
+        const artists = searchResp.data.artists.items.map(a => ({
             id: a.id,
             name: a.name,
             image: a.images[0]?.url || null,
-            genres: a.genres.slice(0, 2).join(', ')
-        })));
+            genres: a.genres.slice(0, 2).join(', '),
+            popularity: a.popularity // Keep for ranking
+        }));
+
+        // Smart rank: exact match first, then starts with, then by popularity
+        const rankedArtists = rankSearchResults(artists, artist, 'name');
+        res.json(rankedArtists);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -1010,11 +1089,18 @@ const authenticateAdmin = (req, res, next) => {
     res.status(403).json({ error: 'Admin access required' });
 };
 
-// 📊 Get all users with stats
+// 📊 Get all users with stats (with search and sorting)
 app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
     try {
+        const { search, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+
+        // Valid sort fields
+        const validSortFields = ['username', 'createdAt', 'lastLogin', 'loginCount', 'likesCount', 'followsCount', 'playlistsCount'];
+        const actualSortBy = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
+        const actualSortOrder = sortOrder === 'asc' ? 1 : -1;
+
         if (useInMemory) {
-            const users = inMemoryDB.users.map(u => ({
+            let users = inMemoryDB.users.map(u => ({
                 id: u._id,
                 username: u.username,
                 createdAt: u.createdAt,
@@ -1023,12 +1109,48 @@ app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
                 isAdmin: u.isAdmin || false,
                 likesCount: inMemoryDB.likes.filter(l => l.userId === u._id).length,
                 followsCount: inMemoryDB.follows.filter(f => f.userId === u._id).length,
+                albumFollowsCount: inMemoryDB.albumFollows.filter(a => a.userId === u._id).length,
                 playlistsCount: inMemoryDB.playlists.filter(p => p.userId === u._id).length
             }));
+
+            // Search filter
+            if (search && search.trim()) {
+                const searchLower = search.toLowerCase().trim();
+                users = users.filter(u => u.username.toLowerCase().includes(searchLower));
+            }
+
+            // Sorting
+            users.sort((a, b) => {
+                let valA = a[actualSortBy];
+                let valB = b[actualSortBy];
+                if (typeof valA === 'string') valA = valA.toLowerCase();
+                if (typeof valB === 'string') valB = valB.toLowerCase();
+                if (valA < valB) return -1 * actualSortOrder;
+                if (valA > valB) return 1 * actualSortOrder;
+                return 0;
+            });
+
             return res.json({ total: users.length, users });
         }
 
-        const users = await User.find({}, '-password').sort({ createdAt: -1 });
+        // MongoDB: Build query with optional search
+        let query = {};
+        if (search && search.trim()) {
+            query.username = { $regex: escapeRegex(search.trim()), $options: 'i' };
+        }
+
+        // For stats-based sorting, we need to fetch all and sort in memory
+        const needsStatSort = ['likesCount', 'followsCount', 'playlistsCount'].includes(actualSortBy);
+
+        let users;
+        if (needsStatSort) {
+            users = await User.find(query, '-password');
+        } else {
+            const mongoSort = {};
+            mongoSort[actualSortBy] = actualSortOrder;
+            users = await User.find(query, '-password').sort(mongoSort);
+        }
+
         const userStats = await Promise.all(users.map(async (user) => {
             const [likesCount, followsCount, albumFollowsCount, playlistsCount] = await Promise.all([
                 Like.countDocuments({ userId: user._id }),
@@ -1049,6 +1171,15 @@ app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
                 playlistsCount
             };
         }));
+
+        // Sort by stats if needed
+        if (needsStatSort) {
+            userStats.sort((a, b) => {
+                const valA = a[actualSortBy] || 0;
+                const valB = b[actualSortBy] || 0;
+                return (valA - valB) * actualSortOrder * -1;
+            });
+        }
 
         res.json({ total: userStats.length, users: userStats });
     } catch (e) {
@@ -1108,6 +1239,30 @@ app.get('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
     } catch (e) {
         console.error('Admin user detail error:', e.message);
         res.status(500).json({ error: 'Failed to fetch user details' });
+    }
+});
+
+// 📅 Get user login history
+app.get('/api/admin/users/:userId/logins', authenticateAdmin, async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        if (useInMemory) {
+            const history = (inMemoryDB.loginHistory || [])
+                .filter(h => h.userId === userId)
+                .sort((a, b) => new Date(b.loginAt) - new Date(a.loginAt))
+                .slice(0, 10);
+            return res.json({ userId, loginHistory: history });
+        }
+
+        const history = await LoginHistory.find({ userId })
+            .sort({ loginAt: -1 })
+            .limit(10);
+
+        res.json({ userId, loginHistory: history.map(h => ({ loginAt: h.loginAt })) });
+    } catch (e) {
+        console.error('Login history error:', e.message);
+        res.status(500).json({ error: 'Failed to fetch login history' });
     }
 });
 

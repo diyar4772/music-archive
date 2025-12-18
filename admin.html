@@ -190,22 +190,55 @@
         <div id="contentUsers" class="tab-content">
             <div class="glass rounded-2xl overflow-hidden">
                 <div class="bg-gradient-to-r from-blue-600/30 to-purple-600/30 p-4 border-b border-white/10">
-                    <h2 class="text-xl font-bold flex items-center gap-2">
-                        <i class="fa-solid fa-users"></i>
-                        Kayıtlı Kullanıcılar
-                    </h2>
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-bold flex items-center gap-2">
+                            <i class="fa-solid fa-users"></i>
+                            Kayıtlı Kullanıcılar
+                            <span id="userCount" class="text-sm text-gray-400 font-normal">(0)</span>
+                        </h2>
+                        <!-- Search Input -->
+                        <div class="relative">
+                            <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" id="userSearchInput" placeholder="Kullanıcı ara..."
+                                class="bg-white/10 border border-white/20 pl-10 pr-4 py-2 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 w-64"
+                                oninput="debounceSearch()">
+                        </div>
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full">
                         <thead class="bg-white/5">
                             <tr class="text-left text-gray-400 text-sm">
-                                <th class="p-4">Kullanıcı</th>
-                                <th class="p-4">Kayıt Tarihi</th>
-                                <th class="p-4">Son Giriş</th>
-                                <th class="p-4">Giriş Sayısı</th>
-                                <th class="p-4">Beğeniler</th>
-                                <th class="p-4">Takipler</th>
-                                <th class="p-4">Playlistler</th>
+                                <th class="p-4 cursor-pointer hover:text-white transition"
+                                    onclick="sortUsers('username')">
+                                    Kullanıcı <i class="fa-solid fa-sort ml-1 sort-icon" data-field="username"></i>
+                                </th>
+                                <th class="p-4 cursor-pointer hover:text-white transition"
+                                    onclick="sortUsers('createdAt')">
+                                    Kayıt Tarihi <i class="fa-solid fa-sort-down ml-1 sort-icon text-green-400"
+                                        data-field="createdAt"></i>
+                                </th>
+                                <th class="p-4 cursor-pointer hover:text-white transition"
+                                    onclick="sortUsers('lastLogin')">
+                                    Son Giriş <i class="fa-solid fa-sort ml-1 sort-icon" data-field="lastLogin"></i>
+                                </th>
+                                <th class="p-4 cursor-pointer hover:text-white transition"
+                                    onclick="sortUsers('loginCount')">
+                                    Giriş Sayısı <i class="fa-solid fa-sort ml-1 sort-icon" data-field="loginCount"></i>
+                                </th>
+                                <th class="p-4 cursor-pointer hover:text-white transition"
+                                    onclick="sortUsers('likesCount')">
+                                    Beğeniler <i class="fa-solid fa-sort ml-1 sort-icon" data-field="likesCount"></i>
+                                </th>
+                                <th class="p-4 cursor-pointer hover:text-white transition"
+                                    onclick="sortUsers('followsCount')">
+                                    Takipler <i class="fa-solid fa-sort ml-1 sort-icon" data-field="followsCount"></i>
+                                </th>
+                                <th class="p-4 cursor-pointer hover:text-white transition"
+                                    onclick="sortUsers('playlistsCount')">
+                                    Playlistler <i class="fa-solid fa-sort ml-1 sort-icon"
+                                        data-field="playlistsCount"></i>
+                                </th>
                                 <th class="p-4">İşlemler</th>
                             </tr>
                         </thead>
@@ -348,6 +381,33 @@
     <script>
         let authHeader = '';
 
+        // 🔒 SECURITY: Session timeout (30 minutes)
+        const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+        let lastActivity = Date.now();
+        let sessionCheckInterval = null;
+
+        function resetActivityTimer() {
+            lastActivity = Date.now();
+            sessionStorage.setItem('adminLastActivity', lastActivity);
+        }
+
+        function checkSessionTimeout() {
+            const storedActivity = sessionStorage.getItem('adminLastActivity');
+            if (storedActivity) {
+                lastActivity = parseInt(storedActivity);
+            }
+
+            if (authHeader && (Date.now() - lastActivity > SESSION_TIMEOUT_MS)) {
+                alert('Oturum süresi doldu. Lütfen tekrar giriş yapın.');
+                logout();
+            }
+        }
+
+        // Track user activity
+        ['mousemove', 'keypress', 'click', 'scroll'].forEach(event => {
+            document.addEventListener(event, resetActivityTimer, { passive: true });
+        });
+
         function login() {
             const user = document.getElementById('adminUser').value;
             const pass = document.getElementById('adminPass').value;
@@ -358,6 +418,14 @@
             fetch('/api/admin/stats', { headers: { 'Authorization': authHeader } })
                 .then(r => {
                     if (r.ok) {
+                        // 🔒 Store in sessionStorage (cleared on tab close)
+                        sessionStorage.setItem('adminAuth', authHeader);
+                        resetActivityTimer();
+
+                        // Start session timeout checker
+                        if (sessionCheckInterval) clearInterval(sessionCheckInterval);
+                        sessionCheckInterval = setInterval(checkSessionTimeout, 60000); // Check every minute
+
                         document.getElementById('loginModal').classList.add('hidden');
                         document.getElementById('mainContent').classList.remove('hidden');
                         loadStats();
@@ -375,9 +443,85 @@
 
         function logout() {
             authHeader = '';
+            // 🔒 Clear session data
+            sessionStorage.removeItem('adminAuth');
+            sessionStorage.removeItem('adminLastActivity');
+            if (sessionCheckInterval) {
+                clearInterval(sessionCheckInterval);
+                sessionCheckInterval = null;
+            }
             document.getElementById('loginModal').classList.remove('hidden');
             document.getElementById('mainContent').classList.add('hidden');
             document.getElementById('adminPass').value = '';
+        }
+
+        // 🔒 Auto-restore session on page load (only if within timeout)
+        (function restoreSession() {
+            const savedAuth = sessionStorage.getItem('adminAuth');
+            const savedActivity = sessionStorage.getItem('adminLastActivity');
+
+            if (savedAuth && savedActivity) {
+                const timeSinceActivity = Date.now() - parseInt(savedActivity);
+                if (timeSinceActivity < SESSION_TIMEOUT_MS) {
+                    authHeader = savedAuth;
+                    lastActivity = parseInt(savedActivity);
+
+                    // Verify auth is still valid
+                    fetch('/api/admin/stats', { headers: { 'Authorization': authHeader } })
+                        .then(r => {
+                            if (r.ok) {
+                                document.getElementById('loginModal').classList.add('hidden');
+                                document.getElementById('mainContent').classList.remove('hidden');
+                                sessionCheckInterval = setInterval(checkSessionTimeout, 60000);
+                                loadStats();
+                                loadUsers();
+                            } else {
+                                logout();
+                            }
+                        })
+                        .catch(() => logout());
+                } else {
+                    // Session expired
+                    logout();
+                }
+            }
+        })();
+
+        // Search and Sort State
+        let currentSearch = '';
+        let currentSortBy = 'createdAt';
+        let currentSortOrder = 'desc';
+        let searchTimeout = null;
+
+        function debounceSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                currentSearch = document.getElementById('userSearchInput').value;
+                loadUsers();
+            }, 300);
+        }
+
+        function sortUsers(field) {
+            if (currentSortBy === field) {
+                currentSortOrder = currentSortOrder === 'desc' ? 'asc' : 'desc';
+            } else {
+                currentSortBy = field;
+                currentSortOrder = 'desc';
+            }
+            updateSortIcons();
+            loadUsers();
+        }
+
+        function updateSortIcons() {
+            document.querySelectorAll('.sort-icon').forEach(icon => {
+                const field = icon.dataset.field;
+                if (field === currentSortBy) {
+                    icon.className = `fa-solid fa-sort-${currentSortOrder === 'desc' ? 'down' : 'up'} ml-1 sort-icon text-green-400`;
+                } else {
+                    icon.className = 'fa-solid fa-sort ml-1 sort-icon';
+                }
+                icon.dataset.field = field;
+            });
         }
 
         async function loadStats() {
@@ -397,13 +541,19 @@
 
         async function loadUsers() {
             try {
-                const res = await fetch('/api/admin/users', { headers: { 'Authorization': authHeader } });
+                const params = new URLSearchParams();
+                if (currentSearch) params.append('search', currentSearch);
+                params.append('sortBy', currentSortBy);
+                params.append('sortOrder', currentSortOrder);
+
+                const res = await fetch(`/api/admin/users?${params.toString()}`, { headers: { 'Authorization': authHeader } });
                 const data = await res.json();
 
                 const tbody = document.getElementById('usersTable');
+                document.getElementById('userCount').textContent = `(${data.total || 0})`;
 
                 if (!data.users || data.users.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-gray-500">Henüz kullanıcı yok</td></tr>';
+                    tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-500">${currentSearch ? 'Kullanıcı bulunamadı' : 'Henüz kullanıcı yok'}</td></tr>`;
                     return;
                 }
 
@@ -442,14 +592,39 @@
 
         async function viewUserDetail(userId) {
             try {
-                const res = await fetch(`/api/admin/users/${userId}`, { headers: { 'Authorization': authHeader } });
-                const data = await res.json();
+                // Fetch user details and login history in parallel
+                const [userRes, loginsRes] = await Promise.all([
+                    fetch(`/api/admin/users/${userId}`, { headers: { 'Authorization': authHeader } }),
+                    fetch(`/api/admin/users/${userId}/logins`, { headers: { 'Authorization': authHeader } })
+                ]);
+
+                const data = await userRes.json();
+                const loginsData = await loginsRes.json();
 
                 document.getElementById('detailUsername').textContent = `📊 ${data.user.username} - Detaylar`;
 
+                const loginHistoryHtml = loginsData.loginHistory?.length ? `
+                    <div class="glass p-4 rounded-xl">
+                        <h4 class="font-bold text-lg mb-3"><i class="fa-solid fa-clock-rotate-left text-orange-400 mr-2"></i>Giriş Geçmişi (Son 10)</h4>
+                        <div class="space-y-1 max-h-40 overflow-y-auto">
+                            ${loginsData.loginHistory.map((h, i) => `
+                                <p class="text-sm ${i === 0 ? 'text-green-400' : 'text-gray-400'}">
+                                    ${i === 0 ? '<i class="fa-solid fa-circle text-xs mr-2"></i>' : '<i class="fa-regular fa-circle text-xs mr-2"></i>'}
+                                    ${formatDate(h.loginAt)}
+                                </p>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : `
+                    <div class="glass p-4 rounded-xl">
+                        <h4 class="font-bold text-lg mb-3"><i class="fa-solid fa-clock-rotate-left text-orange-400 mr-2"></i>Giriş Geçmişi</h4>
+                        <p class="text-gray-500 text-sm">Henüz giriş kaydı yok</p>
+                    </div>
+                `;
+
                 const content = document.getElementById('userDetailContent');
                 content.innerHTML = `
-                    <div class="grid md:grid-cols-2 gap-6 mb-6">
+                    <div class="grid md:grid-cols-3 gap-6 mb-6">
                         <div class="glass p-4 rounded-xl">
                             <h4 class="font-bold text-lg mb-3"><i class="fa-solid fa-user text-blue-400 mr-2"></i>Kullanıcı Bilgileri</h4>
                             <p class="text-gray-400">ID: <span class="text-white">${data.user.id}</span></p>
@@ -465,6 +640,7 @@
                             <p class="text-gray-400">Takip Edilen Albümler: <span class="text-purple-400 font-bold">${data.albumFollows?.length || 0}</span></p>
                             <p class="text-gray-400">Playlistler: <span class="text-yellow-400 font-bold">${data.playlists?.length || 0}</span></p>
                         </div>
+                        ${loginHistoryHtml}
                     </div>
                     
                     ${data.likes?.length ? `
