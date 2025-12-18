@@ -46,6 +46,55 @@
                 opacity: 0.5;
             }
         }
+
+        .tab-btn {
+            opacity: 0.6;
+        }
+
+        .tab-btn.active {
+            opacity: 1;
+            background: linear-gradient(135deg, rgba(29, 185, 84, 0.3), rgba(30, 215, 96, 0.3));
+            border: 1px solid rgba(29, 185, 84, 0.5);
+        }
+
+        .tab-btn:hover {
+            opacity: 0.9;
+        }
+
+        /* Mini Player in Admin */
+        .admin-mini-player {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to right, #1a1a2e, #16213e);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 12px 20px;
+            z-index: 1000;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .admin-mini-player.active {
+            transform: translateY(0);
+        }
+
+        .admin-progress {
+            height: 4px;
+            background: #333;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            cursor: pointer;
+        }
+
+        .admin-progress-bar {
+            height: 100%;
+            background: #1DB954;
+            width: 0%;
+            transition: width 0.1s;
+        }
     </style>
 </head>
 
@@ -121,34 +170,161 @@
             </div>
         </div>
 
-        <!-- Users Table -->
-        <div class="glass rounded-2xl overflow-hidden">
-            <div class="bg-gradient-to-r from-blue-600/30 to-purple-600/30 p-4 border-b border-white/10">
-                <h2 class="text-xl font-bold flex items-center gap-2">
-                    <i class="fa-solid fa-users"></i>
-                    Kayıtlı Kullanıcılar
-                </h2>
+        <!-- Tab Navigation -->
+        <div class="flex gap-2 mb-6">
+            <button onclick="switchTab('users')" id="tabUsers"
+                class="tab-btn glass px-6 py-3 rounded-lg font-bold transition active">
+                <i class="fa-solid fa-users mr-2"></i>Kullanıcılar
+            </button>
+            <button onclick="switchTab('test')" id="tabTest"
+                class="tab-btn glass px-6 py-3 rounded-lg font-bold transition">
+                <i class="fa-solid fa-flask mr-2"></i>Test & Debug
+            </button>
+            <button onclick="switchTab('preview')" id="tabPreview"
+                class="tab-btn glass px-6 py-3 rounded-lg font-bold transition">
+                <i class="fa-solid fa-play mr-2"></i>Şarkı Preview
+            </button>
+        </div>
+
+        <!-- Tab Content: Users -->
+        <div id="contentUsers" class="tab-content">
+            <div class="glass rounded-2xl overflow-hidden">
+                <div class="bg-gradient-to-r from-blue-600/30 to-purple-600/30 p-4 border-b border-white/10">
+                    <h2 class="text-xl font-bold flex items-center gap-2">
+                        <i class="fa-solid fa-users"></i>
+                        Kayıtlı Kullanıcılar
+                    </h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-white/5">
+                            <tr class="text-left text-gray-400 text-sm">
+                                <th class="p-4">Kullanıcı</th>
+                                <th class="p-4">Kayıt Tarihi</th>
+                                <th class="p-4">Son Giriş</th>
+                                <th class="p-4">Giriş Sayısı</th>
+                                <th class="p-4">Beğeniler</th>
+                                <th class="p-4">Takipler</th>
+                                <th class="p-4">Playlistler</th>
+                                <th class="p-4">İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTable" class="divide-y divide-white/5">
+                            <tr>
+                                <td colspan="8" class="p-8 text-center text-gray-500 pulse">Yükleniyor...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full">
-                    <thead class="bg-white/5">
-                        <tr class="text-left text-gray-400 text-sm">
-                            <th class="p-4">Kullanıcı</th>
-                            <th class="p-4">Kayıt Tarihi</th>
-                            <th class="p-4">Son Giriş</th>
-                            <th class="p-4">Giriş Sayısı</th>
-                            <th class="p-4">Beğeniler</th>
-                            <th class="p-4">Takipler</th>
-                            <th class="p-4">Playlistler</th>
-                            <th class="p-4">İşlemler</th>
-                        </tr>
-                    </thead>
-                    <tbody id="usersTable" class="divide-y divide-white/5">
-                        <tr>
-                            <td colspan="8" class="p-8 text-center text-gray-500 pulse">Yükleniyor...</td>
-                        </tr>
-                    </tbody>
-                </table>
+        </div>
+
+        <!-- Tab Content: Test & Debug -->
+        <div id="contentTest" class="tab-content hidden">
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- API Test -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-server text-blue-400"></i>API Durumu
+                    </h3>
+                    <div class="space-y-3 mb-4">
+                        <button onclick="testAPI()"
+                            class="w-full bg-blue-500/20 border border-blue-500/50 py-3 rounded-lg hover:bg-blue-500/30 transition">
+                            <i class="fa-solid fa-plug mr-2"></i>API Bağlantısını Test Et
+                        </button>
+                        <button onclick="testSpotify()"
+                            class="w-full bg-green-500/20 border border-green-500/50 py-3 rounded-lg hover:bg-green-500/30 transition">
+                            <i class="fa-brands fa-spotify mr-2"></i>Spotify API Test Et
+                        </button>
+                    </div>
+                    <div id="apiTestResult"
+                        class="bg-black/30 p-4 rounded-lg font-mono text-sm max-h-48 overflow-y-auto"></div>
+                </div>
+
+                <!-- Search Test -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-search text-purple-400"></i>Arama Testi
+                    </h3>
+                    <div class="flex gap-2 mb-3">
+                        <input type="text" id="testSearchQuery" placeholder="Aranacak şarkı/sanatçı..."
+                            value="Daft Punk"
+                            class="flex-1 bg-white/10 border border-white/20 p-3 rounded-lg text-white placeholder-gray-400">
+                        <select id="testSearchType"
+                            class="bg-white/10 border border-white/20 p-3 rounded-lg text-white">
+                            <option value="track">Şarkı</option>
+                            <option value="artist">Sanatçı</option>
+                            <option value="album">Albüm</option>
+                        </select>
+                    </div>
+                    <button onclick="testSearch()"
+                        class="w-full bg-purple-500/20 border border-purple-500/50 py-3 rounded-lg hover:bg-purple-500/30 transition mb-4">
+                        <i class="fa-solid fa-magnifying-glass mr-2"></i>Ara
+                    </button>
+                    <div id="searchTestResult"
+                        class="bg-black/30 p-4 rounded-lg font-mono text-sm max-h-48 overflow-y-auto"></div>
+                </div>
+
+                <!-- System Info -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-info-circle text-yellow-400"></i>Sistem Bilgisi
+                    </h3>
+                    <div class="space-y-2 text-sm">
+                        <p class="flex justify-between"><span class="text-gray-400">API URL:</span><span>/api</span></p>
+                        <p class="flex justify-between"><span class="text-gray-400">Frontend:</span><span>index.html
+                                (SPA)</span></p>
+                        <p class="flex justify-between"><span
+                                class="text-gray-400">Backend:</span><span>Express.js</span></p>
+                        <p class="flex justify-between"><span class="text-gray-400">Veritabanı:</span><span
+                                id="dbType">-</span></p>
+                        <p class="flex justify-between"><span class="text-gray-400">Sunucu Durumu:</span><span
+                                id="serverStatus" class="text-green-400">Çalışıyor</span></p>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-bolt text-orange-400"></i>Hızlı İşlemler
+                    </h3>
+                    <div class="space-y-3">
+                        <button onclick="runAllTests()"
+                            class="w-full bg-gradient-to-r from-orange-500 to-red-500 py-3 rounded-lg font-bold hover:opacity-90 transition">
+                            <i class="fa-solid fa-play mr-2"></i>Tüm Testleri Çalıştır
+                        </button>
+                        <button onclick="window.open('/', '_blank')"
+                            class="w-full bg-white/10 border border-white/20 py-3 rounded-lg hover:bg-white/20 transition">
+                            <i class="fa-solid fa-external-link mr-2"></i>Ana Sayfayı Aç
+                        </button>
+                    </div>
+                    <div id="allTestsResult"
+                        class="bg-black/30 p-4 rounded-lg font-mono text-sm mt-4 max-h-48 overflow-y-auto hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Preview Test -->
+        <div id="contentPreview" class="tab-content hidden">
+            <div class="glass rounded-2xl p-6">
+                <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-headphones text-green-400"></i>Şarkı Preview Testi
+                </h3>
+                <p class="text-gray-400 mb-4">Spotify'dan şarkı arayın ve 30 saniyelik önizlemeyi test edin.</p>
+
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="previewSearchQuery" placeholder="Şarkı ara..." value="Get Lucky"
+                        class="flex-1 bg-white/10 border border-white/20 p-3 rounded-lg text-white placeholder-gray-400">
+                    <button onclick="searchForPreview()"
+                        class="bg-green-500 px-6 py-3 rounded-lg font-bold hover:bg-green-600 transition">
+                        <i class="fa-solid fa-search mr-2"></i>Ara
+                    </button>
+                </div>
+
+                <div id="previewSearchResult" class="mb-4 text-sm text-gray-400"></div>
+
+                <!-- Track List -->
+                <div id="previewTrackList" class="space-y-2 mb-6"></div>
             </div>
         </div>
 
@@ -391,7 +567,293 @@
         document.getElementById('adminPass').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') login();
         });
+
+        // ========== TAB SYSTEM ==========
+        function switchTab(tabName) {
+            // Hide all content
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            // Deactivate all tabs
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+            // Show selected content
+            document.getElementById('content' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.remove('hidden');
+            // Activate selected tab
+            document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
+        }
+
+        // ========== TEST FUNCTIONS ==========
+        function logTest(elementId, message, type = 'info') {
+            const el = document.getElementById(elementId);
+            const time = new Date().toLocaleTimeString();
+            const color = type === 'ok' ? 'text-green-400' : type === 'error' ? 'text-red-400' : type === 'warn' ? 'text-yellow-400' : 'text-gray-300';
+            el.innerHTML += `<div class="${color}">[${time}] ${message}</div>`;
+            el.scrollTop = el.scrollHeight;
+        }
+
+        async function testAPI() {
+            document.getElementById('apiTestResult').innerHTML = '';
+            logTest('apiTestResult', 'API bağlantısı test ediliyor...');
+            try {
+                const start = Date.now();
+                const res = await fetch('/api/search?artist=test&type=artist');
+                const time = Date.now() - start;
+
+                if (res.ok) {
+                    logTest('apiTestResult', `✅ API çalışıyor (${time}ms)`, 'ok');
+                    document.getElementById('serverStatus').textContent = 'Çalışıyor';
+                    document.getElementById('serverStatus').className = 'text-green-400';
+                } else {
+                    logTest('apiTestResult', `⚠️ API yanıt verdi ama hata: ${res.status}`, 'warn');
+                }
+            } catch (e) {
+                logTest('apiTestResult', `❌ API bağlantı hatası: ${e.message}`, 'error');
+                document.getElementById('serverStatus').textContent = 'Hata';
+                document.getElementById('serverStatus').className = 'text-red-400';
+            }
+        }
+
+        async function testSpotify() {
+            logTest('apiTestResult', 'Spotify API test ediliyor...');
+            try {
+                const res = await fetch('/api/search?artist=Daft%20Punk&type=track');
+                const data = await res.json();
+
+                if (Array.isArray(data) && data.length > 0) {
+                    logTest('apiTestResult', `✅ Spotify API çalışıyor. ${data.length} sonuç bulundu.`, 'ok');
+                    const withPreview = data.filter(t => t.preview_url);
+                    logTest('apiTestResult', `   └─ Preview URL'li: ${withPreview.length}/${data.length}`, withPreview.length > 0 ? 'ok' : 'warn');
+                    document.getElementById('dbType').textContent = 'MongoDB/In-Memory';
+                } else {
+                    logTest('apiTestResult', '⚠️ Spotify sonuç döndürmedi', 'warn');
+                }
+            } catch (e) {
+                logTest('apiTestResult', `❌ Spotify API hatası: ${e.message}`, 'error');
+            }
+        }
+
+        async function testSearch() {
+            const query = document.getElementById('testSearchQuery').value;
+            const type = document.getElementById('testSearchType').value;
+
+            document.getElementById('searchTestResult').innerHTML = '';
+            logTest('searchTestResult', `Aranıyor: "${query}" (${type})`);
+
+            try {
+                const res = await fetch(`/api/search?artist=${encodeURIComponent(query)}&type=${type}`);
+                const data = await res.json();
+
+                if (Array.isArray(data)) {
+                    logTest('searchTestResult', `✅ ${data.length} sonuç bulundu`, 'ok');
+                    data.slice(0, 5).forEach(item => {
+                        const name = item.name || item.trackName || 'Unknown';
+                        const hasPreview = item.preview_url ? '🎵' : '';
+                        logTest('searchTestResult', `   └─ ${name} ${hasPreview}`);
+                    });
+                } else if (data.name) {
+                    logTest('searchTestResult', `✅ Sanatçı: ${data.name}`, 'ok');
+                    logTest('searchTestResult', `   └─ Albüm sayısı: ${data.albums?.length || 0}`);
+                }
+            } catch (e) {
+                logTest('searchTestResult', `❌ Arama hatası: ${e.message}`, 'error');
+            }
+        }
+
+        async function runAllTests() {
+            const resultEl = document.getElementById('allTestsResult');
+            resultEl.classList.remove('hidden');
+            resultEl.innerHTML = '';
+
+            logTest('allTestsResult', '🧪 Tüm testler başlıyor...');
+
+            const results = [];
+
+            // Test 1: API
+            try {
+                const res = await fetch('/api/search?artist=test&type=artist');
+                results.push({ name: 'API Bağlantısı', ok: res.ok });
+            } catch (e) {
+                results.push({ name: 'API Bağlantısı', ok: false });
+            }
+
+            // Test 2: Spotify
+            try {
+                const res = await fetch('/api/search?artist=test&type=track');
+                const data = await res.json();
+                results.push({ name: 'Spotify API', ok: Array.isArray(data) });
+            } catch (e) {
+                results.push({ name: 'Spotify API', ok: false });
+            }
+
+            // Test 3: Admin API
+            try {
+                const res = await fetch('/api/admin/stats', { headers: { 'Authorization': authHeader } });
+                results.push({ name: 'Admin API', ok: res.ok });
+            } catch (e) {
+                results.push({ name: 'Admin API', ok: false });
+            }
+
+            // Summary
+            logTest('allTestsResult', '─────────────────────');
+            results.forEach(r => {
+                logTest('allTestsResult', `${r.ok ? '✅' : '❌'} ${r.name}`, r.ok ? 'ok' : 'error');
+            });
+
+            const passCount = results.filter(r => r.ok).length;
+            logTest('allTestsResult', '─────────────────────');
+            logTest('allTestsResult', `Sonuç: ${passCount}/${results.length} test geçti`, passCount === results.length ? 'ok' : 'warn');
+        }
+
+        // ========== PREVIEW PLAYER ==========
+        let currentAudio = null;
+        let playingTrackId = null;
+
+        async function searchForPreview() {
+            const query = document.getElementById('previewSearchQuery').value;
+            const resultEl = document.getElementById('previewSearchResult');
+            const listEl = document.getElementById('previewTrackList');
+
+            resultEl.textContent = 'Aranıyor...';
+            listEl.innerHTML = '';
+
+            try {
+                const res = await fetch(`/api/search?artist=${encodeURIComponent(query)}&type=track`);
+                const data = await res.json();
+
+                const withPreview = data.filter(t => t.preview_url);
+                resultEl.innerHTML = `Bulunan: <span class="text-white">${data.length}</span> şarkı, <span class="text-green-400">${withPreview.length}</span> preview var`;
+
+                withPreview.slice(0, 8).forEach(track => {
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center gap-4 p-4 glass rounded-xl hover:bg-white/10 cursor-pointer transition';
+                    div.onclick = () => playPreview(track.id, track.preview_url, track.name, track.image, track.artist);
+                    div.innerHTML = `
+                        <img src="${track.image || 'https://via.placeholder.com/48'}" class="w-12 h-12 rounded object-cover">
+                        <div class="flex-1 min-w-0">
+                            <p class="font-bold truncate">${escapeHtml(track.name)}</p>
+                            <p class="text-sm text-gray-400">${escapeHtml(track.artist)}</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-gray-500">${Math.round((track.duration_ms || 30000) / 1000)}s</span>
+                            <i class="fa-solid fa-play text-green-400 text-xl"></i>
+                        </div>
+                    `;
+                    listEl.appendChild(div);
+                });
+
+                if (withPreview.length === 0) {
+                    listEl.innerHTML = '<p class="text-center text-gray-500 py-8">Bu arama için preview bulunamadı. Başka bir şarkı deneyin.</p>';
+                }
+            } catch (e) {
+                resultEl.innerHTML = `<span class="text-red-400">Hata: ${e.message}</span>`;
+            }
+        }
+
+        function playPreview(id, url, name, image, artist) {
+            if (!url) {
+                alert('Bu şarkı için preview URL yok');
+                return;
+            }
+
+            const miniPlayer = document.getElementById('adminMiniPlayer');
+            const isCurrentTrack = currentAudio && playingTrackId === id;
+
+            if (isCurrentTrack) {
+                if (currentAudio.paused) {
+                    currentAudio.play();
+                    updatePlayerIcon(true);
+                } else {
+                    currentAudio.pause();
+                    updatePlayerIcon(false);
+                }
+            } else {
+                if (currentAudio) {
+                    currentAudio.pause();
+                }
+
+                currentAudio = new Audio(url);
+                currentAudio.volume = 0.5;
+                playingTrackId = id;
+
+                document.getElementById('playerImage').src = image || 'https://via.placeholder.com/56';
+                document.getElementById('playerTitle').textContent = name || 'Unknown';
+                document.getElementById('playerArtist').textContent = artist || '';
+                miniPlayer.classList.add('active');
+
+                currentAudio.play().catch(e => {
+                    alert('Audio yüklenemedi: ' + e.message);
+                    closePlayer();
+                });
+                updatePlayerIcon(true);
+
+                currentAudio.ontimeupdate = () => {
+                    const progress = (currentAudio.currentTime / currentAudio.duration) * 100;
+                    document.getElementById('playerProgress').style.width = progress + '%';
+                    document.getElementById('playerTime').textContent = `${formatTime(currentAudio.currentTime)} / ${formatTime(currentAudio.duration || 30)}`;
+                };
+
+                currentAudio.onended = () => {
+                    playingTrackId = null;
+                    updatePlayerIcon(false);
+                    document.getElementById('playerProgress').style.width = '0%';
+                };
+            }
+        }
+
+        function togglePlayer() {
+            if (!currentAudio) return;
+            if (currentAudio.paused) {
+                currentAudio.play();
+                updatePlayerIcon(true);
+            } else {
+                currentAudio.pause();
+                updatePlayerIcon(false);
+            }
+        }
+
+        function closePlayer() {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            playingTrackId = null;
+            document.getElementById('adminMiniPlayer').classList.remove('active');
+        }
+
+        function updatePlayerIcon(playing) {
+            document.getElementById('playerIcon').className = `fa-solid ${playing ? 'fa-pause' : 'fa-play'} text-black text-xl`;
+        }
+
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return '0:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
     </script>
+
+    <!-- Admin Mini Player -->
+    <div id="adminMiniPlayer" class="admin-mini-player">
+        <div class="admin-progress">
+            <div id="playerProgress" class="admin-progress-bar"></div>
+        </div>
+        <div class="flex items-center gap-4 max-w-7xl mx-auto">
+            <img id="playerImage" src="" class="w-14 h-14 rounded object-cover shadow-lg">
+            <div class="flex-1 min-w-0">
+                <p id="playerTitle" class="font-bold truncate"></p>
+                <p id="playerArtist" class="text-sm text-gray-400 truncate"></p>
+            </div>
+            <div class="flex items-center gap-4">
+                <span id="playerTime" class="text-xs text-gray-400 w-24 text-center">0:00 / 0:30</span>
+                <button onclick="togglePlayer()"
+                    class="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center hover:scale-105 transition">
+                    <i id="playerIcon" class="fa-solid fa-play text-black text-xl"></i>
+                </button>
+                <button onclick="closePlayer()" class="text-gray-400 hover:text-white p-2">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

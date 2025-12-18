@@ -62,6 +62,7 @@ const inMemoryDB = {
     likes: [],
     playlists: [],
     playlistTracks: [],
+    ratings: [],
     nextId: 1
 };
 
@@ -129,6 +130,20 @@ const playlistTrackSchema = new mongoose.Schema({
     previewUrl: { type: String }
 }, { timestamps: true });
 
+// Rating Schema - Şarkı ve Albüm puanlama
+const ratingSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    itemId: { type: String, required: true }, // trackId veya albumId
+    itemType: { type: String, enum: ['track', 'album'], required: true },
+    itemName: { type: String },
+    artistName: { type: String },
+    image: { type: String },
+    rating: { type: Number, min: 1, max: 5, required: true } // 1-5 yıldız
+}, { timestamps: true });
+
+// Aynı kullanıcı aynı item'ı sadece bir kez puanlayabilir
+ratingSchema.index({ userId: 1, itemId: 1, itemType: 1 }, { unique: true });
+
 // --- Mongoose Models ---
 const User = mongoose.model('User', userSchema);
 const Follow = mongoose.model('Follow', followSchema);
@@ -136,6 +151,7 @@ const AlbumFollow = mongoose.model('AlbumFollow', albumFollowSchema);
 const Like = mongoose.model('Like', likeSchema);
 const Playlist = mongoose.model('Playlist', playlistSchema);
 const PlaylistTrack = mongoose.model('PlaylistTrack', playlistTrackSchema);
+const Rating = mongoose.model('Rating', ratingSchema);
 
 // --- Spotify Token Management ---
 let spotifyToken = null;
@@ -155,6 +171,113 @@ const getSpotifyToken = async () => {
         console.error('Spotify Auth Error:', e.message);
         throw new Error('Failed to get Spotify Token');
     }
+};
+
+// ============================================
+// 🎵 iTunes Preview API
+// ============================================
+// Spotify artık Client Credentials flow'da preview_url vermediği için
+// Direkt iTunes Search API kullanıyoruz - her zaman çalışır.
+
+/**
+ * iTunes'dan şarkı için audio preview URL'si döndürür.
+ * Her zaman iTunes'dan alır - Spotify preview kullanmıyoruz.
+ * 
+ * @param {string} songName - Şarkı adı
+ * @param {string} artistName - Sanatçı adı
+ * @returns {Promise<{url: string|null, source: string}>} Preview URL ve kaynağı
+ */
+const getAudioPreview = async (songName, artistName) => {
+    try {
+        // Arama terimini oluştur (şarkı adı + sanatçı)
+        const searchTerm = `${songName} ${artistName}`;
+        const encodedTerm = encodeURIComponent(searchTerm);
+
+        // iTunes Search API'ye istek at
+        const response = await axios.get(
+            `https://itunes.apple.com/search?term=${encodedTerm}&media=music&entity=song&limit=5`,
+            { timeout: 5000 } // 5 saniye timeout
+        );
+
+        const results = response.data.results || [];
+
+        if (results.length === 0) {
+            return { url: null, source: null };
+        }
+
+        // En iyi eşleşmeyi bul (isim ve sanatçı benzerliği)
+        const songLower = songName.toLowerCase().trim();
+        const artistLower = artistName.toLowerCase().trim();
+
+        // Önce tam eşleşme ara
+        let bestMatch = results.find(r => {
+            const trackLower = (r.trackName || '').toLowerCase().trim();
+            const rArtistLower = (r.artistName || '').toLowerCase().trim();
+            return trackLower === songLower && rArtistLower.includes(artistLower);
+        });
+
+        // Tam eşleşme yoksa kısmi eşleşme ara
+        if (!bestMatch) {
+            bestMatch = results.find(r => {
+                const trackLower = (r.trackName || '').toLowerCase();
+                const rArtistLower = (r.artistName || '').toLowerCase();
+                return (trackLower.includes(songLower) || songLower.includes(trackLower)) &&
+                    (rArtistLower.includes(artistLower) || artistLower.includes(rArtistLower));
+            });
+        }
+
+        // Hala bulunamadıysa ilk sonucu al
+        if (!bestMatch && results.length > 0) {
+            bestMatch = results[0];
+        }
+
+        if (bestMatch && bestMatch.previewUrl) {
+            return { url: bestMatch.previewUrl, source: 'itunes' };
+        }
+
+        return { url: null, source: null };
+
+    } catch (error) {
+        console.error(`🎵 iTunes API hatası: ${error.message}`);
+        return { url: null, source: null };
+    }
+};
+
+/**
+ * Birden fazla şarkı için iTunes'dan preview URL'lerini toplu olarak getirir.
+ * Performans için paralel istekler yapar - HER ZAMAN iTunes kullanır.
+ * 
+ * @param {Array} tracks - {name, artist} içeren şarkı dizisi
+ * @returns {Promise<Array>} Preview URL'leri eklenmiş şarkı dizisi
+ */
+const enrichTracksWithPreviews = async (tracks) => {
+    console.log(`🎵 ${tracks.length} şarkı için iTunes'dan preview alınıyor...`);
+
+    // Her şarkı için paralel olarak iTunes'dan preview al
+    const previewPromises = tracks.map(async (track) => {
+        const result = await getAudioPreview(track.name, track.artist);
+        return { trackId: track.id, ...result };
+    });
+
+    const previewResults = await Promise.all(previewPromises);
+
+    // Sonuçları tracks dizisine ekle
+    const previewMap = new Map(previewResults.map(r => [r.trackId, r]));
+
+    const enrichedTracks = tracks.map(track => {
+        if (previewMap.has(track.id)) {
+            const result = previewMap.get(track.id);
+            if (result.url) {
+                return { ...track, preview_url: result.url, preview_source: 'itunes' };
+            }
+        }
+        return { ...track, preview_url: null };
+    });
+
+    const withPreview = enrichedTracks.filter(t => t.preview_url).length;
+    console.log(`🎵 iTunes: ${withPreview}/${tracks.length} şarkıda preview bulundu`);
+
+    return enrichedTracks;
 };
 
 // --- Middleware ---
@@ -180,6 +303,11 @@ const validateUsername = body('username')
 const validatePassword = body('password')
     .isLength({ min: 6, max: 100 }).withMessage('Password must be at least 6 characters');
 
+// 🔒 SECURITY: Escape special regex characters to prevent injection
+const escapeRegex = (string) => {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
+
 // --- Routes: Auth ---
 app.post('/api/register', authLimiter, [validateUsername, validatePassword], async (req, res) => {
     try {
@@ -204,7 +332,7 @@ app.post('/api/register', authLimiter, [validateUsername, validatePassword], asy
         }
 
         // Check if username exists (case-insensitive)
-        const existingUser = await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } });
+        const existingUser = await User.findOne({ username: { $regex: new RegExp(`^${escapeRegex(username)}$`, 'i') } });
         if (existingUser) {
             return res.status(400).json({ error: 'Username already taken' });
         }
@@ -238,7 +366,7 @@ app.post('/api/login', authLimiter, async (req, res) => {
             return res.json({ token, username: user.username });
         }
 
-        const user = await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } });
+        const user = await User.findOne({ username: { $regex: new RegExp(`^${escapeRegex(username)}$`, 'i') } });
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
@@ -348,14 +476,20 @@ app.get('/api/search', async (req, res) => {
 
         // Track search results
         if (type === 'track') {
-            return res.json(searchResp.data.tracks.items.map(t => ({
+            // Spotify'dan gelen track verilerini formatla
+            const tracks = searchResp.data.tracks.items.map(t => ({
                 id: t.id,
                 name: t.name,
                 artist: t.artists[0].name,
                 image: t.album.images[0]?.url,
                 preview_url: t.preview_url,
                 duration_ms: t.duration_ms
-            })));
+            }));
+
+            // Spotify preview yoksa iTunes'dan al (enrichTracksWithPreviews fonksiyonu)
+            const enrichedTracks = await enrichTracksWithPreviews(tracks);
+
+            return res.json(enrichedTracks);
         }
 
         // Artist search results (default)
@@ -405,21 +539,25 @@ app.get('/api/me', authenticateToken, async (req, res) => {
             const follows = inMemoryDB.follows.filter(f => f.userId === req.user.id);
             const likes = inMemoryDB.likes.filter(l => l.userId === req.user.id);
             const albumFollows = inMemoryDB.albumFollows.filter(a => a.userId === req.user.id);
+            const ratings = inMemoryDB.ratings.filter(r => r.userId === req.user.id);
             return res.json({
                 follows: follows.map(f => ({ artistId: f.artistId, artistName: f.artistName, image: f.image })),
                 likes: likes.map(l => ({ trackId: l.trackId, trackName: l.trackName, image: l.image, previewUrl: l.previewUrl })),
-                albumFollows: albumFollows.map(a => ({ albumId: a.albumId, albumName: a.albumName, image: a.image, artistName: a.artistName }))
+                albumFollows: albumFollows.map(a => ({ albumId: a.albumId, albumName: a.albumName, image: a.image, artistName: a.artistName })),
+                ratings: ratings.map(r => ({ itemId: r.itemId, itemType: r.itemType, itemName: r.itemName, artistName: r.artistName, image: r.image, rating: r.rating }))
             });
         }
 
         const follows = await Follow.find({ userId: req.user.id });
         const likes = await Like.find({ userId: req.user.id });
         const albumFollows = await AlbumFollow.find({ userId: req.user.id });
+        const ratings = await Rating.find({ userId: req.user.id });
 
         res.json({
             follows: follows.map(f => ({ artistId: f.artistId, artistName: f.artistName, image: f.image })),
             likes: likes.map(l => ({ trackId: l.trackId, trackName: l.trackName, image: l.image, previewUrl: l.previewUrl })),
-            albumFollows: albumFollows.map(a => ({ albumId: a.albumId, albumName: a.albumName, image: a.image, artistName: a.artistName }))
+            albumFollows: albumFollows.map(a => ({ albumId: a.albumId, albumName: a.albumName, image: a.image, artistName: a.artistName })),
+            ratings: ratings.map(r => ({ itemId: r.itemId, itemType: r.itemType, itemName: r.itemName, artistName: r.artistName, image: r.image, rating: r.rating }))
         });
     } catch (e) {
         res.status(500).json({ error: 'Failed to fetch user data' });
@@ -507,6 +645,145 @@ app.post('/api/follow-album', authenticateToken, async (req, res) => {
     }
 });
 
+// ============================================
+// ⭐ RATING ROUTES - Şarkı ve Albüm Puanlama
+// ============================================
+
+// Rate a Track or Album (1-5 stars)
+app.post('/api/rate', authenticateToken, async (req, res) => {
+    try {
+        const { itemId, itemType, itemName, artistName, image, rating } = req.body;
+
+        // Validation
+        if (!itemId || !itemType || !rating) {
+            return res.status(400).json({ error: 'itemId, itemType, and rating are required' });
+        }
+        if (!['track', 'album'].includes(itemType)) {
+            return res.status(400).json({ error: 'itemType must be "track" or "album"' });
+        }
+        if (rating < 0.5 || rating > 5 || (rating * 2) % 1 !== 0) {
+            return res.status(400).json({ error: 'Rating must be between 0.5 and 5 in 0.5 increments' });
+        }
+
+        if (useInMemory) {
+            // Check if rating exists
+            const existsIdx = inMemoryDB.ratings.findIndex(
+                r => r.userId === req.user.id && r.itemId === itemId && r.itemType === itemType
+            );
+
+            if (existsIdx !== -1) {
+                // Update existing rating
+                inMemoryDB.ratings[existsIdx].rating = rating;
+                inMemoryDB.ratings[existsIdx].updatedAt = new Date();
+                return res.json({ status: 'updated', rating });
+            }
+
+            // Create new rating
+            inMemoryDB.ratings.push({
+                _id: generateId(),
+                userId: req.user.id,
+                itemId,
+                itemType,
+                itemName,
+                artistName,
+                image,
+                rating,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            });
+            return res.json({ status: 'rated', rating });
+        }
+
+        // MongoDB: upsert (update or insert)
+        const result = await Rating.findOneAndUpdate(
+            { userId: req.user.id, itemId, itemType },
+            { itemName, artistName, image, rating },
+            { upsert: true, new: true, runValidators: true }
+        );
+
+        res.json({
+            status: result.createdAt === result.updatedAt ? 'rated' : 'updated',
+            rating: result.rating
+        });
+    } catch (e) {
+        console.error('Rating error:', e.message);
+        res.status(500).json({ error: 'Failed to save rating' });
+    }
+});
+
+// Get ratings for an item (with average)
+app.get('/api/ratings/:itemId', async (req, res) => {
+    try {
+        const { itemId } = req.params;
+        const { itemType } = req.query;
+
+        if (useInMemory) {
+            const ratings = inMemoryDB.ratings.filter(
+                r => r.itemId === itemId && (!itemType || r.itemType === itemType)
+            );
+
+            const totalRatings = ratings.length;
+            const averageRating = totalRatings > 0
+                ? ratings.reduce((sum, r) => sum + r.rating, 0) / totalRatings
+                : 0;
+
+            return res.json({
+                itemId,
+                totalRatings,
+                averageRating: Math.round(averageRating * 10) / 10, // 1 decimal
+                ratings: ratings.map(r => ({ rating: r.rating, createdAt: r.createdAt }))
+            });
+        }
+
+        const filter = itemType ? { itemId, itemType } : { itemId };
+        const ratings = await Rating.find(filter);
+
+        const totalRatings = ratings.length;
+        const averageRating = totalRatings > 0
+            ? ratings.reduce((sum, r) => sum + r.rating, 0) / totalRatings
+            : 0;
+
+        res.json({
+            itemId,
+            totalRatings,
+            averageRating: Math.round(averageRating * 10) / 10,
+            ratings: ratings.map(r => ({ rating: r.rating, createdAt: r.createdAt }))
+        });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to fetch ratings' });
+    }
+});
+
+// Delete a rating
+app.delete('/api/rate/:itemId', authenticateToken, async (req, res) => {
+    try {
+        const { itemId } = req.params;
+        const { itemType } = req.query;
+
+        if (useInMemory) {
+            const idx = inMemoryDB.ratings.findIndex(
+                r => r.userId === req.user.id && r.itemId === itemId && (!itemType || r.itemType === itemType)
+            );
+            if (idx === -1) return res.status(404).json({ error: 'Rating not found' });
+
+            inMemoryDB.ratings.splice(idx, 1);
+            return res.json({ status: 'deleted' });
+        }
+
+        const filter = itemType
+            ? { userId: req.user.id, itemId, itemType }
+            : { userId: req.user.id, itemId };
+
+        const result = await Rating.deleteOne(filter);
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ error: 'Rating not found' });
+        }
+        res.json({ status: 'deleted' });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to delete rating' });
+    }
+});
+
 // --- Playlist Routes ---
 app.get('/api/playlists', authenticateToken, async (req, res) => {
     try {
@@ -542,7 +819,18 @@ app.get('/api/playlists', authenticateToken, async (req, res) => {
 
 app.post('/api/playlists', authenticateToken, async (req, res) => {
     try {
-        const { name } = req.body;
+        let { name } = req.body;
+
+        // 🔒 SECURITY: Validate and sanitize playlist name
+        if (!name || typeof name !== 'string') {
+            return res.status(400).json({ error: 'Playlist name is required' });
+        }
+        name = name.trim().substring(0, 100); // Max 100 chars
+        if (name.length < 1) {
+            return res.status(400).json({ error: 'Playlist name cannot be empty' });
+        }
+        // Sanitize: remove potential XSS
+        name = name.replace(/[<>]/g, '');
 
         if (useInMemory) {
             const playlistId = generateId();
@@ -645,8 +933,29 @@ app.delete('/api/playlists/:id/tracks/:trackId', authenticateToken, async (req, 
 // Update Playlist Cover Image
 app.put('/api/playlists/:id/cover', authenticateToken, async (req, res) => {
     try {
-        const { coverImage } = req.body;
+        let { coverImage } = req.body;
         const decodedId = decodeURIComponent(req.params.id);
+
+        // 🔒 SECURITY: Validate cover image URL
+        if (coverImage) {
+            if (typeof coverImage !== 'string') {
+                return res.status(400).json({ error: 'Invalid cover image' });
+            }
+            coverImage = coverImage.trim().substring(0, 2000); // Max URL length
+
+            // Allow data URLs (base64) or valid HTTP(S) URLs
+            const isDataUrl = coverImage.startsWith('data:image/');
+            const isHttpUrl = /^https?:\/\/.+\..+/.test(coverImage);
+
+            if (!isDataUrl && !isHttpUrl) {
+                return res.status(400).json({ error: 'Invalid image URL format' });
+            }
+
+            // Block potential XSS in URLs
+            if (coverImage.includes('<') || coverImage.includes('>') || coverImage.includes('javascript:')) {
+                return res.status(400).json({ error: 'Invalid characters in URL' });
+            }
+        }
 
         if (useInMemory) {
             const playlist = inMemoryDB.playlists.find(p => p._id === decodedId && p.userId === req.user.id);

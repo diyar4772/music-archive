@@ -64,6 +64,91 @@
         .playing-row {
             background-color: rgba(29, 185, 84, 0.1);
         }
+
+        /* Mini Player Styles */
+        .mini-player {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to right, #282828, #181818);
+            border-top: 1px solid #333;
+            padding: 12px 20px;
+            z-index: 1000;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .mini-player.active {
+            transform: translateY(0);
+        }
+
+        .mini-player-progress {
+            height: 3px;
+            background: #404040;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            cursor: pointer;
+        }
+
+        .mini-player-progress-bar {
+            height: 100%;
+            background: #1DB954;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        .mini-player-progress:hover .mini-player-progress-bar {
+            background: #1ed760;
+        }
+
+        /* Star Rating Styles */
+        .star-rating {
+            display: inline-flex;
+            gap: 2px;
+        }
+
+        .star-rating .star {
+            cursor: pointer;
+            font-size: 1.25rem;
+            color: #404040;
+            transition: all 0.15s ease;
+        }
+
+        .star-rating .star:hover {
+            transform: scale(1.2);
+        }
+
+        .star-rating .star.filled {
+            color: #FFD700;
+        }
+
+        .star-rating .star.half-filled {
+            background: linear-gradient(90deg, #FFD700 50%, #404040 50%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .star-rating.readonly .star {
+            cursor: default;
+        }
+
+        .star-rating.readonly .star:hover {
+            transform: none;
+        }
+
+        .rating-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(255, 215, 0, 0.15);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+        }
     </style>
 </head>
 
@@ -415,6 +500,111 @@
         </div>
     </div>
 
+    <!-- Track Detail Modal -->
+    <div id="trackDetailModal"
+        class="fixed inset-0 bg-black/90 z-[9999] hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div id="trackDetailContent"
+            class="bg-gradient-to-b from-gray-800 to-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl max-h-[90vh] overflow-y-auto transform transition-all duration-300 translate-y-full sm:translate-y-0 opacity-0 scale-95">
+            <!-- Header with close -->
+            <div
+                class="sticky top-0 bg-gray-800/80 backdrop-blur-sm p-4 flex justify-between items-center border-b border-white/10">
+                <h3 class="font-bold text-lg">Şarkı Detayları</h3>
+                <button onclick="closeTrackDetail()" class="text-gray-400 hover:text-white p-2">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Track Info -->
+            <div class="p-6">
+                <div class="flex items-center gap-4 mb-6">
+                    <img id="trackDetailImage" src="" class="w-20 h-20 rounded-lg object-cover shadow-lg">
+                    <div class="flex-1 min-w-0">
+                        <h4 id="trackDetailName" class="font-bold text-xl truncate"></h4>
+                        <p id="trackDetailArtist" class="text-gray-400 truncate"></p>
+                    </div>
+                </div>
+
+                <!-- Star Rating -->
+                <div class="bg-white/5 rounded-xl p-4 mb-4">
+                    <p class="text-sm text-gray-400 mb-2">Puanla</p>
+                    <div id="trackDetailRating" class="flex justify-center gap-2"></div>
+                    <p id="trackDetailRatingText" class="text-center text-sm text-gray-500 mt-2"></p>
+                </div>
+
+                <!-- Preview Button -->
+                <button id="trackDetailPlayBtn" onclick="playTrackFromDetail()"
+                    class="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-4 rounded-xl mb-4 flex items-center justify-center gap-3 hover:opacity-90 transition">
+                    <i class="fa-solid fa-play"></i>
+                    <span>30sn Önizle</span>
+                </button>
+
+                <!-- Streaming Links -->
+                <p class="text-sm text-gray-400 mb-3">Dinle</p>
+                <div class="grid grid-cols-1 gap-3 mb-4">
+                    <!-- Spotify -->
+                    <a id="trackSpotifyLink" href="#" target="_blank"
+                        class="flex items-center gap-4 bg-[#1DB954]/20 hover:bg-[#1DB954]/30 p-4 rounded-xl transition">
+                        <i class="fa-brands fa-spotify text-2xl text-[#1DB954]"></i>
+                        <span class="font-bold">Spotify</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-gray-400 ml-auto"></i>
+                    </a>
+                    <!-- YouTube -->
+                    <a id="trackYoutubeLink" href="#" target="_blank"
+                        class="flex items-center gap-4 bg-[#FF0000]/20 hover:bg-[#FF0000]/30 p-4 rounded-xl transition">
+                        <i class="fa-brands fa-youtube text-2xl text-[#FF0000]"></i>
+                        <span class="font-bold">YouTube</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-gray-400 ml-auto"></i>
+                    </a>
+                    <!-- Apple Music -->
+                    <a id="trackAppleMusicLink" href="#" target="_blank"
+                        class="flex items-center gap-4 bg-[#FA2D48]/20 hover:bg-[#FA2D48]/30 p-4 rounded-xl transition">
+                        <i class="fa-brands fa-apple text-2xl text-white"></i>
+                        <span class="font-bold">Apple Music</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-gray-400 ml-auto"></i>
+                    </a>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex gap-3">
+                    <button id="trackDetailLikeBtn" onclick="toggleLikeFromDetail()"
+                        class="flex-1 bg-white/10 hover:bg-white/20 py-3 rounded-xl flex items-center justify-center gap-2 transition">
+                        <i id="trackDetailLikeIcon" class="fa-regular fa-heart"></i>
+                        <span id="trackDetailLikeText">Beğen</span>
+                    </button>
+                    <button id="trackDetailAddBtn" onclick="addToPlaylistFromDetail()"
+                        class="flex-1 bg-white/10 hover:bg-white/20 py-3 rounded-xl flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Listeye Ekle</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mini Player -->
+    <div id="miniPlayer" class="mini-player">
+        <div class="mini-player-progress" onclick="seekTrack(event)">
+            <div id="miniPlayerProgress" class="mini-player-progress-bar"></div>
+        </div>
+        <div class="flex items-center gap-4 max-w-6xl mx-auto">
+            <img id="miniPlayerImage" src="" class="w-14 h-14 rounded object-cover shadow-lg">
+            <div class="flex-1 min-w-0">
+                <p id="miniPlayerTitle" class="font-bold truncate"></p>
+                <p id="miniPlayerArtist" class="text-sm text-gray-400 truncate"></p>
+            </div>
+            <div class="flex items-center gap-4">
+                <span id="miniPlayerTime" class="text-xs text-gray-400 w-24 text-center">0:00 / 0:30</span>
+                <button onclick="toggleMiniPlayer()"
+                    class="w-12 h-12 bg-white rounded-full flex items-center justify-center hover:scale-105 transition">
+                    <i id="miniPlayerIcon" class="fa-solid fa-play text-black text-xl"></i>
+                </button>
+                <button onclick="closeMiniPlayer()" class="text-gray-400 hover:text-white p-2">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_URL = '/api';
         let currentUser = localStorage.getItem('userUsername');
@@ -425,11 +615,13 @@
         let likedTracks = [];
         let albumFollows = [];
         let playlists = [];
+        let userRatings = []; // ⭐ User's ratings
         let searchType = 'artist'; // 'artist' or 'track'
         let currentAudio = null;
         let playingTrackId = null;
         let tempTrackToAdd = null;
         let confirmCallback = null; // For confirmation modal
+        let currentTrackDetail = null; // For track detail modal
 
         // --- Confirmation Modal Functions ---
         function showConfirmModal(options) {
@@ -638,12 +830,13 @@
         async function fetchUserData() {
             if (!token) return;
             try {
-                // Fetch User Data (Likes/Follows)
+                // Fetch User Data (Likes/Follows/Ratings)
                 const res = await fetch(`${API_URL}/me`, { headers: { 'Authorization': `Bearer ${token}` } });
                 const data = await res.json();
                 followedArtists = data.follows || [];
                 likedTracks = data.likes || [];
-                albumFollows = data.albumFollows || []; // New
+                albumFollows = data.albumFollows || [];
+                userRatings = data.ratings || []; // ⭐ Load ratings
 
                 // Update all counters
                 document.getElementById('likedCount').innerText = `${likedTracks.length} şarkı`;
@@ -656,7 +849,7 @@
 
                 renderPlaylists();
                 renderFollowingPreview();
-                renderFollowedAlbums(); // New
+                renderFollowedAlbums();
 
             } catch (e) { console.error('Data sync failed'); }
         }
@@ -958,12 +1151,6 @@
             container.appendChild(grid);
         }
 
-        // --- Player (Disabled for now per user request) ---
-        function playTrack(id, url) {
-            // Audio preview disabled
-            console.log("Audio preview disabled");
-        }
-
         // --- Modals & Lists ---
         async function openAlbumModal(id) {
             const modal = document.getElementById('detailsModal');
@@ -1004,6 +1191,24 @@
 
                 const list = document.getElementById('modalTracks');
                 list.innerHTML = '';
+
+                // Album Rating Section
+                const albumRating = getUserRating(data.id, 'album');
+                const ratingSection = document.createElement('div');
+                ratingSection.className = 'bg-white/5 rounded-xl p-4 mb-4';
+                ratingSection.innerHTML = `
+                    <p class="text-sm text-gray-400 mb-2">Bu albümü puanla</p>
+                    <div id="albumRatingStars" class="mb-1"></div>
+                    <p id="albumRatingText" class="text-xs text-gray-500">${albumRating > 0 ? `Verdiğiniz puan: ${albumRating} yıldız` : 'Henüz puanlamadınız'}</p>
+                `;
+                list.appendChild(ratingSection);
+
+                // Add star rating for album
+                const starRating = createStarRating(data.id, 'album', data.name, data.artist, data.image);
+                starRating.classList.add('text-xl');
+                document.getElementById('albumRatingStars').appendChild(starRating);
+
+                // Tracks
                 data.tracks.forEach(track => {
                     // Pass image from album to track
                     list.appendChild(createTrackRow({ ...track, image: data.image }, { artistName: data.artist }));
@@ -1293,27 +1498,46 @@
             div.id = `pl-track-${track.trackId}`;
 
             const isLiked = likedTracks.some(t => t.trackId === track.trackId);
-            // Ensure playlistId is passed as string
             const plId = String(playlistId);
             const tId = String(track.trackId);
-            const safeName = (track.trackName || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const tName = track.trackName || '';
+            const safeName = tName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
             const safeImg = track.image || 'https://via.placeholder.com/48';
             const safePreview = track.previewUrl || '';
+            const hasPreview = safePreview && safePreview !== 'null' && safePreview !== '';
+
+            // Rating badge
+            const userRating = getUserRating(tId, 'track');
+            const ratingBadge = userRating > 0
+                ? `<span class="rating-badge-inline inline-flex items-center gap-1 bg-yellow-500/20 text-yellow-400 text-xs px-2 py-0.5 rounded-full ml-2"><i class="fa-solid fa-star text-[10px]"></i>${userRating}</span>`
+                : '';
 
             div.innerHTML = `
-                <div class="relative w-12 h-12 flex-shrink-0">
-                    <img src="${safeImg}" class="w-full h-full rounded object-cover">
+                <div class="relative w-14 h-14 flex-shrink-0 cursor-pointer group/cover" 
+                     onclick="openTrackDetail('${tId}', '${safeName}', '', '${safeImg}', '${safePreview}')">
+                    <img src="${safeImg}" class="w-full h-full rounded-lg object-cover shadow-md">
+                    <div class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/cover:opacity-100 transition rounded-lg">
+                        <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
+                            <i class="fa-solid fa-play text-black text-xs ml-0.5"></i>
+                        </div>
+                    </div>
                 </div>
-                <div class="flex-1 min-w-0">
-                    <p class="font-bold truncate">${track.trackName}</p>
+                <div class="flex-1 min-w-0 cursor-pointer" onclick="openTrackDetail('${tId}', '${safeName}', '', '${safeImg}', '${safePreview}')">
+                    <div class="flex items-center" id="track-name-${tId}">
+                        <p class="font-bold truncate">${tName}</p>
+                        ${ratingBadge}
+                    </div>
                 </div>
-                <div class="flex items-center gap-3">
-                    <button onclick="toggleLike('${tId}', '${safeName}', '${safeImg}', '${safePreview}')" 
-                            class="${isLiked ? 'text-green-500' : 'text-gray-400 hover:text-white'} p-1" title="Beğen">
+                <div class="flex items-center gap-1">
+                    <button onclick="event.stopPropagation(); playTrack('${tId}', '${safePreview}', '${safeName}', '${safeImg}', '')" class="text-gray-400 hover:text-green-500 p-2 hidden sm:block" title="Önizle (30sn)">
+                        <i class="fa-solid fa-play"></i>
+                    </button>
+                    <button onclick="event.stopPropagation(); toggleLike('${tId}', '${safeName}', '${safeImg}', '${safePreview}')" 
+                            class="${isLiked ? 'text-green-500' : 'text-gray-400 hover:text-white'} p-2" title="Beğen">
                         <i class="${isLiked ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
                     </button>
-                    <button onclick="removeFromPlaylist('${plId}', '${tId}')" 
-                            class="text-red-400 hover:text-red-300 p-1" title="Listeden Kaldır">
+                    <button onclick="event.stopPropagation(); removeFromPlaylist('${plId}', '${tId}')" 
+                            class="text-red-400 hover:text-red-300 p-2" title="Listeden Kaldır">
                         <i class="fa-solid fa-minus"></i>
                     </button>
                 </div>
@@ -1512,36 +1736,165 @@
             openProfileModal(type);
         }
 
-        function createTrackRow(track, context) { // context has artistName etc
-            const isLiked = likedTracks.some(l => l.trackId === track.id || l.trackId === track.trackId); // Handle diff ID names
+        // --- Audio Player Logic ---
+        async function playTrack(id, url, name, img, artist) {
+            // Check if playing current
+            if (currentAudio && playingTrackId === id) {
+                toggleMiniPlayer();
+                return;
+            }
+
+            // Show mini player with loading state
+            const miniPlayer = document.getElementById('miniPlayer');
+            miniPlayer.classList.add('visible');
+            document.getElementById('miniPlayerImage').src = img || 'https://via.placeholder.com/48';
+            document.getElementById('miniPlayerTitle').innerText = name;
+            document.getElementById('miniPlayerArtist').innerText = artist;
+
+            const btnIcon = document.getElementById('miniPlayerIcon');
+            btnIcon.className = "fa-solid fa-spinner fa-spin text-black text-xl";
+
+            // If no URL (or invalid), fetch from iTunes
+            if (!url || url === 'null' || url === 'undefined' || url === '') {
+                try {
+                    const searchTerm = encodeURIComponent(`${name} ${artist || ''}`);
+                    const res = await fetch(`https://itunes.apple.com/search?term=${searchTerm}&media=music&limit=1`);
+                    const data = await res.json();
+
+                    if (data.results && data.results.length > 0 && data.results[0].previewUrl) {
+                        url = data.results[0].previewUrl;
+                    } else {
+                        showToast('⚠️ Önizleme bulunamadı');
+                        btnIcon.className = "fa-solid fa-play text-black text-xl";
+                        return;
+                    }
+                } catch (e) {
+                    console.error('Preview fetch error:', e);
+                    showToast('❌ Bağlantı hatası');
+                    btnIcon.className = "fa-solid fa-play text-black text-xl";
+                    return;
+                }
+            }
+
+            // Setup audio
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+
+            currentAudio = new Audio(url);
+            currentAudio.volume = 0.5;
+            playingTrackId = id;
+
+            currentAudio.addEventListener('timeupdate', updateMiniPlayerProgress);
+            currentAudio.addEventListener('ended', () => {
+                btnIcon.className = "fa-solid fa-play text-black text-xl";
+                playingTrackId = null;
+            });
+
+            try {
+                await currentAudio.play();
+                btnIcon.className = "fa-solid fa-pause text-black text-xl";
+            } catch (e) {
+                console.error('Play error:', e);
+                showToast('❌ Oynatma hatası');
+                btnIcon.className = "fa-solid fa-play text-black text-xl";
+            }
+        }
+
+        function toggleMiniPlayer() {
+            if (!currentAudio) return;
+            const btnIcon = document.getElementById('miniPlayerIcon');
+
+            if (currentAudio.paused) {
+                currentAudio.play();
+                btnIcon.className = "fa-solid fa-pause text-black text-xl";
+            } else {
+                currentAudio.pause();
+                btnIcon.className = "fa-solid fa-play text-black text-xl";
+            }
+        }
+
+        function closeMiniPlayer() {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            playingTrackId = null;
+            document.getElementById('miniPlayer').classList.remove('visible');
+        }
+
+        function updateMiniPlayerProgress() {
+            if (!currentAudio) return;
+            const progress = (currentAudio.currentTime / currentAudio.duration) * 100;
+            document.getElementById('miniPlayerProgress').style.width = `${progress}%`;
+
+            const curMins = Math.floor(currentAudio.currentTime / 60);
+            const curSecs = Math.floor(currentAudio.currentTime % 60).toString().padStart(2, '0');
+            document.getElementById('miniPlayerTime').innerText = `${curMins}:${curSecs} / 0:30`;
+        }
+
+        function seekTrack(e) {
+            if (!currentAudio) return;
+            const bar = e.currentTarget;
+            const clickX = e.clientX - bar.getBoundingClientRect().left;
+            const width = bar.clientWidth;
+            const pct = clickX / width;
+            currentAudio.currentTime = pct * currentAudio.duration;
+        }
+
+        // --- Track Row Functions ---
+
+        function createTrackRow(track, context) {
+            const isLiked = likedTracks.some(l => l.trackId === track.id || l.trackId === track.trackId);
             const tId = track.id || track.trackId;
             const tName = track.name || track.trackName;
             const tImg = track.image || 'https://via.placeholder.com/40';
-            const tPreview = track.preview_url || track.previewUrl;
+            const tPreview = track.preview_url || track.previewUrl || '';
+            const artistName = context.artistName || '';
+            const userRating = getUserRating(tId, 'track');
+
+            // Compact rating badge
+            const ratingBadge = userRating > 0
+                ? `<span class="rating-badge-inline inline-flex items-center gap-1 bg-yellow-500/20 text-yellow-400 text-xs px-2 py-0.5 rounded-full ml-2"><i class="fa-solid fa-star text-[10px]"></i>${userRating}</span>`
+                : '';
 
             const div = document.createElement('div');
-            // Remove playing-row class logic since we removed play capability locally
             div.className = `flex items-center gap-4 p-3 hover:bg-white/10 rounded group`;
             div.id = `track-${tId}`;
+
             div.innerHTML = `
-                <div class="relative w-12 h-12 flex-shrink-0">
-                    <img src="${tImg}" class="w-full h-full rounded object-cover">
-                    <!-- Preview Button Removed -->
+                <div class="relative w-14 h-14 flex-shrink-0 cursor-pointer group/cover" 
+                     onclick="openTrackDetail('${tId}', '${tName.replace(/'/g, "\\'")}', '${artistName.replace(/'/g, "\\'")}', '${tImg}', '${tPreview}')">
+                    <img src="${tImg}" class="w-full h-full rounded-lg object-cover shadow-md">
+                    <div class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/cover:opacity-100 transition rounded-lg">
+                        <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
+                            <i class="fa-solid fa-play text-black text-xs ml-0.5"></i>
+                        </div>
+                    </div>
                 </div>
-                <div class="flex-1 min-w-0">
-                    <p class="font-bold truncate">${tName}</p>
-                    <p class="text-xs text-gray-400">${context.artistName || ''}</p>
+                <div class="flex-1 min-w-0 cursor-pointer" 
+                     onclick="openTrackDetail('${tId}', '${tName.replace(/'/g, "\\'")}', '${artistName.replace(/'/g, "\\'")}', '${tImg}', '${tPreview}')">
+                    <div class="flex items-center">
+                        <p class="font-bold truncate">${tName}</p>
+                        ${ratingBadge}
+                    </div>
+                    <p class="text-xs text-gray-400">${artistName}</p>
                 </div>
-                <div class="flex items-center gap-3">
-                     <button onclick="addToPlaylistPrompt('${tId}', '${tName.replace(/'/g, "\\'")}', '${tImg}', '${tPreview}')" class="text-gray-400 hover:text-white p-1" title="Listeye Ekle">
+                <div class="flex items-center gap-1">
+                    <button onclick="event.stopPropagation(); playTrack('${tId}', '${tPreview}', '${tName.replace(/'/g, "\\'")}', '${tImg}', '${artistName.replace(/'/g, "\\'")}')" class="text-gray-400 hover:text-green-500 p-2 hidden sm:block" title="Önizle (30sn)">
+                        <i class="fa-solid fa-play"></i>
+                    </button>
+                    <button onclick="event.stopPropagation(); addToPlaylistPrompt('${tId}', '${tName.replace(/'/g, "\\'")}', '${tImg}', '${tPreview}')" class="text-gray-400 hover:text-white p-2" title="Listeye Ekle">
                         <i class="fa-solid fa-plus"></i>
                     </button>
-                    <button onclick="toggleLike('${tId}', '${tName.replace(/'/g, "\\'")}', '${tImg}', '${tPreview}')" 
-                            class="${isLiked ? 'text-green-500' : 'text-gray-400 hover:text-white'} p-1" title="Beğen">
+                    <button onclick="event.stopPropagation(); toggleLike('${tId}', '${tName.replace(/'/g, "\\'")}', '${tImg}', '${tPreview}')" 
+                            class="${isLiked ? 'text-green-500' : 'text-gray-400 hover:text-white'} p-2" title="Beğen">
                         <i class="${isLiked ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
                     </button>
                 </div>
             `;
+
             return div;
         }
 
@@ -1864,25 +2217,535 @@
             if (isFollowing) { btn.innerText = 'FOLLOWING'; btn.className = 'bg-green-500 text-black border-none px-6 py-2 rounded-full font-bold transition'; }
             else { btn.innerText = 'FOLLOW'; btn.className = 'border border-gray-500 hover:border-white px-6 py-2 rounded-full font-bold transition'; }
         }
-        function playTrack(id, url) {
-            if (currentAudio && playingTrackId === id) {
-                if (currentAudio.paused) { currentAudio.play(); updateIcons(id, true); }
-                else { currentAudio.pause(); updateIcons(id, false); }
+        // Mini Player State
+        let currentTrackInfo = { id: null, name: '', image: '', artist: '' };
+
+        function playTrack(id, url, name, image, artist) {
+            if (!url || url === 'null' || url === 'undefined') {
+                showToast('⚠️ Bu şarkı için önizleme mevcut değil');
+                return;
+            }
+
+            const miniPlayer = document.getElementById('miniPlayer');
+            const isCurrentTrack = currentAudio && playingTrackId === id;
+
+            if (isCurrentTrack) {
+                // Toggle play/pause for current track
+                if (currentAudio.paused) {
+                    currentAudio.play();
+                    updateMiniPlayerIcon(true);
+                    updateIcons(id, true);
+                } else {
+                    currentAudio.pause();
+                    updateMiniPlayerIcon(false);
+                    updateIcons(id, false);
+                }
             } else {
-                if (currentAudio) { currentAudio.pause(); updateIcons(playingTrackId, false); }
-                currentAudio = new Audio(url); currentAudio.volume = 0.5; playingTrackId = id;
-                currentAudio.play(); updateIcons(id, true);
-                currentAudio.onended = () => { playingTrackId = null; updateIcons(id, false); };
+                // Play new track
+                if (currentAudio) {
+                    currentAudio.pause();
+                    updateIcons(playingTrackId, false);
+                }
+
+                currentTrackInfo = { id, name, image, artist };
+                currentAudio = new Audio(url);
+                currentAudio.volume = 0.5;
+                playingTrackId = id;
+
+                // Update mini player UI
+                document.getElementById('miniPlayerImage').src = image || 'https://via.placeholder.com/56';
+                document.getElementById('miniPlayerTitle').innerText = name || 'Unknown Track';
+                document.getElementById('miniPlayerArtist').innerText = artist || '';
+                miniPlayer.classList.add('active');
+
+                currentAudio.play();
+                updateMiniPlayerIcon(true);
+                updateIcons(id, true);
+
+                // Progress updates
+                currentAudio.ontimeupdate = () => {
+                    const progress = (currentAudio.currentTime / currentAudio.duration) * 100;
+                    document.getElementById('miniPlayerProgress').style.width = progress + '%';
+                    const current = formatTime(currentAudio.currentTime);
+                    const total = formatTime(currentAudio.duration || 30);
+                    document.getElementById('miniPlayerTime').innerText = `${current} / ${total}`;
+                };
+
+                currentAudio.onended = () => {
+                    playingTrackId = null;
+                    updateMiniPlayerIcon(false);
+                    updateIcons(id, false);
+                    document.getElementById('miniPlayerProgress').style.width = '0%';
+                    document.getElementById('miniPlayerTime').innerText = '0:00 / 0:30';
+                };
+
+                currentAudio.onerror = () => {
+                    showToast('❌ Şarkı yüklenemedi');
+                    closeMiniPlayer();
+                };
             }
         }
+
+        function toggleMiniPlayer() {
+            if (!currentAudio) return;
+            if (currentAudio.paused) {
+                currentAudio.play();
+                updateMiniPlayerIcon(true);
+                updateIcons(playingTrackId, true);
+            } else {
+                currentAudio.pause();
+                updateMiniPlayerIcon(false);
+                updateIcons(playingTrackId, false);
+            }
+        }
+
+        function closeMiniPlayer() {
+            if (currentAudio) {
+                currentAudio.pause();
+                updateIcons(playingTrackId, false);
+                currentAudio = null;
+            }
+            playingTrackId = null;
+            document.getElementById('miniPlayer').classList.remove('active');
+        }
+
+        function seekTrack(event) {
+            if (!currentAudio) return;
+            const progressBar = event.currentTarget;
+            const rect = progressBar.getBoundingClientRect();
+            const percent = (event.clientX - rect.left) / rect.width;
+            currentAudio.currentTime = percent * currentAudio.duration;
+        }
+
+        function updateMiniPlayerIcon(playing) {
+            const icon = document.getElementById('miniPlayerIcon');
+            icon.className = `fa-solid ${playing ? 'fa-pause' : 'fa-play'} text-black text-xl`;
+        }
+
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return '0:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
         function updateIcons(id, playing) {
+            // Update track rows
+            document.querySelectorAll('[id^="track-"]').forEach(row => {
+                row.classList.remove('playing-row');
+            });
             const row = document.getElementById(`track-${id}`);
-            if (row) {
-                if (playing) row.classList.add('playing-row'); else row.classList.remove('playing-row');
-                const i = row.querySelector('.relative i');
-                if (i) i.className = `fa-solid ${playing ? 'fa-pause' : 'fa-play'}`;
+            if (row && playing) {
+                row.classList.add('playing-row');
             }
         }
+
+        // ============================================
+        // ⭐ RATING SYSTEM
+        // ============================================
+
+        /**
+         * Creates a star rating component
+         * @param {string} itemId - Track or Album ID
+         * @param {string} itemType - 'track' or 'album'
+         * @param {string} itemName - Name of the item
+         * @param {string} artistName - Artist name
+         * @param {string} image - Image URL
+         * @param {boolean} readonly - If true, stars are not clickable
+         * @returns {HTMLElement} Star rating element
+         */
+        function createStarRating(itemId, itemType, itemName, artistName, image, readonly = false) {
+            const container = document.createElement('div');
+            container.className = `star-rating ${readonly ? 'readonly' : ''}`;
+            container.dataset.itemId = itemId;
+            container.dataset.itemType = itemType;
+
+            const currentRating = getUserRating(itemId, itemType);
+
+            for (let i = 1; i <= 5; i++) {
+                const star = document.createElement('i');
+
+                // Initial display with half-star support
+                if (currentRating >= i) {
+                    star.className = 'star fa-solid fa-star filled';
+                } else if (currentRating >= i - 0.5) {
+                    star.className = 'star fa-solid fa-star-half-stroke half-filled';
+                } else {
+                    star.className = 'star fa-regular fa-star';
+                }
+                star.dataset.rating = i;
+
+                if (!readonly) {
+                    // Click handler - detect half or full star
+                    star.onclick = (e) => {
+                        e.stopPropagation();
+                        const rect = star.getBoundingClientRect();
+                        const clickX = e.clientX - rect.left;
+                        const isHalf = clickX < rect.width / 2;
+                        const rating = isHalf ? i - 0.5 : i;
+                        rateItem(itemId, itemType, rating, itemName, artistName, image, container);
+                    };
+
+                    // Hover preview
+                    star.onmousemove = (e) => {
+                        const rect = star.getBoundingClientRect();
+                        const hoverX = e.clientX - rect.left;
+                        const isHalf = hoverX < rect.width / 2;
+                        const hoverRating = isHalf ? i - 0.5 : i;
+
+                        container.querySelectorAll('.star').forEach((s, idx) => {
+                            const starNum = idx + 1;
+                            if (hoverRating >= starNum) {
+                                s.className = 'star fa-solid fa-star filled';
+                            } else if (hoverRating >= starNum - 0.5) {
+                                s.className = 'star fa-solid fa-star-half-stroke half-filled';
+                            } else {
+                                s.className = 'star fa-regular fa-star';
+                            }
+                        });
+                    };
+
+                    star.onmouseleave = () => {
+                        // Restore actual rating
+                        const rating = getUserRating(itemId, itemType);
+                        updateStarDisplay(container, rating);
+                    };
+                }
+
+                container.appendChild(star);
+            }
+
+            // Restore on container leave
+            if (!readonly) {
+                container.onmouseleave = () => {
+                    const rating = getUserRating(itemId, itemType);
+                    updateStarDisplay(container, rating);
+                };
+            }
+
+            return container;
+        }
+
+        /**
+         * Rate an item (track or album) - supports half stars (0.5 increments)
+         */
+        async function rateItem(itemId, itemType, rating, itemName, artistName, image, starContainer) {
+            if (!token) {
+                showToast('⚠️ Puanlamak için giriş yapın');
+                showAuthModal('Log In');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/rate`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ itemId, itemType, rating, itemName, artistName, image })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    // Update local state
+                    const existingIdx = userRatings.findIndex(r => r.itemId === itemId && r.itemType === itemType);
+                    if (existingIdx !== -1) {
+                        userRatings[existingIdx].rating = rating;
+                    } else {
+                        userRatings.push({ itemId, itemType, itemName, artistName, image, rating });
+                    }
+
+                    // Update modal stars UI
+                    if (starContainer) {
+                        updateStarDisplay(starContainer, rating);
+                    }
+
+                    // Update track row badge
+                    updateTrackRowRating(itemId, rating);
+
+                    // Update modal rating text
+                    const ratingText = document.getElementById('trackDetailRatingText');
+                    if (ratingText) {
+                        ratingText.innerText = `Verdiğiniz puan: ${rating} yıldız`;
+                    }
+
+                    showToast(`⭐ ${rating} yıldız verildi!`);
+                } else {
+                    showToast('❌ Puanlama başarısız: ' + (data.error || 'Bilinmeyen hata'));
+                }
+            } catch (e) {
+                console.error('Rating error:', e);
+                showToast('❌ Bağlantı hatası');
+            }
+        }
+
+        /**
+         * Quick rate from track list (inline stars)
+         */
+        async function quickRate(itemId, rating, itemName, artistName, image) {
+            if (!token) {
+                showToast('⚠️ Puanlamak için giriş yapın');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/rate`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ itemId, itemType: 'track', rating, itemName, artistName, image })
+                });
+
+                if (res.ok) {
+                    // Update local state
+                    const existingIdx = userRatings.findIndex(r => r.itemId === itemId && r.itemType === 'track');
+                    if (existingIdx !== -1) {
+                        userRatings[existingIdx].rating = rating;
+                    } else {
+                        userRatings.push({ itemId, itemType: 'track', itemName, artistName, image, rating });
+                    }
+
+                    // Update UI stars
+                    const starsContainer = document.getElementById(`stars-${itemId}`);
+                    if (starsContainer) {
+                        starsContainer.querySelectorAll('i').forEach((star, idx) => {
+                            star.className = `fa-${idx < rating ? 'solid' : 'regular'} fa-star text-${idx < rating ? 'yellow-400' : 'gray-600'} cursor-pointer hover:text-yellow-300 text-sm`;
+                        });
+                    }
+
+                    showToast(`⭐ ${rating} yıldız verildi!`);
+                }
+            } catch (e) {
+                console.error('Quick rate error:', e);
+            }
+        }
+
+        /**
+         * Update star display for half-star support
+         */
+        function updateStarDisplay(container, rating) {
+            container.querySelectorAll('.star').forEach((star, idx) => {
+                const starNum = idx + 1;
+                if (rating >= starNum) {
+                    star.className = 'star fa-solid fa-star filled';
+                } else if (rating >= starNum - 0.5) {
+                    star.className = 'star fa-solid fa-star-half-stroke half-filled';
+                } else {
+                    star.className = 'star fa-regular fa-star';
+                }
+            });
+        }
+
+        /**
+         * Update track row rating badge after rating
+         */
+        function updateTrackRowRating(trackId, rating) {
+            const trackRow = document.getElementById(`track-${trackId}`);
+            if (!trackRow) return;
+
+            // Find the name container and update/add badge
+            const nameContainer = trackRow.querySelector('.flex-1 > div');
+            if (nameContainer) {
+                // Remove existing badge
+                const existingBadge = nameContainer.querySelector('.rating-badge-inline');
+                if (existingBadge) existingBadge.remove();
+
+                // Add new badge
+                if (rating > 0) {
+                    const badge = document.createElement('span');
+                    badge.className = 'rating-badge-inline inline-flex items-center gap-1 bg-yellow-500/20 text-yellow-400 text-xs px-2 py-0.5 rounded-full ml-2';
+                    badge.innerHTML = `<i class="fa-solid fa-star text-[10px]"></i>${rating}`;
+                    nameContainer.appendChild(badge);
+                }
+            }
+        }
+
+        /**
+         * Get user's rating for an item
+         */
+        function getUserRating(itemId, itemType) {
+            const rating = userRatings.find(r => r.itemId === itemId && r.itemType === itemType);
+            return rating ? rating.rating : 0;
+        }
+
+        /**
+         * Create a read-only rating badge showing average rating
+         */
+        function renderRatingBadge(averageRating, totalRatings) {
+            if (totalRatings === 0) return '';
+            return `<span class="rating-badge">
+                <i class="fa-solid fa-star text-yellow-400"></i>
+            </span>`;
+        }
+
+        // ============================================
+        // 🎵 TRACK DETAIL MODAL
+        // ============================================
+
+        /**
+         * Open track detail modal with full info, rating, and streaming links
+         */
+        async function openTrackDetail(trackId, trackName, artistName, image, previewUrl) {
+            currentTrackDetail = {
+                id: trackId,
+                name: trackName,
+                artist: artistName,
+                image: image || 'https://via.placeholder.com/80',
+                previewUrl: previewUrl
+            };
+
+            // Update UI
+            document.getElementById('trackDetailImage').src = currentTrackDetail.image;
+            document.getElementById('trackDetailName').innerText = currentTrackDetail.name;
+            document.getElementById('trackDetailArtist').innerText = currentTrackDetail.artist;
+
+            // Setup Star Rating
+            const ratingContainer = document.getElementById('trackDetailRating');
+            ratingContainer.innerHTML = '';
+            const starRating = createStarRating(trackId, 'track', trackName, artistName, image);
+            starRating.classList.add('text-2xl');
+            starRating.querySelectorAll('.star').forEach(s => s.style.fontSize = '1.75rem');
+            ratingContainer.appendChild(starRating);
+
+            // Rating text
+            const userRating = getUserRating(trackId, 'track');
+            document.getElementById('trackDetailRatingText').innerText = userRating > 0
+                ? `Verdiğiniz puan: ${userRating} yıldız`
+                : 'Henüz puanlamadınız';
+
+            // Preview button - reset and check
+            const playBtn = document.getElementById('trackDetailPlayBtn');
+            let hasPreview = previewUrl && previewUrl !== 'null' && previewUrl !== 'undefined' && previewUrl !== '';
+
+            // Reset button state first
+            playBtn.innerHTML = '<i class="fa-solid fa-play"></i> <span>30sn Önizle</span>';
+            playBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'hidden');
+            playBtn.disabled = false;
+
+            // If no preview, try to fetch from iTunes
+            if (!hasPreview && trackName) {
+                playBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Yükleniyor...</span>';
+                playBtn.classList.remove('hidden');
+
+                try {
+                    const searchTerm = encodeURIComponent(`${trackName} ${artistName || ''}`);
+                    const res = await fetch(`https://itunes.apple.com/search?term=${searchTerm}&media=music&limit=1`);
+                    const data = await res.json();
+
+                    if (data.results && data.results.length > 0 && data.results[0].previewUrl) {
+                        previewUrl = data.results[0].previewUrl;
+                        currentTrackDetail.previewUrl = previewUrl;
+                        hasPreview = true;
+                        playBtn.innerHTML = '<i class="fa-solid fa-play"></i> <span>30sn Önizle</span>';
+                    } else {
+                        playBtn.classList.add('hidden');
+                    }
+                } catch (e) {
+                    console.error('iTunes preview fetch failed:', e);
+                    playBtn.classList.add('hidden');
+                }
+            }
+
+            if (hasPreview) {
+                playBtn.classList.remove('hidden');
+            } else {
+                playBtn.classList.add('hidden');
+            }
+
+            // Streaming Links
+            const searchQuery = encodeURIComponent(`${trackName} ${artistName}`);
+            document.getElementById('trackSpotifyLink').href = `https://open.spotify.com/search/${searchQuery}`;
+            document.getElementById('trackYoutubeLink').href = `https://www.youtube.com/results?search_query=${searchQuery}`;
+            document.getElementById('trackAppleMusicLink').href = `https://music.apple.com/search?term=${searchQuery}`;
+
+            // Like button state
+            const isLiked = likedTracks.some(l => l.trackId === trackId);
+            updateTrackDetailLikeBtn(isLiked);
+
+            // Show modal
+            const modal = document.getElementById('trackDetailModal');
+            const content = document.getElementById('trackDetailContent');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                content.classList.remove('translate-y-full', 'opacity-0', 'scale-95');
+                content.classList.add('translate-y-0', 'opacity-100', 'scale-100');
+            }, 10);
+        }
+
+        function closeTrackDetail() {
+            const modal = document.getElementById('trackDetailModal');
+            const content = document.getElementById('trackDetailContent');
+            content.classList.add('translate-y-full', 'opacity-0', 'scale-95');
+            content.classList.remove('translate-y-0', 'opacity-100', 'scale-100');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                currentTrackDetail = null;
+            }, 300);
+        }
+
+        function playTrackFromDetail() {
+            if (!currentTrackDetail || !currentTrackDetail.previewUrl) return;
+            closeTrackDetail();
+            playTrack(
+                currentTrackDetail.id,
+                currentTrackDetail.previewUrl,
+                currentTrackDetail.name,
+                currentTrackDetail.image,
+                currentTrackDetail.artist
+            );
+        }
+
+        function toggleLikeFromDetail() {
+            if (!currentTrackDetail) return;
+            toggleLike(
+                currentTrackDetail.id,
+                currentTrackDetail.name,
+                currentTrackDetail.image,
+                currentTrackDetail.previewUrl
+            );
+            // Update button state after toggle
+            setTimeout(() => {
+                const isLiked = likedTracks.some(l => l.trackId === currentTrackDetail.id);
+                updateTrackDetailLikeBtn(isLiked);
+            }, 100);
+        }
+
+        function updateTrackDetailLikeBtn(isLiked) {
+            const icon = document.getElementById('trackDetailLikeIcon');
+            const text = document.getElementById('trackDetailLikeText');
+            const btn = document.getElementById('trackDetailLikeBtn');
+
+            if (isLiked) {
+                icon.className = 'fa-solid fa-heart text-green-500';
+                text.innerText = 'Beğenildi';
+                btn.classList.add('bg-green-500/20');
+            } else {
+                icon.className = 'fa-regular fa-heart';
+                text.innerText = 'Beğen';
+                btn.classList.remove('bg-green-500/20');
+            }
+        }
+
+        function addToPlaylistFromDetail() {
+            if (!currentTrackDetail) return;
+            closeTrackDetail();
+            addToPlaylistPrompt(
+                currentTrackDetail.id,
+                currentTrackDetail.name,
+                currentTrackDetail.image,
+                currentTrackDetail.previewUrl
+            );
+        }
+
+        // Close on backdrop click
+        document.getElementById('trackDetailModal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'trackDetailModal') closeTrackDetail();
+        });
+
         async function handleAutocomplete(query) {
             const list = document.getElementById('autocompleteList');
             if (query.length < 2) {
