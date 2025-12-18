@@ -1501,8 +1501,13 @@
             const plId = String(playlistId);
             const tId = String(track.trackId);
             const tName = track.trackName || '';
+            const artistName = track.artistName || '';
+
+            // Safe strings
             const safeName = tName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            const safeImg = track.image || 'https://via.placeholder.com/48';
+            const safeArtist = artistName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const safeImg = (track.image || 'https://via.placeholder.com/48').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
             const safePreview = track.previewUrl || '';
             const hasPreview = safePreview && safePreview !== 'null' && safePreview !== '';
 
@@ -1514,22 +1519,23 @@
 
             div.innerHTML = `
                 <div class="relative w-14 h-14 flex-shrink-0 cursor-pointer group/cover" 
-                     onclick="openTrackDetail('${tId}', '${safeName}', '', '${safeImg}', '${safePreview}')">
-                    <img src="${safeImg}" class="w-full h-full rounded-lg object-cover shadow-md">
+                     onclick="openTrackDetail('${tId}', '${safeName}', '${safeArtist}', '${safeImg}', '${safePreview}')">
+                    <img src="${track.image || 'https://via.placeholder.com/48'}" class="w-full h-full rounded-lg object-cover shadow-md">
                     <div class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/cover:opacity-100 transition rounded-lg">
                         <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
                             <i class="fa-solid fa-play text-black text-xs ml-0.5"></i>
                         </div>
                     </div>
                 </div>
-                <div class="flex-1 min-w-0 cursor-pointer" onclick="openTrackDetail('${tId}', '${safeName}', '', '${safeImg}', '${safePreview}')">
+                <div class="flex-1 min-w-0 cursor-pointer" onclick="openTrackDetail('${tId}', '${safeName}', '${safeArtist}', '${safeImg}', '${safePreview}')">
                     <div class="flex items-center" id="track-name-${tId}">
                         <p class="font-bold truncate">${tName}</p>
                         ${ratingBadge}
                     </div>
+                    <p class="text-xs text-gray-400">${artistName}</p>
                 </div>
                 <div class="flex items-center gap-1">
-                    <button onclick="event.stopPropagation(); playTrack('${tId}', '${safePreview}', '${safeName}', '${safeImg}', '')" class="text-gray-400 hover:text-green-500 p-2 hidden sm:block" title="Önizle (30sn)">
+                    <button onclick="event.stopPropagation(); playTrack('${tId}', '${safePreview}', '${safeName}', '${safeImg}', '${safeArtist}')" class="text-gray-400 hover:text-green-500 p-2 hidden sm:block" title="Önizle (30sn)">
                         <i class="fa-solid fa-play"></i>
                     </button>
                     <button onclick="event.stopPropagation(); toggleLike('${tId}', '${safeName}', '${safeImg}', '${safePreview}')" 
@@ -1854,6 +1860,12 @@
             const artistName = context.artistName || '';
             const userRating = getUserRating(tId, 'track');
 
+            // Safe strings for HTML attributes
+            const safeName = tName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const safeArtist = artistName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            // Image might have quotes too if it's a weird URL, but unlikely. Let's be safe.
+            const safeImg = tImg.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
             // Compact rating badge
             const ratingBadge = userRating > 0
                 ? `<span class="rating-badge-inline inline-flex items-center gap-1 bg-yellow-500/20 text-yellow-400 text-xs px-2 py-0.5 rounded-full ml-2"><i class="fa-solid fa-star text-[10px]"></i>${userRating}</span>`
@@ -1865,7 +1877,7 @@
 
             div.innerHTML = `
                 <div class="relative w-14 h-14 flex-shrink-0 cursor-pointer group/cover" 
-                     onclick="openTrackDetail('${tId}', '${tName.replace(/'/g, "\\'")}', '${artistName.replace(/'/g, "\\'")}', '${tImg}', '${tPreview}')">
+                     onclick="openTrackDetail('${tId}', '${safeName}', '${safeArtist}', '${safeImg}', '${tPreview}')">
                     <img src="${tImg}" class="w-full h-full rounded-lg object-cover shadow-md">
                     <div class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/cover:opacity-100 transition rounded-lg">
                         <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
@@ -1874,7 +1886,7 @@
                     </div>
                 </div>
                 <div class="flex-1 min-w-0 cursor-pointer" 
-                     onclick="openTrackDetail('${tId}', '${tName.replace(/'/g, "\\'")}', '${artistName.replace(/'/g, "\\'")}', '${tImg}', '${tPreview}')">
+                     onclick="openTrackDetail('${tId}', '${safeName}', '${safeArtist}', '${safeImg}', '${tPreview}')">
                     <div class="flex items-center">
                         <p class="font-bold truncate">${tName}</p>
                         ${ratingBadge}
@@ -1882,13 +1894,13 @@
                     <p class="text-xs text-gray-400">${artistName}</p>
                 </div>
                 <div class="flex items-center gap-1">
-                    <button onclick="event.stopPropagation(); playTrack('${tId}', '${tPreview}', '${tName.replace(/'/g, "\\'")}', '${tImg}', '${artistName.replace(/'/g, "\\'")}')" class="text-gray-400 hover:text-green-500 p-2 hidden sm:block" title="Önizle (30sn)">
+                    <button onclick="event.stopPropagation(); playTrack('${tId}', '${tPreview}', '${safeName}', '${safeImg}', '${safeArtist}')" class="text-gray-400 hover:text-green-500 p-2 hidden sm:block" title="Önizle (30sn)">
                         <i class="fa-solid fa-play"></i>
                     </button>
-                    <button onclick="event.stopPropagation(); addToPlaylistPrompt('${tId}', '${tName.replace(/'/g, "\\'")}', '${tImg}', '${tPreview}')" class="text-gray-400 hover:text-white p-2" title="Listeye Ekle">
+                    <button onclick="event.stopPropagation(); addToPlaylistPrompt('${tId}', '${safeName}', '${safeImg}', '${tPreview}')" class="text-gray-400 hover:text-white p-2" title="Listeye Ekle">
                         <i class="fa-solid fa-plus"></i>
                     </button>
-                    <button onclick="event.stopPropagation(); toggleLike('${tId}', '${tName.replace(/'/g, "\\'")}', '${tImg}', '${tPreview}')" 
+                    <button onclick="event.stopPropagation(); toggleLike('${tId}', '${safeName}', '${safeImg}', '${tPreview}')" 
                             class="${isLiked ? 'text-green-500' : 'text-gray-400 hover:text-white'} p-2" title="Beğen">
                         <i class="${isLiked ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
                     </button>
