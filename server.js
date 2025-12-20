@@ -48,7 +48,30 @@ const generalLimiter = rateLimit({
     message: { error: 'Too many requests. Please slow down.' }
 });
 
-app.use(cors());
+// 📱 MOBILE: Enhanced CORS for React Native (Expo) access
+const corsOptions = {
+    origin: function (origin, callback) {
+        // Allow requests with no origin (mobile apps, Postman, etc.)
+        if (!origin) return callback(null, true);
+        // Allow all origins in development
+        if (process.env.NODE_ENV !== 'production') return callback(null, true);
+        // In production, you can whitelist specific origins
+        const allowedOrigins = [
+            'http://localhost:3000',
+            'https://your-app.onrender.com',
+            // Add your production URLs here
+        ];
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(null, true); // Allow all for now, tighten in production
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+};
+app.use(cors(corsOptions));
 app.use(express.static('.'));
 app.use(express.json({ limit: '5mb' })); // Limit payload size
 app.use(generalLimiter);
@@ -1347,8 +1370,16 @@ app.delete('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`🔒 Admin panel: http://localhost:${PORT}/admin.html`);
+// Redirect /admin to the actual file
+app.get(['/admin', '/admin.html'], (req, res) => {
+    res.sendFile(__dirname + '/panel-4772.html');
+});
+
+// 📱 MOBILE: Bind to 0.0.0.0 for local network access (React Native Expo)
+const HOST = process.env.HOST || '0.0.0.0';
+app.listen(PORT, HOST, () => {
+    console.log(`🚀 Server running on http://${HOST}:${PORT}`);
+    console.log(`📱 Mobile access: Use your computer's IP address instead of localhost`);
+    console.log(`🔒 Admin panel: http://localhost:${PORT}/admin`);
     console.log(`📊 Admin API: /api/admin/users, /api/admin/stats`);
 });
