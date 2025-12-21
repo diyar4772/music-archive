@@ -1375,6 +1375,134 @@ app.get(['/admin', '/admin.html'], (req, res) => {
     res.sendFile(__dirname + '/panel-4772.html');
 });
 
+// ===================================================
+// 🃏 DIG MODE API - Sprint 2
+// ===================================================
+
+// Dig Mode: Get random tracks queue for discovery
+app.get('/api/dig/queue', authenticateToken, async (req, res) => {
+    try {
+        const { genre, limit = 10 } = req.query;
+        const token = await getSpotifyToken();
+
+        // Get recommendations from Spotify
+        // Use random seed genres or user's followed artists
+        const seedGenres = genre || 'pop,rock,hip-hop,electronic,indie';
+
+        const recResp = await axios.get(
+            `https://api.spotify.com/v1/recommendations?seed_genres=${seedGenres}&limit=${limit}&min_popularity=30`,
+            { headers: { 'Authorization': `Bearer ${token}` } }
+        );
+
+        const tracks = recResp.data.tracks.map(t => ({
+            id: t.id,
+            name: t.name,
+            artist: t.artists[0]?.name || 'Unknown',
+            artistId: t.artists[0]?.id,
+            album: t.album.name,
+            albumId: t.album.id,
+            image: t.album.images[0]?.url,
+            preview_url: t.preview_url,
+            duration_ms: t.duration_ms,
+            popularity: t.popularity,
+            external_url: t.external_urls?.spotify
+        }));
+
+        // Enrich with iTunes previews if Spotify doesn't have them
+        const enrichedTracks = await enrichTracksWithPreviews(tracks);
+
+        // Filter out tracks without preview for better UX
+        const tracksWithPreview = enrichedTracks.filter(t => t.preview_url);
+
+        res.json({
+            tracks: tracksWithPreview,
+            total: tracksWithPreview.length
+        });
+    } catch (e) {
+        console.error('Dig queue error:', e.message);
+        res.status(500).json({ error: 'Failed to get dig queue' });
+    }
+});
+
+// Dig Mode: Handle swipe action
+app.post('/api/dig/swipe', authenticateToken, async (req, res) => {
+    try {
+        const { trackId, trackName, artistId, artistName, albumId, image, action, mood } = req.body;
+        const userId = req.user.id;
+
+        if (!trackId || !action) {
+            return res.status(400).json({ error: 'trackId and action required' });
+        }
+
+        // Valid actions: pass, archive, explore
+        if (!['pass', 'archive', 'explore'].includes(action)) {
+            return res.status(400).json({ error: 'Invalid action. Use: pass, archive, explore' });
+        }
+
+        // If action is 'archive', add to likes
+        if (action === 'archive') {
+            if (useInMemory) {
+                const exists = inMemoryDB.likes.find(l => l.trackId === trackId && l.userId === userId);
+                if (!exists) {
+                    inMemoryDB.likes.push({
+                        _id: generateId(),
+                        userId,
+                        trackId,
+                        trackName: trackName || '',
+                        artistId: artistId || '',
+                        artistName: artistName || '',
+                        image: image || '',
+                        mood: mood || null,
+                        source: 'dig',
+                        createdAt: new Date()
+                    });
+                }
+            } else {
+                const exists = await Like.findOne({ userId, trackId });
+                if (!exists) {
+                    await Like.create({
+                        userId,
+                        trackId,
+                        trackName: trackName || '',
+                        artistId: artistId || '',
+                        artistName: artistName || '',
+                        image: image || '',
+                        mood: mood || null,
+                        source: 'dig'
+                    });
+                }
+            }
+        }
+
+        // TODO: Store swipe history for analytics (optional, Sprint 3)
+
+        res.json({
+            success: true,
+            action,
+            trackId,
+            message: action === 'archive' ? 'Added to your archive!' : 'Swiped ' + action
+        });
+    } catch (e) {
+        console.error('Dig swipe error:', e.message);
+        res.status(500).json({ error: 'Failed to process swipe' });
+    }
+});
+
+// Dig Mode: Get available genres for filtering
+app.get('/api/dig/genres', async (req, res) => {
+    try {
+        const token = await getSpotifyToken();
+        const genresResp = await axios.get(
+            'https://api.spotify.com/v1/recommendations/available-genre-seeds',
+            { headers: { 'Authorization': `Bearer ${token}` } }
+        );
+        res.json({ genres: genresResp.data.genres });
+    } catch (e) {
+        console.error('Get genres error:', e.message);
+        res.status(500).json({ error: 'Failed to get genres' });
+    }
+});
+
 // 📱 MOBILE: Bind to 0.0.0.0 for local network access (React Native Expo)
 const HOST = process.env.HOST || '0.0.0.0';
 app.listen(PORT, HOST, () => {

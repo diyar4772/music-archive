@@ -1,0 +1,39 @@
+import api, { setToken, setStoredUser, removeToken, getToken } from './api';
+import { LoginResponse, UserData } from '../types';
+
+export const authService = {
+    // Login
+    login: async (username: string, password: string): Promise<LoginResponse> => {
+        const response = await api.post<LoginResponse>('/login', { username, password });
+        await setToken(response.data.token);
+        await setStoredUser(response.data.username);
+        return response.data;
+    },
+
+    // Register
+    register: async (username: string, password: string): Promise<LoginResponse> => {
+        const response = await api.post<LoginResponse>('/register', { username, password });
+        await setToken(response.data.token);
+        await setStoredUser(response.data.username);
+        return response.data;
+    },
+
+    // Logout
+    logout: async (): Promise<void> => {
+        await removeToken();
+    },
+
+    // Get current user data
+    getMe: async (): Promise<UserData> => {
+        const response = await api.get<UserData>('/me');
+        return response.data;
+    },
+
+    // Check if user is logged in
+    isLoggedIn: async (): Promise<boolean> => {
+        const token = await getToken();
+        return !!token;
+    },
+};
+
+export default authService;
