@@ -1,19 +1,23 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
-// API Base URL - Değiştirin!
-// Development: Bilgisayarınızın IP adresi (aynı WiFi ağında olmalı)
-// Production: Render.com URL'niz
-const DEV_IP = '192.168.1.148'; // Bilgisayarınızın IP adresi
+// API Base URL Configuration
+// Development: Set DEV_API_URL in app.json extra or use default IP
+// Production: Set PROD_API_URL in app.json extra or Render.com URL
 
 const getBaseURL = () => {
+    const extra = Constants.expoConfig?.extra;
+
     if (__DEV__) {
-        // Development mode - Gerçek IP kullan (telefon erişimi için)
-        return `http://${DEV_IP}:3000/api`;
+        // Development mode - Use configured IP or localhost
+        const devUrl = extra?.DEV_API_URL || 'http://192.168.1.148:3000/api';
+        return devUrl;
     }
-    // Production - Render.com URL'nizi buraya yazın
-    return 'https://your-app.onrender.com/api';
+    // Production - Use configured URL or Render.com
+    const prodUrl = extra?.PROD_API_URL || 'https://your-app.onrender.com/api';
+    return prodUrl;
 };
 
 const api = axios.create({

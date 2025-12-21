@@ -36,6 +36,10 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "DEV_API_URL": "http://192.168.1.148:3000/api",
+      "PROD_API_URL": "https://music-archive.onrender.com/api"
     }
   }
 }

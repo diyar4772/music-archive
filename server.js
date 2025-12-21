@@ -1376,48 +1376,118 @@ app.get(['/admin', '/admin.html'], (req, res) => {
 });
 
 // ===================================================
-// 🃏 DIG MODE API - Sprint 2
+// 🃏 DIG MODE API - Sprint 2 (Smart Mix Algorithm)
 // ===================================================
 
-// Dig Mode: Get random tracks queue for discovery
+// Helper: Get random items from array
+const getRandomItems = (arr, count) => {
+    const shuffled = [...arr].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, count);
+};
+
+// Dig Mode: Get SMART personalized tracks queue
 app.get('/api/dig/queue', authenticateToken, async (req, res) => {
     try {
-        const { genre, limit = 10 } = req.query;
+        const { mood, limit = 15 } = req.query;
+        const userId = req.user.id;
         const token = await getSpotifyToken();
 
-        // Get recommendations from Spotify
-        // Use random seed genres or user's followed artists
-        const seedGenres = genre || 'pop,rock,hip-hop,electronic,indie';
+        let seedTracks = [];
+        let seedArtists = [];
+        let userLikedTrackIds = [];
 
-        const recResp = await axios.get(
-            `https://api.spotify.com/v1/recommendations?seed_genres=${seedGenres}&limit=${limit}&min_popularity=30`,
-            { headers: { 'Authorization': `Bearer ${token}` } }
-        );
+        // =============================================
+        // STEP 1: Data Mining - Get User's Seeds
+        // =============================================
 
-        const tracks = recResp.data.tracks.map(t => ({
-            id: t.id,
-            name: t.name,
-            artist: t.artists[0]?.name || 'Unknown',
-            artistId: t.artists[0]?.id,
-            album: t.album.name,
-            albumId: t.album.id,
-            image: t.album.images[0]?.url,
-            preview_url: t.preview_url,
-            duration_ms: t.duration_ms,
-            popularity: t.popularity,
-            external_url: t.external_urls?.spotify
-        }));
+        if (useInMemory) {
+            const userLikes = inMemoryDB.likes.filter(l => l.userId === userId);
+            const userFollows = inMemoryDB.follows.filter(f => f.userId === userId);
+            userLikedTrackIds = userLikes.map(l => l.trackId);
 
-        // Enrich with iTunes previews if Spotify doesn't have them
-        const enrichedTracks = await enrichTracksWithPreviews(tracks);
+            if (userLikes.length > 0) {
+                const sortedLikes = [...userLikes].sort((a, b) =>
+                    new Date(b.createdAt) - new Date(a.createdAt));
+                const recentLikes = sortedLikes.slice(0, 5);
+                const freshTaste = getRandomItems(recentLikes, 2).map(l => l.trackId).filter(Boolean);
+                const oldLikes = sortedLikes.slice(-10);
+                const deepCut = oldLikes.length > 0 ? [oldLikes[Math.floor(Math.random() * oldLikes.length)].trackId].filter(Boolean) : [];
+                seedTracks = [...freshTaste, ...deepCut].filter(Boolean);
+            }
+            if (userFollows.length > 0) {
+                seedArtists = getRandomItems(userFollows, 2).map(f => f.artistId).filter(Boolean);
+            }
+        } else {
+            const userLikes = await Like.find({ userId }).sort({ createdAt: -1 });
+            const userFollows = await Follow.find({ userId });
+            userLikedTrackIds = userLikes.map(l => l.trackId);
 
-        // Filter out tracks without preview for better UX
-        const tracksWithPreview = enrichedTracks.filter(t => t.preview_url);
+            if (userLikes.length > 0) {
+                const freshTaste = getRandomItems(userLikes.slice(0, 5), 2).map(l => l.trackId).filter(Boolean);
+                const deepCut = userLikes.length > 5 ? [userLikes[Math.floor(Math.random() * userLikes.length)].trackId].filter(Boolean) : [];
+                seedTracks = [...freshTaste, ...deepCut].filter(Boolean);
+            }
+            if (userFollows.length > 0) {
+                seedArtists = getRandomItems(userFollows, 2).map(f => f.artistId).filter(Boolean);
+            }
+        }
 
-        res.json({
-            tracks: tracksWithPreview,
-            total: tracksWithPreview.length
-        });
+        console.log(`🎯 Smart Mix - Seeds: ${seedTracks.length} tracks, ${seedArtists.length} artists`);
+
+        // =============================================
+        // STEP 2: Spotify Recommendations or Fallback
+        // =============================================
+
+        let tracks = [];
+
+        if (seedTracks.length > 0 || seedArtists.length > 0) {
+            try {
+                const params = new URLSearchParams({ limit: '30', min_popularity: '20' });
+                if (seedTracks.length > 0) params.append('seed_tracks', seedTracks.slice(0, 3).join(','));
+                if (seedArtists.length > 0) params.append('seed_artists', seedArtists.slice(0, 2).join(','));
+
+                if (mood === 'energy') { params.append('min_energy', '0.7'); params.append('min_tempo', '120'); }
+                else if (mood === 'chill') { params.append('max_energy', '0.5'); }
+                else if (mood === 'party') { params.append('min_danceability', '0.7'); }
+
+                const recResp = await axios.get(`https://api.spotify.com/v1/recommendations?${params.toString()}`,
+                    { headers: { 'Authorization': `Bearer ${token}` } });
+
+                tracks = recResp.data.tracks.map(t => ({
+                    id: t.id, name: t.name, artist: t.artists[0]?.name || 'Unknown',
+                    artistId: t.artists[0]?.id, album: t.album.name, albumId: t.album.id,
+                    image: t.album.images[0]?.url, preview_url: t.preview_url,
+                    duration_ms: t.duration_ms, popularity: t.popularity, external_url: t.external_urls?.spotify
+                }));
+                console.log(`✨ Personalized: ${tracks.length} recommendations`);
+            } catch (recError) { console.error('Rec API error:', recError.message); }
+        }
+
+        // Cold Start Fallback
+        if (tracks.length === 0) {
+            console.log('❄️ Cold Start - Using popular tracks');
+            const terms = ['top hits 2024', 'popular songs', 'trending music'];
+            const searchResp = await axios.get(
+                `https://api.spotify.com/v1/search?q=${encodeURIComponent(terms[Math.floor(Math.random() * terms.length)])}&type=track&limit=30`,
+                { headers: { 'Authorization': `Bearer ${token}` } });
+            tracks = searchResp.data.tracks.items.map(t => ({
+                id: t.id, name: t.name, artist: t.artists[0]?.name || 'Unknown',
+                artistId: t.artists[0]?.id, album: t.album.name, albumId: t.album.id,
+                image: t.album.images[0]?.url, preview_url: t.preview_url,
+                duration_ms: t.duration_ms, popularity: t.popularity, external_url: t.external_urls?.spotify
+            }));
+        }
+
+        // =============================================
+        // STEP 3: Deduplication & Enrich
+        // =============================================
+
+        const freshTracks = tracks.filter(t => !userLikedTrackIds.includes(t.id));
+        const enrichedTracks = await enrichTracksWithPreviews(freshTracks);
+        const finalTracks = enrichedTracks.filter(t => t.preview_url).slice(0, parseInt(limit));
+
+        console.log(`🎵 Serving ${finalTracks.length} tracks (personalized: ${seedTracks.length > 0})`);
+        res.json({ tracks: finalTracks, total: finalTracks.length, personalized: seedTracks.length > 0 || seedArtists.length > 0 });
     } catch (e) {
         console.error('Dig queue error:', e.message);
         res.status(500).json({ error: 'Failed to get dig queue' });
