@@ -17,6 +17,7 @@ interface AuthStore {
     logout: () => Promise<void>;
     checkAuth: () => Promise<void>;
     fetchUserData: () => Promise<void>;
+    refreshUserData: () => Promise<void>; // Added for realtime UI updates
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -112,6 +113,16 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             set({ userData });
         } catch (error) {
             console.error('Error fetching user data:', error);
+        }
+    },
+
+    // Refresh user data (for realtime UI updates after like/follow)
+    refreshUserData: async () => {
+        try {
+            const userData = await authService.getMe();
+            set({ userData });
+        } catch (error) {
+            console.error('Error refreshing user data:', error);
         }
     },
 }));

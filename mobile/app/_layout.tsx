@@ -8,6 +8,7 @@ import 'react-native-reanimated';
 import '../global.css';
 
 import { useAuthStore } from '../stores/authStore';
+import { Colors } from '../constants/theme';
 
 export {
   ErrorBoundary,
@@ -20,17 +21,17 @@ export const unstable_settings = {
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-// Custom dark theme
+// Custom dark theme - Electric Violet branding
 const MusicArchiveDarkTheme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
-    primary: '#1DB954',
-    background: '#121212',
-    card: '#181818',
-    text: '#FFFFFF',
-    border: '#282828',
-    notification: '#1DB954',
+    primary: Colors.primary,           // Electric Violet
+    background: Colors.surface,        // #121214
+    card: Colors.surfaceElevated,      // #1E1E24
+    text: Colors.textPrimary,          // #FFFFFF
+    border: Colors.border,             // #27272A
+    notification: Colors.accent,       // Pink accent
   },
 };
 

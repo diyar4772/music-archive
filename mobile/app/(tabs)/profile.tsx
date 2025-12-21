@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../stores/authStore';
 import { Card } from '../../components/ui';
+import { Colors } from '../../constants/theme';
 
 export default function ProfileScreen() {
     const { user, userData, logout } = useAuthStore();
@@ -101,7 +102,7 @@ const styles = StyleSheet.create({
         width: 100,
         height: 100,
         borderRadius: 50,
-        backgroundColor: '#1DB954',
+        backgroundColor: Colors.primary,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 14,
@@ -131,7 +132,7 @@ const styles = StyleSheet.create({
     statNumber: {
         fontSize: 26,
         fontWeight: 'bold',
-        color: '#1DB954',
+        color: Colors.primary,
     },
     statLabel: {
         fontSize: 13,

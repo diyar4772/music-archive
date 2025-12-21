@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { DigTrack } from '../../services/dig';
+import { Colors } from '../../constants/theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH - 32;
@@ -144,7 +145,7 @@ export default function SwipeCard({
             {/* ARCHIVE Stamp (Right) */}
             <Animated.View style={[styles.stamp, styles.archiveStamp, { opacity: archiveOpacity }]}>
                 <View style={[styles.stampInner, styles.archiveBorder]}>
-                    <Ionicons name="heart" size={32} color="#1DB954" />
+                    <Ionicons name="heart" size={32} color={Colors.accent} />
                     <Text style={[styles.stampText, styles.archiveText]}>ARCHIVE</Text>
                 </View>
             </Animated.View>
@@ -234,10 +235,10 @@ const styles = StyleSheet.create({
         left: 20,
     },
     archiveBorder: {
-        borderColor: '#1DB954',
+        borderColor: Colors.accent,
     },
     archiveText: {
-        color: '#1DB954',
+        color: Colors.accent,
     },
     passStamp: {
         right: 20,
@@ -274,7 +275,7 @@ const styles = StyleSheet.create({
         textShadowRadius: 4,
     },
     artistName: {
-        color: '#1DB954',
+        color: Colors.primary,
         fontSize: 18,
         fontWeight: '600',
         marginBottom: 4,
@@ -292,7 +293,7 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: 28,
-        backgroundColor: 'rgba(29, 185, 84, 0.95)',
+        backgroundColor: Colors.primaryAlpha(0.95),
         alignItems: 'center',
         justifyContent: 'center',
     },

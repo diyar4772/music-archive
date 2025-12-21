@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,22 +6,91 @@ import {
   TouchableOpacity,
   FlatList,
   Image,
-  ActivityIndicator,
   StyleSheet,
+  Animated,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useAuthStore } from '../../stores/authStore';
 import api from '../../services/api';
 import { Artist, Track } from '../../types';
+import { Colors } from '../../constants/theme';
+
+// 🦴 Skeleton Loader Component
+const SkeletonItem = ({ isArtist = false }: { isArtist?: boolean }) => {
+  const opacity = useRef(new Animated.Value(0.4)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.4,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [opacity]);
+
+  return (
+    <View style={styles.resultItem}>
+      <Animated.View
+        style={[
+          isArtist ? styles.skeletonArtistImage : styles.skeletonTrackImage,
+          { opacity },
+        ]}
+      />
+      <View style={styles.resultInfo}>
+        <Animated.View style={[styles.skeletonTitle, { opacity }]} />
+        <Animated.View style={[styles.skeletonSubtitle, { opacity }]} />
+      </View>
+    </View>
+  );
+};
+
+// 📦 Skeleton List
+const SkeletonList = ({ isArtist = false }: { isArtist?: boolean }) => (
+  <View style={styles.list}>
+    {[1, 2, 3, 4, 5].map((i) => (
+      <SkeletonItem key={i} isArtist={isArtist} />
+    ))}
+  </View>
+);
 
 export default function HomeScreen() {
-  const { user } = useAuthStore();
+  const { user, userData, refreshUserData } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState<'artist' | 'track'>('artist');
   const [artistResults, setArtistResults] = useState<Artist[]>([]);
   const [trackResults, setTrackResults] = useState<Track[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Audio state
+  const soundRef = useRef<Audio.Sound | null>(null);
+  const [playingTrackId, setPlayingTrackId] = useState<string | null>(null);
+
+  // Get user's liked track IDs for UI
+  const likedTrackIds = userData?.likes?.map((l: any) => l.trackId) || [];
+  const followedArtistIds = userData?.follows?.map((f: any) => f.artistId) || [];
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (soundRef.current) {
+        soundRef.current.unloadAsync();
+      }
+    };
+  }, []);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -43,46 +112,206 @@ export default function HomeScreen() {
       }
     } catch (error) {
       console.error('Search error:', error);
+      Alert.alert('Hata', 'Arama yapılırken bir hata oluştu');
     } finally {
       setLoading(false);
     }
   };
 
-  const renderArtist = ({ item }: { item: Artist }) => (
-    <TouchableOpacity style={styles.resultItem}>
-      {item.image ? (
-        <Image source={{ uri: item.image }} style={styles.artistImage} />
-      ) : (
-        <View style={[styles.artistImage, styles.placeholderImage]}>
-          <Ionicons name="person" size={24} color="#666" />
-        </View>
-      )}
-      <View style={styles.resultInfo}>
-        <Text style={styles.resultName}>{item.name}</Text>
-        {item.genres && <Text style={styles.resultSub}>{item.genres}</Text>}
-      </View>
-      <Ionicons name="chevron-forward" size={20} color="#666" />
-    </TouchableOpacity>
-  );
+  // 🎵 Play/Stop Preview
+  const togglePlay = useCallback(async (track: Track) => {
+    try {
+      // If same track is playing, stop it
+      if (playingTrackId === track.id) {
+        if (soundRef.current) {
+          await soundRef.current.stopAsync();
+          await soundRef.current.unloadAsync();
+          soundRef.current = null;
+        }
+        setPlayingTrackId(null);
+        return;
+      }
 
-  const renderTrack = ({ item }: { item: Track }) => (
-    <TouchableOpacity style={styles.resultItem}>
-      {item.image ? (
-        <Image source={{ uri: item.image }} style={styles.trackImage} />
-      ) : (
-        <View style={[styles.trackImage, styles.placeholderImage]}>
-          <Ionicons name="musical-note" size={24} color="#666" />
-        </View>
-      )}
-      <View style={styles.resultInfo}>
-        <Text style={styles.trackTitle} numberOfLines={1}>{item.name}</Text>
-        <Text style={styles.trackArtist}>{item.artist}</Text>
+      // Stop current track if any
+      if (soundRef.current) {
+        await soundRef.current.stopAsync();
+        await soundRef.current.unloadAsync();
+        soundRef.current = null;
+      }
+
+      if (!track.preview_url) {
+        Alert.alert('Önizleme Yok', 'Bu şarkı için önizleme mevcut değil');
+        return;
+      }
+
+      // Play new track
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+      });
+
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: track.preview_url },
+        { shouldPlay: true, volume: 1.0 }
+      );
+
+      soundRef.current = sound;
+      setPlayingTrackId(track.id);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      // Auto-stop after preview ends
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          setPlayingTrackId(null);
+        }
+      });
+    } catch (error) {
+      console.error('Play error:', error);
+      setPlayingTrackId(null);
+    }
+  }, [playingTrackId]);
+
+  // ❤️ Like Track
+  const handleLikeTrack = async (track: Track) => {
+    try {
+      const isLiked = likedTrackIds.includes(track.id);
+
+      if (isLiked) {
+        // Unlike
+        await api.delete(`/library/track/${track.id}`);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        // Like
+        await api.post('/like', {
+          trackId: track.id,
+          trackName: track.name,
+          artistId: track.artistId,
+          artistName: track.artist,
+          image: track.image,
+          previewUrl: track.preview_url,
+        });
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+
+      // Refresh user data
+      refreshUserData();
+    } catch (error) {
+      console.error('Like error:', error);
+      Alert.alert('Hata', 'İşlem sırasında bir hata oluştu');
+    }
+  };
+
+  // 👤 Follow Artist
+  const handleFollowArtist = async (artist: Artist) => {
+    try {
+      const isFollowed = followedArtistIds.includes(artist.id);
+
+      if (isFollowed) {
+        // Unfollow
+        await api.delete(`/library/artist/${artist.id}`);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        // Follow
+        await api.post('/follow', {
+          artistId: artist.id,
+          artistName: artist.name,
+          image: artist.image,
+        });
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+
+      // Refresh user data
+      refreshUserData();
+    } catch (error) {
+      console.error('Follow error:', error);
+      Alert.alert('Hata', 'İşlem sırasında bir hata oluştu');
+    }
+  };
+
+  // 🎨 Render Artist Card
+  const renderArtist = ({ item }: { item: Artist }) => {
+    const isFollowed = followedArtistIds.includes(item.id);
+
+    return (
+      <View style={styles.resultItem}>
+        <TouchableOpacity style={styles.resultMain}>
+          {item.image ? (
+            <Image source={{ uri: item.image }} style={styles.artistImage} />
+          ) : (
+            <View style={[styles.artistImage, styles.placeholderImage]}>
+              <Ionicons name="person" size={24} color="#666" />
+            </View>
+          )}
+          <View style={styles.resultInfo}>
+            <Text style={styles.resultName}>{item.name}</Text>
+            {item.genres && <Text style={styles.resultSub}>{item.genres}</Text>}
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionBtn, isFollowed && styles.actionBtnActive]}
+          onPress={() => handleFollowArtist(item)}
+        >
+          <Ionicons
+            name={isFollowed ? 'checkmark' : 'add'}
+            size={20}
+            color={isFollowed ? Colors.primary : '#888'}
+          />
+        </TouchableOpacity>
       </View>
-      {item.preview_url && (
-        <Ionicons name="play-circle" size={28} color="#1DB954" />
-      )}
-    </TouchableOpacity>
-  );
+    );
+  };
+
+  // 🎵 Render Track Card
+  const renderTrack = ({ item }: { item: Track }) => {
+    const isLiked = likedTrackIds.includes(item.id);
+    const isPlaying = playingTrackId === item.id;
+
+    return (
+      <View style={styles.resultItem}>
+        <TouchableOpacity
+          style={styles.resultMain}
+          onPress={() => togglePlay(item)}
+        >
+          <View style={styles.trackImageContainer}>
+            {item.image ? (
+              <Image source={{ uri: item.image }} style={styles.trackImage} />
+            ) : (
+              <View style={[styles.trackImage, styles.placeholderImage]}>
+                <Ionicons name="musical-note" size={24} color="#666" />
+              </View>
+            )}
+            {/* Play overlay */}
+            {item.preview_url && (
+              <View style={[styles.playOverlay, isPlaying && styles.playOverlayActive]}>
+                <Ionicons
+                  name={isPlaying ? 'pause' : 'play'}
+                  size={20}
+                  color="#fff"
+                />
+              </View>
+            )}
+          </View>
+
+          <View style={styles.resultInfo}>
+            <Text style={styles.trackTitle} numberOfLines={1}>{item.name}</Text>
+            <Text style={styles.trackArtist}>{item.artist}</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.likeBtn, isLiked && styles.likeBtnActive]}
+          onPress={() => handleLikeTrack(item)}
+        >
+          <Ionicons
+            name={isLiked ? 'heart' : 'heart-outline'}
+            size={22}
+            color={isLiked ? Colors.accent : '#666'}
+          />
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -113,7 +342,7 @@ export default function HomeScreen() {
             )}
           </View>
 
-          {/* Toggle Buttons - Active: Solid Green, Inactive: Ghost */}
+          {/* Toggle Buttons */}
           <View style={styles.tabs}>
             <TouchableOpacity
               style={[
@@ -148,9 +377,7 @@ export default function HomeScreen() {
 
         {/* Results */}
         {loading ? (
-          <View style={styles.centered}>
-            <ActivityIndicator size="large" color="#1DB954" />
-          </View>
+          <SkeletonList isArtist={searchType === 'artist'} />
         ) : searchType === 'artist' && artistResults.length > 0 ? (
           <FlatList
             data={artistResults}
@@ -229,11 +456,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
   },
-  // Active: Solid green background
   tabActive: {
-    backgroundColor: '#1DB954',
+    backgroundColor: Colors.primary,
   },
-  // Inactive: Ghost style (transparent + border)
   tabInactive: {
     backgroundColor: 'transparent',
     borderWidth: 1,
@@ -271,15 +496,39 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 10,
   },
+  resultMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   artistImage: {
     width: 52,
     height: 52,
     borderRadius: 26,
   },
+  trackImageContainer: {
+    position: 'relative',
+  },
   trackImage: {
     width: 52,
     height: 52,
     borderRadius: 8,
+  },
+  playOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0,
+  },
+  playOverlayActive: {
+    opacity: 1,
+    backgroundColor: Colors.primaryAlpha(0.8),
   },
   placeholderImage: {
     backgroundColor: '#282828',
@@ -300,7 +549,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 3,
   },
-  // Track typography hierarchy
   trackTitle: {
     color: '#fff',
     fontSize: 16,
@@ -311,5 +559,62 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '400',
     marginTop: 3,
+  },
+  // Action Buttons
+  actionBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#282828',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+    borderWidth: 1.5,
+    borderColor: '#444',
+  },
+  actionBtnActive: {
+    backgroundColor: Colors.primaryAlpha(0.25),
+    borderColor: Colors.primary,
+  },
+  likeBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#282828',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+    borderWidth: 1.5,
+    borderColor: '#444',
+  },
+  likeBtnActive: {
+    backgroundColor: Colors.accentAlpha(0.25),
+    borderColor: Colors.accent,
+  },
+  // Skeleton
+  skeletonArtistImage: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#333',
+  },
+  skeletonTrackImage: {
+    width: 52,
+    height: 52,
+    borderRadius: 8,
+    backgroundColor: '#333',
+  },
+  skeletonTitle: {
+    height: 16,
+    width: '70%',
+    backgroundColor: '#333',
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  skeletonSubtitle: {
+    height: 12,
+    width: '45%',
+    backgroundColor: '#2a2a2a',
+    borderRadius: 4,
   },
 });

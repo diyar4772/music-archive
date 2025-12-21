@@ -27,6 +27,7 @@ export interface Track {
     id: string;
     name: string;
     artist: string;
+    artistId?: string; // Added for like API
     image: string | null;
     preview_url: string | null;
     duration_ms?: number;

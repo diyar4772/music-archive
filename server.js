@@ -135,8 +135,12 @@ const likeSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     trackId: { type: String, required: true },
     trackName: { type: String },
+    artistId: { type: String },
+    artistName: { type: String },
     image: { type: String },
-    previewUrl: { type: String }
+    previewUrl: { type: String },
+    source: { type: String, default: 'manual' }, // 'manual' or 'dig'
+    mood: { type: String, default: null }
 }, { timestamps: true });
 
 const playlistSchema = new mongoose.Schema({
@@ -574,6 +578,7 @@ app.get('/api/search', async (req, res) => {
                 id: t.id,
                 name: t.name,
                 artist: t.artists[0].name,
+                artistId: t.artists[0].id, // Added for like API
                 image: t.album.images[0]?.url,
                 preview_url: t.preview_url,
                 duration_ms: t.duration_ms,
@@ -644,7 +649,7 @@ app.get('/api/me', authenticateToken, async (req, res) => {
             const ratings = inMemoryDB.ratings.filter(r => r.userId === req.user.id);
             return res.json({
                 follows: follows.map(f => ({ artistId: f.artistId, artistName: f.artistName, image: f.image })),
-                likes: likes.map(l => ({ trackId: l.trackId, trackName: l.trackName, image: l.image, previewUrl: l.previewUrl })),
+                likes: likes.map(l => ({ trackId: l.trackId, trackName: l.trackName, artistName: l.artistName || 'Unknown Artist', image: l.image, previewUrl: l.previewUrl })),
                 albumFollows: albumFollows.map(a => ({ albumId: a.albumId, albumName: a.albumName, image: a.image, artistName: a.artistName })),
                 ratings: ratings.map(r => ({ itemId: r.itemId, itemType: r.itemType, itemName: r.itemName, artistName: r.artistName, image: r.image, rating: r.rating }))
             });
@@ -657,7 +662,7 @@ app.get('/api/me', authenticateToken, async (req, res) => {
 
         res.json({
             follows: follows.map(f => ({ artistId: f.artistId, artistName: f.artistName, image: f.image })),
-            likes: likes.map(l => ({ trackId: l.trackId, trackName: l.trackName, image: l.image, previewUrl: l.previewUrl })),
+            likes: likes.map(l => ({ trackId: l.trackId, trackName: l.trackName, artistName: l.artistName || 'Unknown Artist', image: l.image, previewUrl: l.previewUrl })),
             albumFollows: albumFollows.map(a => ({ albumId: a.albumId, albumName: a.albumName, image: a.image, artistName: a.artistName })),
             ratings: ratings.map(r => ({ itemId: r.itemId, itemType: r.itemType, itemName: r.itemName, artistName: r.artistName, image: r.image, rating: r.rating }))
         });
@@ -1558,18 +1563,382 @@ app.post('/api/dig/swipe', authenticateToken, async (req, res) => {
     }
 });
 
-// Dig Mode: Get available genres for filtering
-app.get('/api/dig/genres', async (req, res) => {
+// ===================================================
+// 📚 LIBRARY DASHBOARD API - Mobile App Backend
+// ===================================================
+
+// Library Dashboard: Get stats for the command center cards
+app.get('/api/library/dashboard', authenticateToken, async (req, res) => {
     try {
+        const userId = req.user.id;
+
+        if (useInMemory) {
+            const likedTracksCount = inMemoryDB.likes.filter(l => l.userId === userId).length;
+            const followedArtistsCount = inMemoryDB.follows.filter(f => f.userId === userId).length;
+            const playlistsCount = inMemoryDB.playlists.filter(p => p.userId === userId).length;
+            const albumsCount = inMemoryDB.albumFollows.filter(a => a.userId === userId).length;
+
+            return res.json({
+                likedTracksCount,
+                followedArtistsCount,
+                playlistsCount,
+                albumsCount,
+                totalItems: likedTracksCount + followedArtistsCount + playlistsCount + albumsCount
+            });
+        }
+
+        // MongoDB counts
+        const [likedTracksCount, followedArtistsCount, playlistsCount, albumsCount] = await Promise.all([
+            Like.countDocuments({ userId }),
+            Follow.countDocuments({ userId }),
+            Playlist.countDocuments({ userId }),
+            AlbumFollow.countDocuments({ userId })
+        ]);
+
+        res.json({
+            likedTracksCount,
+            followedArtistsCount,
+            playlistsCount,
+            albumsCount,
+            totalItems: likedTracksCount + followedArtistsCount + playlistsCount + albumsCount
+        });
+    } catch (e) {
+        console.error('Dashboard stats error:', e.message);
+        res.status(500).json({ error: 'Failed to get dashboard stats' });
+    }
+});
+
+// Library Tracks: Get user's liked tracks with filtering/sorting
+app.get('/api/library/tracks', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { search, sort = 'date', mood, limit = 50, offset = 0 } = req.query;
+
+        if (useInMemory) {
+            let tracks = inMemoryDB.likes.filter(l => l.userId === userId);
+
+            // Local search filter
+            if (search) {
+                const searchLower = search.toLowerCase();
+                tracks = tracks.filter(t =>
+                    (t.trackName || '').toLowerCase().includes(searchLower) ||
+                    (t.artistName || '').toLowerCase().includes(searchLower)
+                );
+            }
+
+            // Mood filter
+            if (mood && mood !== 'all') {
+                tracks = tracks.filter(t => t.mood === mood);
+            }
+
+            // Sort
+            if (sort === 'name') {
+                tracks.sort((a, b) => (a.trackName || '').localeCompare(b.trackName || ''));
+            } else if (sort === 'artist') {
+                tracks.sort((a, b) => (a.artistName || '').localeCompare(b.artistName || ''));
+            } else {
+                // Default: date (most recent first)
+                tracks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            }
+
+            const total = tracks.length;
+            tracks = tracks.slice(parseInt(offset), parseInt(offset) + parseInt(limit));
+
+            return res.json({ tracks, total, offset: parseInt(offset), limit: parseInt(limit) });
+        }
+
+        // MongoDB query
+        let query = { userId };
+
+        // Search filter (regex)
+        if (search) {
+            const searchRegex = new RegExp(escapeRegex(search), 'i');
+            query.$or = [
+                { trackName: searchRegex },
+                { artistName: searchRegex }
+            ];
+        }
+
+        // Mood filter
+        if (mood && mood !== 'all') {
+            query.mood = mood;
+        }
+
+        // Sort options
+        let sortOption = { createdAt: -1 }; // Default: most recent
+        if (sort === 'name') sortOption = { trackName: 1 };
+        else if (sort === 'artist') sortOption = { artistName: 1 };
+
+        const total = await Like.countDocuments(query);
+        const tracks = await Like.find(query)
+            .sort(sortOption)
+            .skip(parseInt(offset))
+            .limit(parseInt(limit))
+            .lean();
+
+        res.json({
+            tracks: tracks.map(t => ({
+                trackId: t.trackId,
+                trackName: t.trackName,
+                artistId: t.artistId,
+                artistName: t.artistName || 'Unknown Artist',
+                image: t.image,
+                previewUrl: t.previewUrl,
+                mood: t.mood,
+                source: t.source,
+                addedAt: t.createdAt
+            })),
+            total,
+            offset: parseInt(offset),
+            limit: parseInt(limit)
+        });
+    } catch (e) {
+        console.error('Library tracks error:', e.message);
+        res.status(500).json({ error: 'Failed to get library tracks' });
+    }
+});
+
+// Library: Get user's followed artists
+app.get('/api/library/artists', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { search, limit = 50, offset = 0 } = req.query;
+
+        if (useInMemory) {
+            let artists = inMemoryDB.follows.filter(f => f.userId === userId);
+
+            if (search) {
+                const searchLower = search.toLowerCase();
+                artists = artists.filter(a =>
+                    (a.artistName || '').toLowerCase().includes(searchLower)
+                );
+            }
+
+            const total = artists.length;
+            artists = artists.slice(parseInt(offset), parseInt(offset) + parseInt(limit));
+
+            return res.json({ artists, total });
+        }
+
+        let query = { userId };
+        if (search) {
+            query.artistName = new RegExp(escapeRegex(search), 'i');
+        }
+
+        const total = await Follow.countDocuments(query);
+        const artists = await Follow.find(query)
+            .sort({ createdAt: -1 })
+            .skip(parseInt(offset))
+            .limit(parseInt(limit))
+            .lean();
+
+        res.json({
+            artists: artists.map(a => ({
+                artistId: a.artistId,
+                artistName: a.artistName,
+                image: a.image,
+                followedAt: a.createdAt
+            })),
+            total
+        });
+    } catch (e) {
+        console.error('Library artists error:', e.message);
+        res.status(500).json({ error: 'Failed to get followed artists' });
+    }
+});
+
+// Library: Get user's playlists
+app.get('/api/library/playlists', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        if (useInMemory) {
+            const playlists = inMemoryDB.playlists.filter(p => p.userId === userId);
+            const playlistsWithCounts = playlists.map(p => ({
+                ...p,
+                trackCount: inMemoryDB.playlistTracks.filter(pt => pt.playlistId === p._id).length
+            }));
+            return res.json({ playlists: playlistsWithCounts });
+        }
+
+        const playlists = await Playlist.find({ userId }).sort({ createdAt: -1 }).lean();
+
+        // Get track counts for each playlist
+        const playlistsWithCounts = await Promise.all(
+            playlists.map(async (p) => {
+                const trackCount = await PlaylistTrack.countDocuments({ playlistId: p._id });
+                return {
+                    id: p._id,
+                    name: p.name,
+                    coverImage: p.coverImage,
+                    trackCount,
+                    createdAt: p.createdAt
+                };
+            })
+        );
+
+        res.json({ playlists: playlistsWithCounts });
+    } catch (e) {
+        console.error('Library playlists error:', e.message);
+        res.status(500).json({ error: 'Failed to get playlists' });
+    }
+});
+
+// Library: Create new playlist
+app.post('/api/library/playlists', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { name, coverImage } = req.body;
+
+        if (!name || name.trim().length === 0) {
+            return res.status(400).json({ error: 'Playlist name is required' });
+        }
+
+        if (useInMemory) {
+            const playlist = {
+                _id: generateId(),
+                userId,
+                name: name.trim(),
+                coverImage: coverImage || null,
+                createdAt: new Date()
+            };
+            inMemoryDB.playlists.push(playlist);
+            return res.json({ playlist, message: 'Playlist created' });
+        }
+
+        const playlist = await Playlist.create({
+            userId,
+            name: name.trim(),
+            coverImage: coverImage || null
+        });
+
+        res.json({
+            playlist: {
+                id: playlist._id,
+                name: playlist.name,
+                coverImage: playlist.coverImage,
+                trackCount: 0,
+                createdAt: playlist.createdAt
+            },
+            message: 'Playlist created'
+        });
+    } catch (e) {
+        console.error('Create playlist error:', e.message);
+        res.status(500).json({ error: 'Failed to create playlist' });
+    }
+});
+
+// Library: Delete a liked track
+app.delete('/api/library/track/:trackId', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { trackId } = req.params;
+
+        if (useInMemory) {
+            const idx = inMemoryDB.likes.findIndex(l => l.userId === userId && l.trackId === trackId);
+            if (idx === -1) {
+                return res.status(404).json({ error: 'Track not found in library' });
+            }
+            inMemoryDB.likes.splice(idx, 1);
+            return res.json({ message: 'Track removed from library' });
+        }
+
+        const result = await Like.findOneAndDelete({ userId, trackId });
+        if (!result) {
+            return res.status(404).json({ error: 'Track not found in library' });
+        }
+
+        res.json({ message: 'Track removed from library' });
+    } catch (e) {
+        console.error('Delete track error:', e.message);
+        res.status(500).json({ error: 'Failed to remove track' });
+    }
+});
+
+// Library: Unfollow artist
+app.delete('/api/library/artist/:artistId', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { artistId } = req.params;
+
+        if (useInMemory) {
+            const idx = inMemoryDB.follows.findIndex(f => f.userId === userId && f.artistId === artistId);
+            if (idx === -1) {
+                return res.status(404).json({ error: 'Artist not followed' });
+            }
+            inMemoryDB.follows.splice(idx, 1);
+            return res.json({ message: 'Artist unfollowed' });
+        }
+
+        const result = await Follow.findOneAndDelete({ userId, artistId });
+        if (!result) {
+            return res.status(404).json({ error: 'Artist not followed' });
+        }
+
+        res.json({ message: 'Artist unfollowed' });
+    } catch (e) {
+        console.error('Unfollow artist error:', e.message);
+        res.status(500).json({ error: 'Failed to unfollow artist' });
+    }
+});
+
+// Enhanced Search: Returns isArchived status for each track
+app.get('/api/search/enhanced', authenticateToken, async (req, res) => {
+    try {
+        const { q, type = 'track', limit = 20 } = req.query;
+        const userId = req.user.id;
+
+        if (!q) {
+            return res.status(400).json({ error: 'Query parameter "q" is required' });
+        }
+
         const token = await getSpotifyToken();
-        const genresResp = await axios.get(
-            'https://api.spotify.com/v1/recommendations/available-genre-seeds',
+        const searchResp = await axios.get(
+            `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=${type}&limit=${limit}`,
             { headers: { 'Authorization': `Bearer ${token}` } }
         );
-        res.json({ genres: genresResp.data.genres });
+
+        // Get user's liked track IDs for comparison
+        let userLikedTrackIds = [];
+        if (useInMemory) {
+            userLikedTrackIds = inMemoryDB.likes
+                .filter(l => l.userId === userId)
+                .map(l => l.trackId);
+        } else {
+            const userLikes = await Like.find({ userId }).select('trackId').lean();
+            userLikedTrackIds = userLikes.map(l => l.trackId);
+        }
+
+        if (type === 'track') {
+            const tracks = searchResp.data.tracks.items.map(t => ({
+                id: t.id,
+                name: t.name,
+                artist: t.artists[0]?.name || 'Unknown',
+                artistId: t.artists[0]?.id,
+                album: t.album.name,
+                albumId: t.album.id,
+                image: t.album.images[0]?.url,
+                preview_url: t.preview_url,
+                duration_ms: t.duration_ms,
+                popularity: t.popularity,
+                external_url: t.external_urls?.spotify,
+                isArchived: userLikedTrackIds.includes(t.id) // ⭐ Key feature
+            }));
+
+            // Enrich with iTunes previews if needed
+            const enrichedTracks = await enrichTracksWithPreviews(tracks);
+
+            return res.json({
+                tracks: enrichedTracks,
+                total: searchResp.data.tracks.total
+            });
+        }
+
+        // For artist/album searches, return as-is
+        res.json(searchResp.data);
     } catch (e) {
-        console.error('Get genres error:', e.message);
-        res.status(500).json({ error: 'Failed to get genres' });
+        console.error('Enhanced search error:', e.message);
+        res.status(500).json({ error: 'Search failed' });
     }
 });
 
@@ -1580,4 +1949,6 @@ app.listen(PORT, HOST, () => {
     console.log(`📱 Mobile access: Use your computer's IP address instead of localhost`);
     console.log(`🔒 Admin panel: http://localhost:${PORT}/admin`);
     console.log(`📊 Admin API: /api/admin/users, /api/admin/stats`);
+    console.log(`📚 Library API: /api/library/dashboard, /api/library/tracks`);
 });
+

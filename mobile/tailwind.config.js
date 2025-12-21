@@ -8,25 +8,29 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Spotify-inspired dark theme
+        // Electric Violet theme - Premium music archiver
         primary: {
-          DEFAULT: '#1DB954',
-          dark: '#1AA34A',
-          light: '#1ED760',
+          DEFAULT: '#8B5CF6',
+          dark: '#7C3AED',
+          light: '#A78BFA',
+        },
+        accent: {
+          DEFAULT: '#F472B6',
+          dark: '#EC4899',
         },
         background: {
-          DEFAULT: '#121212',
-          card: '#181818',
-          elevated: '#282828',
+          DEFAULT: '#0A0A0B',
+          card: '#1E1E24',
+          elevated: '#2A2A32',
         },
         surface: {
-          DEFAULT: '#282828',
-          light: '#3E3E3E',
+          DEFAULT: '#121214',
+          light: '#1E1E24',
         },
         text: {
           primary: '#FFFFFF',
-          secondary: '#B3B3B3',
-          muted: '#727272',
+          secondary: '#A1A1AA',
+          muted: '#71717A',
         },
       },
       fontFamily: {

@@ -10,6 +10,7 @@ import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import SwipeCard from './SwipeCard';
 import { DigTrack } from '../../services/dig';
+import { Colors } from '../../constants/theme';
 
 interface SwipeDeckProps {
     tracks: DigTrack[];
@@ -155,7 +156,7 @@ export default function SwipeDeck({
     if (isLoading && !currentTrack) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#1DB954" />
+                <ActivityIndicator size="large" color={Colors.primary} />
                 <Text style={styles.loadingText}>Şarkılar yükleniyor...</Text>
             </View>
         );
@@ -194,7 +195,7 @@ export default function SwipeDeck({
                     onPress={() => handleSwipe('left')}
                     activeOpacity={0.7}
                 >
-                    <Ionicons name="close" size={30} color="#EF4444" />
+                    <Ionicons name="close" size={36} color="#EF4444" />
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -202,7 +203,7 @@ export default function SwipeDeck({
                     onPress={() => handleSwipe('up')}
                     activeOpacity={0.7}
                 >
-                    <Ionicons name="eye" size={24} color="#3B82F6" />
+                    <Ionicons name="eye" size={28} color="#3B82F6" />
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -210,7 +211,7 @@ export default function SwipeDeck({
                     onPress={() => handleSwipe('right')}
                     activeOpacity={0.7}
                 >
-                    <Ionicons name="heart" size={30} color="#1DB954" />
+                    <Ionicons name="heart" size={36} color={Colors.accent} />
                 </TouchableOpacity>
             </View>
 
@@ -259,7 +260,7 @@ const styles = StyleSheet.create({
     refreshButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#1DB954',
+        backgroundColor: Colors.primary,
         paddingHorizontal: 28,
         paddingVertical: 14,
         borderRadius: 28,
@@ -284,36 +285,37 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        paddingVertical: 16,
-        gap: 24,
+        paddingVertical: 20,
+        paddingTop: 28,
+        gap: 32,
     },
     actionButton: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
+        width: 70,
+        height: 70,
+        borderRadius: 35,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 2,
+        borderWidth: 2.5,
     },
     passButton: {
         borderColor: '#EF4444',
-        backgroundColor: 'rgba(239, 68, 68, 0.12)',
+        backgroundColor: 'rgba(239, 68, 68, 0.15)',
     },
     exploreButton: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
+        width: 58,
+        height: 58,
+        borderRadius: 29,
         borderColor: '#3B82F6',
-        backgroundColor: 'rgba(59, 130, 246, 0.12)',
+        backgroundColor: 'rgba(59, 130, 246, 0.15)',
     },
     archiveButton: {
-        borderColor: '#1DB954',
-        backgroundColor: 'rgba(29, 185, 84, 0.12)',
+        borderColor: Colors.accent,
+        backgroundColor: Colors.accentAlpha(0.15),
     },
     hint: {
         textAlign: 'center',
         color: '#555',
         fontSize: 13,
-        paddingBottom: 12,
+        paddingBottom: 16,
     },
 });
