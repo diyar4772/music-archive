@@ -29,8 +29,7 @@ Untitled*.txt
 *.txt
 \#\#*
 
-# 🔒 Private Development Journal (LOCAL ONLY)
-_dev_journal/
+
 
 # 🔒 Additional Security
 .env.*
