@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
     View,
     Text,
@@ -8,10 +8,14 @@ import {
     StyleSheet,
     ScrollView,
     Dimensions,
+    Alert,
+    RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 import { useAuthStore } from '../../stores/authStore';
 import { Colors } from '../../constants/theme';
 import api from '../../services/api';
@@ -101,7 +105,7 @@ const TrackRow = ({ track }: { track: any }) => (
 );
 
 export default function LibraryScreen() {
-    const { userData } = useAuthStore();
+    const { userData, refreshUserData } = useAuthStore();
     const [searchVisible, setSearchVisible] = useState(false);
     const [sortOrder, setSortOrder] = useState<'recent' | 'name'>('recent');
     const [dashboardStats, setDashboardStats] = useState({
@@ -111,28 +115,126 @@ export default function LibraryScreen() {
         albumsCount: 0,
     });
     const [isLoading, setIsLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+
+    // 🎵 Audio Preview State
+    const soundRef = useRef<Audio.Sound | null>(null);
+    const [playingTrackId, setPlayingTrackId] = useState<string | null>(null);
+    const [deletingTrackId, setDeletingTrackId] = useState<string | null>(null);
 
     // Fetch dashboard stats on mount
-    React.useEffect(() => {
-        const fetchStats = async () => {
-            try {
-                const response = await api.get('/library/dashboard');
-                setDashboardStats(response.data);
-            } catch (error) {
-                console.error('Failed to fetch dashboard stats:', error);
-                // Fallback to userData counts
-                setDashboardStats({
-                    likedTracksCount: userData?.likes?.length || 0,
-                    followedArtistsCount: userData?.follows?.length || 0,
-                    playlistsCount: MOCK_PLAYLISTS.length,
-                    albumsCount: userData?.albumFollows?.length || 0,
-                });
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchStats();
+    const fetchStats = useCallback(async () => {
+        try {
+            const response = await api.get('/library/dashboard');
+            setDashboardStats(response.data);
+        } catch (error) {
+            console.error('Failed to fetch dashboard stats:', error);
+            // Fallback to userData counts
+            setDashboardStats({
+                likedTracksCount: userData?.likes?.length || 0,
+                followedArtistsCount: userData?.follows?.length || 0,
+                playlistsCount: MOCK_PLAYLISTS.length,
+                albumsCount: userData?.albumFollows?.length || 0,
+            });
+        } finally {
+            setIsLoading(false);
+        }
     }, [userData]);
+
+    React.useEffect(() => {
+        fetchStats();
+    }, [fetchStats]);
+
+    // Pull to refresh
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        try {
+            await refreshUserData();
+            await fetchStats();
+        } finally {
+            setRefreshing(false);
+        }
+    }, [refreshUserData, fetchStats]);
+
+    // 🎵 Play/Stop Preview
+    const togglePlay = useCallback(async (track: any) => {
+        try {
+            if (playingTrackId === track.trackId) {
+                if (soundRef.current) {
+                    await soundRef.current.stopAsync();
+                    await soundRef.current.unloadAsync();
+                    soundRef.current = null;
+                }
+                setPlayingTrackId(null);
+                return;
+            }
+
+            if (soundRef.current) {
+                await soundRef.current.stopAsync();
+                await soundRef.current.unloadAsync();
+                soundRef.current = null;
+            }
+
+            if (!track.previewUrl) {
+                Alert.alert('Önizleme Yok', 'Bu şarkı için önizleme mevcut değil');
+                return;
+            }
+
+            await Audio.setAudioModeAsync({
+                playsInSilentModeIOS: true,
+                staysActiveInBackground: false,
+            });
+
+            const { sound } = await Audio.Sound.createAsync(
+                { uri: track.previewUrl },
+                { shouldPlay: true, volume: 1.0 }
+            );
+
+            soundRef.current = sound;
+            setPlayingTrackId(track.trackId);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+            sound.setOnPlaybackStatusUpdate((status) => {
+                if (status.isLoaded && status.didJustFinish) {
+                    setPlayingTrackId(null);
+                }
+            });
+        } catch (error) {
+            console.error('Play error:', error);
+            setPlayingTrackId(null);
+        }
+    }, [playingTrackId]);
+
+    // 🗑️ Delete Track
+    const handleDeleteTrack = useCallback(async (track: any) => {
+        if (deletingTrackId) return;
+
+        Alert.alert(
+            'Şarkıyı Sil',
+            `"${track.trackName}" kütüphaneden silinecek. Emin misin?`,
+            [
+                { text: 'İptal', style: 'cancel' },
+                {
+                    text: 'Sil',
+                    style: 'destructive',
+                    onPress: async () => {
+                        setDeletingTrackId(track.trackId);
+                        try {
+                            await api.delete(`/library/track/${track.trackId}`);
+                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            await refreshUserData();
+                            await fetchStats();
+                        } catch (error: any) {
+                            console.error('Delete error:', error);
+                            Alert.alert('Hata', error?.response?.data?.error || 'Şarkı silinirken bir hata oluştu');
+                        } finally {
+                            setDeletingTrackId(null);
+                        }
+                    }
+                }
+            ]
+        );
+    }, [deletingTrackId, refreshUserData, fetchStats]);
 
     const { likedTracksCount, followedArtistsCount, playlistsCount } = dashboardStats;
 
@@ -147,12 +249,72 @@ export default function LibraryScreen() {
         return tracks; // 'recent' = default order from API
     }, [userData?.likes, sortOrder]);
 
+    // 🎵 Track Row with play/delete
+    const renderTrackRow = (track: any) => {
+        const isPlaying = playingTrackId === track.trackId;
+        const isDeleting = deletingTrackId === track.trackId;
+
+        return (
+            <View key={track.trackId} style={styles.trackRow}>
+                <TouchableOpacity
+                    style={styles.trackMain}
+                    onPress={() => togglePlay(track)}
+                    activeOpacity={0.7}
+                >
+                    <View style={styles.trackImageContainer}>
+                        {track.image ? (
+                            <Image source={{ uri: track.image }} style={styles.trackImage} />
+                        ) : (
+                            <View style={[styles.trackImage, styles.placeholder]}>
+                                <Ionicons name="musical-note" size={20} color="#666" />
+                            </View>
+                        )}
+                        {track.previewUrl && (
+                            <View style={[styles.playOverlay, isPlaying && styles.playOverlayActive]}>
+                                <Ionicons
+                                    name={isPlaying ? 'pause' : 'play'}
+                                    size={16}
+                                    color="#fff"
+                                />
+                            </View>
+                        )}
+                    </View>
+                    <View style={styles.trackInfo}>
+                        <Text style={styles.trackName} numberOfLines={1}>{track.trackName}</Text>
+                        <Text style={styles.trackArtist} numberOfLines={1}>
+                            {track.artistName || 'Unknown Artist'}
+                        </Text>
+                    </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.trackDeleteBtn, isDeleting && styles.btnLoading]}
+                    onPress={() => handleDeleteTrack(track)}
+                    disabled={isDeleting}
+                >
+                    <Ionicons
+                        name={isDeleting ? 'sync' : 'trash-outline'}
+                        size={18}
+                        color="#ef4444"
+                    />
+                </TouchableOpacity>
+            </View>
+        );
+    };
+
     return (
         <SafeAreaView style={styles.safeArea} edges={['top']}>
             <ScrollView
                 style={styles.container}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor={Colors.primary}
+                        colors={[Colors.primary]}
+                    />
+                }
             >
                 {/* 🔍 Header with Search + Sort */}
                 <View style={styles.header}>
@@ -244,9 +406,7 @@ export default function LibraryScreen() {
 
                     {recentTracks.length > 0 ? (
                         <View style={styles.trackList}>
-                            {recentTracks.map((track: any) => (
-                                <TrackRow key={track.trackId} track={track} />
-                            ))}
+                            {recentTracks.map((track: any) => renderTrackRow(track))}
                         </View>
                     ) : (
                         <View style={styles.emptyTracks}>
@@ -496,6 +656,42 @@ const styles = StyleSheet.create({
         backgroundColor: '#1e1e1e',
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    trackMain: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    trackImageContainer: {
+        position: 'relative',
+    },
+    playOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: 0,
+    },
+    playOverlayActive: {
+        opacity: 1,
+        backgroundColor: 'rgba(29, 185, 84, 0.8)',
+    },
+    trackDeleteBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(239, 68, 68, 0.15)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: 8,
+    },
+    btnLoading: {
+        opacity: 0.5,
     },
     // === Empty State ===
     emptyTracks: {

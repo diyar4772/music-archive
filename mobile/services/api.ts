@@ -4,17 +4,31 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
 // API Base URL Configuration
-// Development: Set DEV_API_URL in app.json extra or use default IP
-// Production: Set PROD_API_URL in app.json extra or Render.com URL
+// Development: Automatically uses Expo's hostUri for dynamic IP
+// Production: Uses configured PROD_API_URL or Render.com URL
 
 const getBaseURL = () => {
     const extra = Constants.expoConfig?.extra;
 
     if (__DEV__) {
-        // Development mode - Use configured IP or localhost
-        const devUrl = extra?.DEV_API_URL || 'http://192.168.1.148:3000/api';
+        // 🎯 Dynamic IP from Expo Metro bundler
+        // hostUri format: "192.168.1.148:8081" (IP:MetroPort)
+        const hostUri = Constants.expoConfig?.hostUri;
+
+        if (hostUri) {
+            // Extract IP from hostUri and use backend port (3000)
+            const hostIp = hostUri.split(':')[0];
+            const dynamicUrl = `http://${hostIp}:3000/api`;
+            console.log('📱 API Base URL (dynamic):', dynamicUrl);
+            return dynamicUrl;
+        }
+
+        // Fallback to configured or default
+        const devUrl = extra?.DEV_API_URL || 'http://localhost:3000/api';
+        console.log('📱 API Base URL (fallback):', devUrl);
         return devUrl;
     }
+
     // Production - Use configured URL or Render.com
     const prodUrl = extra?.PROD_API_URL || 'https://your-app.onrender.com/api';
     return prodUrl;

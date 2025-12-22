@@ -172,65 +172,79 @@ export default function HomeScreen() {
   }, [playingTrackId]);
 
   // ❤️ Like Track
+  const [likingTrackId, setLikingTrackId] = useState<string | null>(null);
+
   const handleLikeTrack = async (track: Track) => {
+    if (likingTrackId === track.id) return; // Prevent double-tap
+
+    setLikingTrackId(track.id);
     try {
       const isLiked = likedTrackIds.includes(track.id);
 
       if (isLiked) {
-        // Unlike
+        // Unlike - Remove from library
         await api.delete(`/library/track/${track.id}`);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else {
-        // Like
-        await api.post('/like', {
-          trackId: track.id,
-          trackName: track.name,
+        // Like - Add to library using new endpoint
+        await api.post('/library/like', {
+          spotifyId: track.id,
+          title: track.name,
+          artist: track.artist,
           artistId: track.artistId,
-          artistName: track.artist,
-          image: track.image,
+          albumArt: track.image,
           previewUrl: track.preview_url,
+          source: 'search',
         });
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
 
       // Refresh user data
-      refreshUserData();
-    } catch (error) {
-      console.error('Like error:', error);
-      Alert.alert('Hata', 'İşlem sırasında bir hata oluştu');
+      await refreshUserData();
+    } catch (error: any) {
+      console.error('Like error:', error?.response?.data || error.message);
+      Alert.alert('Hata', error?.response?.data?.error || 'Şarkı eklenirken bir hata oluştu');
+    } finally {
+      setLikingTrackId(null);
     }
   };
 
   // 👤 Follow Artist
-  const handleFollowArtist = async (artist: Artist) => {
-    try {
-      const isFollowed = followedArtistIds.includes(artist.id);
+  const [followingArtistId, setFollowingArtistId] = useState<string | null>(null);
 
-      if (isFollowed) {
-        // Unfollow
-        await api.delete(`/library/artist/${artist.id}`);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } else {
-        // Follow
-        await api.post('/follow', {
-          artistId: artist.id,
-          artistName: artist.name,
-          image: artist.image,
-        });
+  const handleFollowArtist = async (artist: Artist) => {
+    if (followingArtistId === artist.id) return; // Prevent double-tap
+
+    setFollowingArtistId(artist.id);
+    try {
+      // Toggle follow using new library endpoint
+      const response = await api.post('/library/follow', {
+        artistId: artist.id,
+        artistName: artist.name,
+        image: artist.image,
+      });
+
+      // Haptic based on action
+      if (response.data?.action === 'followed') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
 
       // Refresh user data
-      refreshUserData();
-    } catch (error) {
-      console.error('Follow error:', error);
-      Alert.alert('Hata', 'İşlem sırasında bir hata oluştu');
+      await refreshUserData();
+    } catch (error: any) {
+      console.error('Follow error:', error?.response?.data || error.message);
+      Alert.alert('Hata', error?.response?.data?.error || 'Sanatçı takip edilirken bir hata oluştu');
+    } finally {
+      setFollowingArtistId(null);
     }
   };
 
   // 🎨 Render Artist Card
   const renderArtist = ({ item }: { item: Artist }) => {
     const isFollowed = followedArtistIds.includes(item.id);
+    const isLoading = followingArtistId === item.id;
 
     return (
       <View style={styles.resultItem}>
@@ -249,14 +263,19 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.actionBtn, isFollowed && styles.actionBtnActive]}
+          style={[styles.actionBtn, isFollowed && styles.actionBtnActive, isLoading && styles.actionBtnLoading]}
           onPress={() => handleFollowArtist(item)}
+          disabled={isLoading}
         >
-          <Ionicons
-            name={isFollowed ? 'checkmark' : 'add'}
-            size={20}
-            color={isFollowed ? Colors.primary : '#888'}
-          />
+          {isLoading ? (
+            <Ionicons name="sync" size={18} color={Colors.primary} />
+          ) : (
+            <Ionicons
+              name={isFollowed ? 'checkmark' : 'add'}
+              size={20}
+              color={isFollowed ? Colors.primary : '#888'}
+            />
+          )}
         </TouchableOpacity>
       </View>
     );
@@ -300,14 +319,19 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.likeBtn, isLiked && styles.likeBtnActive]}
+          style={[styles.likeBtn, isLiked && styles.likeBtnActive, likingTrackId === item.id && styles.likeBtnLoading]}
           onPress={() => handleLikeTrack(item)}
+          disabled={likingTrackId === item.id}
         >
-          <Ionicons
-            name={isLiked ? 'heart' : 'heart-outline'}
-            size={22}
-            color={isLiked ? Colors.accent : '#666'}
-          />
+          {likingTrackId === item.id ? (
+            <Ionicons name="sync" size={20} color={Colors.accent} />
+          ) : (
+            <Ionicons
+              name={isLiked ? 'heart' : 'heart-outline'}
+              size={22}
+              color={isLiked ? Colors.accent : '#666'}
+            />
+          )}
         </TouchableOpacity>
       </View>
     );
@@ -576,6 +600,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primaryAlpha(0.25),
     borderColor: Colors.primary,
   },
+  actionBtnLoading: {
+    opacity: 0.7,
+  },
   likeBtn: {
     width: 44,
     height: 44,
@@ -590,6 +617,9 @@ const styles = StyleSheet.create({
   likeBtnActive: {
     backgroundColor: Colors.accentAlpha(0.25),
     borderColor: Colors.accent,
+  },
+  likeBtnLoading: {
+    opacity: 0.7,
   },
   // Skeleton
   skeletonArtistImage: {
