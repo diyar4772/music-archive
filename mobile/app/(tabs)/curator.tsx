@@ -1,14 +1,15 @@
 /**
- * 🎨 Curator's Workbench - Enhanced
+ * 🎨 Curator's Workbench - Premium Edition
  * 
- * Playlist creation screen with:
- * - 3-column grid of liked tracks with rich data (name, artist, like status)
- * - Staging area for selected tracks
- * - Robust audio preview with URL validation
- * - Create playlist finalization
+ * Interactive playlist creation studio featuring:
+ * - 3-column grid of liked tracks with rich metadata
+ * - Glassmorphism design elements
+ * - Robust audio preview with debug logging
+ * - Target playlist selector
+ * - Smooth animations and haptic feedback
  */
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
     View,
     Text,
@@ -23,15 +24,23 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio, AVPlaybackStatus } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../../stores/authStore';
 import { useCuratorStore, CuratorTrack } from '../../stores/curatorStore';
-import { TrackGridItem, StagingArea, GRID_GAP, GRID_PADDING, isValidPreviewUrl } from '../../components/curator';
+import { TrackGridItem, StagingArea, GRID_GAP, GRID_PADDING } from '../../components/curator';
 import { Colors } from '../../constants/theme';
 import api from '../../services/api';
+import audioService, { AudioState } from '../../services/audioService';
+
+// Playlist type for selector
+interface Playlist {
+    id: string;
+    name: string;
+    color?: string;
+    trackCount?: number;
+}
 
 export default function CuratorScreen() {
     const { userData, refreshUserData } = useAuthStore();
@@ -41,10 +50,19 @@ export default function CuratorScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [showSearch, setShowSearch] = useState(false);
 
-    // Audio State
-    const soundRef = useRef<Audio.Sound | null>(null);
-    const [playingTrackId, setPlayingTrackId] = useState<string | null>(null);
-    const [loadingTrackId, setLoadingTrackId] = useState<string | null>(null);
+    // Audio State (managed by audioService)
+    const [audioState, setAudioState] = useState<AudioState>({
+        isPlaying: false,
+        isLoading: false,
+        currentTrackId: null,
+        error: null,
+    });
+
+    // Playlists for selector
+    const [playlists, setPlaylists] = useState<Playlist[]>([
+        { id: 'new', name: '+ Yeni Liste Oluştur', color: Colors.primary },
+    ]);
+    const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
 
     // Create Playlist Modal
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -52,13 +70,24 @@ export default function CuratorScreen() {
     const [isCreating, setIsCreating] = useState(false);
 
     // Convert liked tracks to CuratorTrack format
-    const tracks: CuratorTrack[] = (userData?.likes || []).map(like => ({
-        id: like.trackId,
-        name: like.trackName,
-        artist: like.artistName || 'Unknown Artist',
-        image: like.image,
-        previewUrl: like.previewUrl,
-    }));
+    // Also sanitize previewUrl - convert "undefined" string to actual null
+    const tracks: CuratorTrack[] = (userData?.likes || []).map(like => {
+        // Sanitize previewUrl - check for invalid string values
+        let sanitizedPreviewUrl: string | null = like.previewUrl || null;
+        if (sanitizedPreviewUrl === 'undefined' ||
+            sanitizedPreviewUrl === 'null' ||
+            sanitizedPreviewUrl === '') {
+            sanitizedPreviewUrl = null;
+        }
+
+        return {
+            id: like.trackId,
+            name: like.trackName,
+            artist: like.artistName || 'Unknown Artist',
+            image: like.image,
+            previewUrl: sanitizedPreviewUrl,
+        };
+    });
 
     // Filtered tracks based on search
     const filteredTracks = searchQuery.trim()
@@ -68,131 +97,123 @@ export default function CuratorScreen() {
         )
         : tracks;
 
+    // Fetch user playlists on mount
+    useEffect(() => {
+        fetchPlaylists();
+    }, []);
+
     // Cleanup audio on unmount
     useEffect(() => {
         return () => {
-            if (soundRef.current) {
-                soundRef.current.unloadAsync().catch(() => { });
-            }
+            audioService.stopAudio();
         };
     }, []);
 
-    /**
-     * Safely stop and cleanup the current sound
-     */
-    const cleanupSound = useCallback(async () => {
-        if (soundRef.current) {
-            try {
-                await soundRef.current.stopAsync();
-                await soundRef.current.unloadAsync();
-            } catch (error) {
-                // Ignore cleanup errors
-                console.log('Sound cleanup warning:', error);
-            }
-            soundRef.current = null;
-        }
-        setPlayingTrackId(null);
-        setLoadingTrackId(null);
-    }, []);
-
-    /**
-     * Play preview with robust error handling
-     * - Validates URL before playing
-     * - Shows loading state
-     * - Handles network/file errors gracefully
-     */
-    const handlePlayPreview = useCallback(async (track: CuratorTrack) => {
+    // Fetch playlists from API
+    const fetchPlaylists = async () => {
         try {
-            // If same track, toggle pause/play
-            if (playingTrackId === track.id) {
-                await cleanupSound();
-                return;
-            }
+            const response = await api.get('/playlists');
+            const userPlaylists = response.data?.playlists || response.data || [];
 
-            // Validate preview URL
-            if (!isValidPreviewUrl(track.previewUrl)) {
-                Alert.alert(
-                    'Önizleme Hatası',
-                    'Bu şarkı için geçerli bir önizleme URL\'si bulunamadı.\n\niTunes veya Spotify önizleme servisleri erişilemez olabilir.',
-                    [{ text: 'Tamam' }]
-                );
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                return;
-            }
-
-            // Set loading state
-            setLoadingTrackId(track.id);
-
-            // Stop current sound if playing
-            await cleanupSound();
-
-            // Configure audio mode for iOS
-            await Audio.setAudioModeAsync({
-                playsInSilentModeIOS: true,
-                staysActiveInBackground: false,
-                shouldDuckAndroid: true,
-            });
-
-            // Create and play sound with timeout handling
-            const { sound } = await Audio.Sound.createAsync(
-                { uri: track.previewUrl! },
-                {
-                    shouldPlay: true,
-                    volume: 1.0,
-                    progressUpdateIntervalMillis: 500,
-                }
+            // Filter only user-created playlists (exclude system/auto-generated)
+            const filteredPlaylists = userPlaylists.filter((p: any) =>
+                !p.isSystem && !p.isAutoGenerated
             );
 
-            soundRef.current = sound;
-            setPlayingTrackId(track.id);
-            setLoadingTrackId(null);
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-            // Handle playback status updates
-            sound.setOnPlaybackStatusUpdate((status: AVPlaybackStatus) => {
-                if (status.isLoaded) {
-                    if (status.didJustFinish) {
-                        setPlayingTrackId(null);
-                        soundRef.current = null;
-                    }
-                    // Handle error in loaded status
-                    if ((status as any).error) {
-                        console.error('Playback error:', (status as any).error);
-                        cleanupSound();
-                    }
-                }
-            });
-
-        } catch (error: any) {
-            console.error('Play error:', error);
-            setLoadingTrackId(null);
-            setPlayingTrackId(null);
-
-            // Provide user-friendly error messages
-            let errorMessage = 'Şarkı önizlemesi oynatılamadı.';
-
-            if (error?.message?.includes('FileNotFoundException') ||
-                error?.message?.includes('404') ||
-                error?.message?.includes('ENOENT')) {
-                errorMessage = 'Önizleme dosyası bulunamadı. iTunes servisi erişilemez olabilir.';
-            } else if (error?.message?.includes('network') ||
-                error?.message?.includes('Network')) {
-                errorMessage = 'Ağ bağlantısı hatası. İnternet bağlantınızı kontrol edin.';
-            } else if (error?.message?.includes('timeout')) {
-                errorMessage = 'Bağlantı zaman aşımına uğradı. Lütfen tekrar deneyin.';
-            }
-
-            Alert.alert('Oynatma Hatası', errorMessage, [{ text: 'Tamam' }]);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            setPlaylists([
+                { id: 'new', name: '+ Yeni Liste Oluştur', color: Colors.primary },
+                ...filteredPlaylists.map((p: any) => ({
+                    id: p._id || p.id,
+                    name: p.name,
+                    color: p.color || Colors.gradients.playlists[0],
+                    trackCount: p.trackCount || 0,
+                })),
+            ]);
+        } catch (error) {
+            console.log('Playlist fetch error:', error);
         }
-    }, [playingTrackId, cleanupSound]);
+    };
+
+    /**
+     * Play preview using audioService with debug logging
+     */
+    const handlePlayPreview = useCallback(async (track: CuratorTrack) => {
+        // Debug: Log track info
+        console.log('🎵 handlePlayPreview called for:', track.name);
+        console.log('🎵 Preview URL:', track.previewUrl);
+
+        await audioService.togglePlayback({
+            trackId: track.id,
+            previewUrl: track.previewUrl,
+            onStatusChange: (state) => {
+                setAudioState(state);
+            },
+            onError: (error) => {
+                Alert.alert('Önizleme Hatası', error, [{ text: 'Tamam' }]);
+            },
+            onFinish: () => {
+                setAudioState(prev => ({ ...prev, isPlaying: false, currentTrackId: null }));
+            },
+        });
+    }, []);
+
+    // Handle playlist selection
+    const handlePlaylistSelect = useCallback((playlist: Playlist | null) => {
+        if (playlist?.id === 'new') {
+            setShowCreateModal(true);
+            setSelectedPlaylist(null);
+        } else {
+            setSelectedPlaylist(playlist);
+        }
+    }, []);
 
     // Finalize playlist
     const handleFinalize = useCallback((tracks: CuratorTrack[]) => {
-        setShowCreateModal(true);
-    }, []);
+        if (selectedPlaylist && selectedPlaylist.id !== 'new') {
+            // Add to existing playlist
+            handleAddToExistingPlaylist(tracks, selectedPlaylist);
+        } else {
+            // Show create modal
+            setShowCreateModal(true);
+        }
+    }, [selectedPlaylist]);
 
-    // Create playlist
+    // Add tracks to existing playlist
+    const handleAddToExistingPlaylist = async (tracks: CuratorTrack[], playlist: Playlist) => {
+        setIsCreating(true);
+        try {
+            for (const track of tracks) {
+                await api.post(`/playlists/${playlist.id}/add`, {
+                    trackId: track.id,
+                    trackName: track.name,
+                    image: track.image,
+                    previewUrl: track.previewUrl,
+                    artistName: track.artist,
+                });
+            }
+
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            Alert.alert(
+                'Başarılı! 🎉',
+                `${tracks.length} şarkı "${playlist.name}" listesine eklendi!`,
+                [{
+                    text: 'Tamam',
+                    onPress: () => {
+                        clearStaging();
+                        refreshUserData();
+                        fetchPlaylists();
+                    }
+                }]
+            );
+        } catch (error: any) {
+            console.error('Add to playlist error:', error);
+            Alert.alert('Hata', error?.response?.data?.error || 'Şarkılar eklenemedi');
+        } finally {
+            setIsCreating(false);
+        }
+    };
+
+    // Create new playlist
     const handleCreatePlaylist = useCallback(async () => {
         if (!playlistName.trim()) {
             Alert.alert('Hata', 'Lütfen liste adı girin');
@@ -203,7 +224,7 @@ export default function CuratorScreen() {
         try {
             // Create playlist
             const createRes = await api.post('/playlists', { name: playlistName.trim() });
-            const playlistId = createRes.data?.id || createRes.data?.playlist?.id;
+            const playlistId = createRes.data?.id || createRes.data?.playlist?.id || createRes.data?._id;
 
             if (!playlistId) {
                 throw new Error('Playlist ID alınamadı');
@@ -224,17 +245,16 @@ export default function CuratorScreen() {
             Alert.alert(
                 'Başarılı! 🎉',
                 `"${playlistName.trim()}" listesi ${stagingTracks.length} şarkı ile oluşturuldu!`,
-                [
-                    {
-                        text: 'Tamam',
-                        onPress: () => {
-                            setShowCreateModal(false);
-                            setPlaylistName('');
-                            clearStaging();
-                            refreshUserData();
-                        }
+                [{
+                    text: 'Tamam',
+                    onPress: () => {
+                        setShowCreateModal(false);
+                        setPlaylistName('');
+                        clearStaging();
+                        refreshUserData();
+                        fetchPlaylists();
                     }
-                ]
+                }]
             );
         } catch (error: any) {
             console.error('Create playlist error:', error);
@@ -249,11 +269,11 @@ export default function CuratorScreen() {
         <TrackGridItem
             track={item}
             onPlayPreview={handlePlayPreview}
-            isPlaying={playingTrackId === item.id}
-            isLoading={loadingTrackId === item.id}
+            isPlaying={audioState.currentTrackId === item.id && audioState.isPlaying}
+            isLoading={audioState.currentTrackId === item.id && audioState.isLoading}
             isLiked={true} // All tracks in Curator are from likes
         />
-    ), [handlePlayPreview, playingTrackId, loadingTrackId]);
+    ), [handlePlayPreview, audioState]);
 
     const keyExtractor = useCallback((item: CuratorTrack) => item.id, []);
 
@@ -269,7 +289,10 @@ export default function CuratorScreen() {
                     <Ionicons name="chevron-back" size={28} color="rgba(255,255,255,0.8)" />
                 </TouchableOpacity>
 
-                <Text style={styles.headerTitle}>Curator's Workbench</Text>
+                <View style={styles.headerCenter}>
+                    <Text style={styles.headerTitle}>Curator's Workbench</Text>
+                    <Text style={styles.headerSubtitle}>{tracks.length} şarkı</Text>
+                </View>
 
                 <TouchableOpacity
                     style={styles.headerBtn}
@@ -278,7 +301,7 @@ export default function CuratorScreen() {
                 >
                     <Ionicons
                         name={showSearch ? 'close' : 'search'}
-                        size={24}
+                        size={22}
                         color="rgba(255,255,255,0.8)"
                     />
                 </TouchableOpacity>
@@ -301,6 +324,17 @@ export default function CuratorScreen() {
                             <Ionicons name="close-circle" size={18} color="#666" />
                         </TouchableOpacity>
                     )}
+                </View>
+            )}
+
+            {/* Audio Error Banner */}
+            {audioState.error && (
+                <View style={styles.errorBanner}>
+                    <Ionicons name="warning" size={16} color="#f59e0b" />
+                    <Text style={styles.errorText}>{audioState.error}</Text>
+                    <TouchableOpacity onPress={() => setAudioState(prev => ({ ...prev, error: null }))}>
+                        <Ionicons name="close" size={18} color="#888" />
+                    </TouchableOpacity>
                 </View>
             )}
 
@@ -334,6 +368,9 @@ export default function CuratorScreen() {
                 <StagingArea
                     onFinalize={handleFinalize}
                     onTrackPress={handlePlayPreview}
+                    playlists={playlists}
+                    selectedPlaylist={selectedPlaylist}
+                    onPlaylistSelect={handlePlaylistSelect}
                 />
             </View>
 
@@ -414,8 +451,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
     },
     headerBtn: {
         width: 40,
@@ -424,18 +461,26 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
+    headerCenter: {
+        alignItems: 'center',
+    },
     headerTitle: {
-        fontSize: 20,
+        fontSize: 18,
         fontWeight: 'bold',
         color: '#fff',
         letterSpacing: -0.5,
+    },
+    headerSubtitle: {
+        fontSize: 12,
+        color: '#888',
+        marginTop: 2,
     },
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#1a1a1a',
-        marginHorizontal: 16,
-        marginBottom: 12,
+        marginHorizontal: 12,
+        marginBottom: 10,
         paddingHorizontal: 14,
         paddingVertical: 10,
         borderRadius: 12,
@@ -446,9 +491,25 @@ const styles = StyleSheet.create({
         fontSize: 15,
         color: '#fff',
     },
+    errorBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(245, 158, 11, 0.15)',
+        marginHorizontal: 12,
+        marginBottom: 10,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        borderRadius: 10,
+        gap: 10,
+    },
+    errorText: {
+        flex: 1,
+        fontSize: 13,
+        color: '#f59e0b',
+    },
     gridContent: {
         padding: GRID_PADDING,
-        paddingBottom: 16,
+        paddingBottom: 8,
     },
     gridRow: {
         gap: GRID_GAP,
@@ -471,8 +532,8 @@ const styles = StyleSheet.create({
         marginTop: 8,
     },
     stagingWrapper: {
-        padding: 16,
-        paddingTop: 8,
+        padding: 12,
+        paddingTop: 4,
     },
     // Modal
     modalOverlay: {
@@ -552,4 +613,3 @@ const styles = StyleSheet.create({
         color: '#fff',
     },
 });
-

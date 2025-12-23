@@ -2312,6 +2312,120 @@ app.post('/api/library/note', mobileAuth, async (req, res) => {
     }
 });
 
+// 🔄 POST /api/library/enrich-previews - Enrich old likes with missing preview URLs
+app.post('/api/library/enrich-previews', mobileAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        let enrichedCount = 0;
+        let failedCount = 0;
+        let alreadyHadPreview = 0;
+
+        if (useInMemory) {
+            const userLikes = inMemoryDB.likes.filter(l => l.userId === userId);
+            
+            for (const like of userLikes) {
+                // Skip if already has valid preview URL
+                if (like.previewUrl && 
+                    like.previewUrl !== 'undefined' && 
+                    like.previewUrl !== 'null' &&
+                    like.previewUrl.startsWith('https://')) {
+                    alreadyHadPreview++;
+                    continue;
+                }
+
+                // Get preview from iTunes
+                try {
+                    const result = await getAudioPreview(like.trackName, like.artistName || 'Unknown');
+                    if (result.url) {
+                        like.previewUrl = result.url;
+                        enrichedCount++;
+                    } else {
+                        failedCount++;
+                    }
+                } catch (err) {
+                    failedCount++;
+                }
+
+                // Rate limit: 100ms delay between iTunes calls
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            return res.json({
+                success: true,
+                message: `Enrichment complete`,
+                stats: {
+                    total: userLikes.length,
+                    enriched: enrichedCount,
+                    failed: failedCount,
+                    alreadyHadPreview: alreadyHadPreview
+                }
+            });
+        }
+
+        // MongoDB: Get all likes without valid preview URLs
+        const likesWithoutPreviews = await Like.find({
+            userId,
+            $or: [
+                { previewUrl: { $exists: false } },
+                { previewUrl: null },
+                { previewUrl: '' },
+                { previewUrl: 'undefined' },
+                { previewUrl: 'null' }
+            ]
+        }).lean();
+
+        const totalLikes = await Like.countDocuments({ userId });
+        alreadyHadPreview = totalLikes - likesWithoutPreviews.length;
+
+        console.log(`🔄 Enriching ${likesWithoutPreviews.length} tracks for user ${req.user.username || userId}`);
+
+        // Process in batches to avoid rate limiting
+        const batchSize = 5;
+        for (let i = 0; i < likesWithoutPreviews.length; i += batchSize) {
+            const batch = likesWithoutPreviews.slice(i, i + batchSize);
+            
+            await Promise.all(batch.map(async (like) => {
+                try {
+                    const result = await getAudioPreview(like.trackName, like.artistName || 'Unknown');
+                    if (result.url) {
+                        await Like.updateOne(
+                            { _id: like._id },
+                            { $set: { previewUrl: result.url } }
+                        );
+                        enrichedCount++;
+                    } else {
+                        failedCount++;
+                    }
+                } catch (err) {
+                    console.error(`Failed to enrich ${like.trackName}:`, err.message);
+                    failedCount++;
+                }
+            }));
+
+            // Small delay between batches
+            if (i + batchSize < likesWithoutPreviews.length) {
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+        }
+
+        console.log(`✅ Enrichment complete: ${enrichedCount} enriched, ${failedCount} failed`);
+
+        res.json({
+            success: true,
+            message: `Enrichment complete`,
+            stats: {
+                total: totalLikes,
+                enriched: enrichedCount,
+                failed: failedCount,
+                alreadyHadPreview: alreadyHadPreview
+            }
+        });
+    } catch (e) {
+        console.error('Enrich previews error:', e.message);
+        res.status(500).json({ success: false, error: 'Failed to enrich previews' });
+    }
+});
+
 // 📊 GET /api/library/stats - Get library statistics
 app.get('/api/library/stats', mobileAuth, async (req, res) => {
     try {
