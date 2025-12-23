@@ -1,14 +1,11 @@
 /**
- * 🎵 Track Grid Item - Premium Design
+ * 🎵 Track Grid Item - New Curator Design
  * 
- * Rich album art tile for the Curator's Workbench grid
- * Features:
- * - Album art with glassmorphism overlay
- * - Track name and artist with gradient background
- * - Like status indicator
- * - Preview availability indicator
- * - Press to play, long-press for options
- * - Smooth animations
+ * Album art tile with:
+ * - Image with heart icon overlay (top-right)
+ * - Track name and artist BELOW the card
+ * - Ghost placeholder state for dragging
+ * - Smooth press animations
  */
 
 import React, { memo, useCallback, useRef, useState } from 'react';
@@ -23,17 +20,16 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '../../constants/theme';
 import { CuratorTrack, useCuratorStore } from '../../stores/curatorStore';
 import audioService from '../../services/audioService';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const GRID_GAP = 10;
-const GRID_PADDING = 12;
+const GRID_GAP = 12;
+const GRID_PADDING = 16;
 const TILE_SIZE = (SCREEN_WIDTH - (GRID_PADDING * 2) - (GRID_GAP * 2)) / 3;
+const CARD_HEIGHT = TILE_SIZE + 44; // Image + text below
 
 interface TrackGridItemProps {
     track: CuratorTrack;
@@ -41,14 +37,13 @@ interface TrackGridItemProps {
     isPlaying?: boolean;
     isLiked?: boolean;
     isLoading?: boolean;
+    isGhost?: boolean; // For drag placeholder
 }
 
 /**
- * Simple check if preview URL exists and is valid
- * Also handles the "undefined" string case
+ * Check if preview URL is valid
  */
 export function isValidPreviewUrl(url: string | null | undefined): boolean {
-    // Quick check for common invalid values
     if (!url || url === 'undefined' || url === 'null' || url === '') return false;
     return audioService.hasPreviewUrl(url);
 }
@@ -58,25 +53,19 @@ function TrackGridItem({
     onPlayPreview,
     isPlaying = false,
     isLiked = false,
-    isLoading = false
+    isLoading = false,
+    isGhost = false,
 }: TrackGridItemProps) {
     const { addToStaging, isInStaging, removeFromStaging } = useCuratorStore();
     const [imageLoaded, setImageLoaded] = useState(false);
     const scaleAnim = useRef(new Animated.Value(1)).current;
-    const opacityAnim = useRef(new Animated.Value(0)).current;
 
     const inStaging = isInStaging(track.id);
     const hasValidPreview = isValidPreviewUrl(track.previewUrl);
 
-    // Animate in when image loads
-    const handleImageLoad = useCallback(() => {
-        setImageLoaded(true);
-        Animated.timing(opacityAnim, {
-            toValue: 1,
-            duration: 200,
-            useNativeDriver: true,
-        }).start();
-    }, [opacityAnim]);
+    // Truncate text
+    const truncate = (text: string, maxLen: number) =>
+        text.length > maxLen ? text.slice(0, maxLen - 1) + '…' : text;
 
     const handlePressIn = useCallback(() => {
         Animated.spring(scaleAnim, {
@@ -95,8 +84,10 @@ function TrackGridItem({
     }, [scaleAnim]);
 
     const handlePress = useCallback(() => {
-        onPlayPreview?.(track);
-    }, [track, onPlayPreview]);
+        if (hasValidPreview) {
+            onPlayPreview?.(track);
+        }
+    }, [track, onPlayPreview, hasValidPreview]);
 
     const handleAddPress = useCallback(() => {
         if (inStaging) {
@@ -112,9 +103,20 @@ function TrackGridItem({
         }
     }, [inStaging, track, addToStaging, removeFromStaging]);
 
-    // Truncate text for display
-    const truncate = (text: string, maxLen: number) =>
-        text.length > maxLen ? text.slice(0, maxLen - 1) + '…' : text;
+    // Ghost Placeholder - Shown when item is being dragged
+    if (isGhost) {
+        return (
+            <View style={styles.container}>
+                <View style={styles.ghostCard}>
+                    <View style={styles.ghostImage} />
+                </View>
+                <View style={styles.textContainer}>
+                    <View style={styles.ghostText} />
+                    <View style={[styles.ghostText, styles.ghostTextSmall]} />
+                </View>
+            </View>
+        );
+    }
 
     return (
         <Animated.View style={[styles.container, { transform: [{ scale: scaleAnim }] }]}>
@@ -126,100 +128,83 @@ function TrackGridItem({
                 onLongPress={handleAddPress}
                 delayLongPress={300}
                 style={[
-                    styles.tile,
-                    inStaging && styles.tileInStaging,
+                    styles.card,
+                    inStaging && styles.cardInStaging,
                 ]}
             >
                 {/* Album Art */}
-                <Animated.View style={[styles.imageContainer, { opacity: opacityAnim }]}>
+                <View style={styles.imageWrapper}>
                     {track.image ? (
                         <Image
                             source={{ uri: track.image }}
                             style={styles.image}
-                            onLoad={handleImageLoad}
+                            onLoad={() => setImageLoaded(true)}
                         />
                     ) : (
                         <View style={[styles.image, styles.placeholder]}>
                             <Ionicons name="musical-note" size={28} color="#444" />
                         </View>
                     )}
-                </Animated.View>
 
-                {/* Loading placeholder */}
-                {!imageLoaded && track.image && (
-                    <View style={[styles.image, styles.placeholder, StyleSheet.absoluteFill]}>
-                        <ActivityIndicator size="small" color="#444" />
-                    </View>
-                )}
-
-                {/* Top Status Row - Glassmorphism Background */}
-                <View style={styles.topRow}>
-                    {/* Like Status */}
-                    {isLiked && (
-                        <BlurView intensity={40} tint="dark" style={styles.statusBadge}>
-                            <Ionicons name="heart" size={10} color={Colors.accent} />
-                        </BlurView>
-                    )}
-
-                    {/* Preview Status */}
-                    {!hasValidPreview && (
-                        <BlurView intensity={40} tint="dark" style={[styles.statusBadge, styles.noPreviewBadge]}>
-                            <Ionicons name="volume-mute" size={10} color="rgba(255,255,255,0.6)" />
-                        </BlurView>
-                    )}
-
-                    {/* In Staging Badge */}
-                    {inStaging && (
-                        <View style={styles.stagingBadge}>
-                            <Ionicons name="checkmark" size={10} color="#fff" />
+                    {/* Loading Placeholder */}
+                    {!imageLoaded && track.image && (
+                        <View style={[styles.image, styles.placeholder, StyleSheet.absoluteFill]}>
+                            <ActivityIndicator size="small" color="#444" />
                         </View>
                     )}
+
+                    {/* Heart Icon - Top Right */}
+                    {isLiked && (
+                        <View style={styles.heartBadge}>
+                            <Ionicons name="heart" size={14} color={Colors.primary} />
+                        </View>
+                    )}
+
+                    {/* In Staging Checkmark - Top Left */}
+                    {inStaging && (
+                        <View style={styles.stagingBadge}>
+                            <Ionicons name="checkmark" size={12} color="#fff" />
+                        </View>
+                    )}
+
+                    {/* Play Overlay */}
+                    {(isPlaying || isLoading) && (
+                        <View style={styles.playOverlay}>
+                            <View style={styles.playButton}>
+                                {isLoading ? (
+                                    <ActivityIndicator size="small" color="#fff" />
+                                ) : (
+                                    <Ionicons name="pause" size={22} color="#fff" />
+                                )}
+                            </View>
+                        </View>
+                    )}
+
+                    {/* Add Button - Bottom Right */}
+                    <TouchableOpacity
+                        style={[styles.addButton, inStaging && styles.addButtonActive]}
+                        onPress={handleAddPress}
+                        activeOpacity={0.8}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                        <Ionicons
+                            name={inStaging ? 'checkmark' : 'add'}
+                            size={16}
+                            color="#fff"
+                        />
+                    </TouchableOpacity>
                 </View>
-
-                {/* Play Button Overlay (centered, shown on press/playing) */}
-                {(isPlaying || isLoading) && (
-                    <View style={styles.playOverlay}>
-                        <BlurView intensity={60} tint="dark" style={styles.playButtonBlur}>
-                            {isLoading ? (
-                                <ActivityIndicator size="small" color="#fff" />
-                            ) : (
-                                <Ionicons
-                                    name={isPlaying ? 'pause' : 'play'}
-                                    size={20}
-                                    color="#fff"
-                                />
-                            )}
-                        </BlurView>
-                    </View>
-                )}
-
-                {/* Bottom Info - Gradient Background for Readability */}
-                <LinearGradient
-                    colors={['transparent', 'rgba(0,0,0,0.9)']}
-                    style={styles.infoGradient}
-                >
-                    <Text style={styles.trackName} numberOfLines={1}>
-                        {truncate(track.name, 16)}
-                    </Text>
-                    <Text style={styles.artistName} numberOfLines={1}>
-                        {truncate(track.artist, 18)}
-                    </Text>
-                </LinearGradient>
-
-                {/* Add Button - Bottom Right */}
-                <TouchableOpacity
-                    style={[styles.addButton, inStaging && styles.addButtonActive]}
-                    onPress={handleAddPress}
-                    activeOpacity={0.8}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                    <Ionicons
-                        name={inStaging ? 'checkmark' : 'add'}
-                        size={14}
-                        color={inStaging ? '#fff' : 'rgba(255,255,255,0.8)'}
-                    />
-                </TouchableOpacity>
             </TouchableOpacity>
+
+            {/* Text Below Card */}
+            <View style={styles.textContainer}>
+                <Text style={styles.trackName} numberOfLines={1}>
+                    {truncate(track.name, 14)}
+                </Text>
+                <Text style={styles.artistName} numberOfLines={1}>
+                    {truncate(track.artist, 16)}
+                </Text>
+            </View>
         </Animated.View>
     );
 }
@@ -227,31 +212,30 @@ function TrackGridItem({
 const styles = StyleSheet.create({
     container: {
         width: TILE_SIZE,
-        height: TILE_SIZE + 8,
+        height: CARD_HEIGHT,
+        paddingHorizontal: 6,
+        paddingTop: 6,
     },
-    tile: {
-        flex: 1,
-        borderRadius: 14,
+    card: {
+        width: TILE_SIZE - 12,
+        height: TILE_SIZE - 12,
+        borderRadius: 10,
         overflow: 'hidden',
-        backgroundColor: '#151515',
+        backgroundColor: '#151022',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.06)',
+        borderColor: 'rgba(255,255,255,0.05)',
     },
-    tileInStaging: {
-        borderColor: Colors.primary,
-        borderWidth: 2,
+    cardInStaging: {
+        borderColor: 'rgba(137, 90, 246, 0.5)',
         shadowColor: Colors.primary,
         shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.5,
+        shadowOpacity: 0.4,
         shadowRadius: 8,
         elevation: 8,
     },
-    imageContainer: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+    imageWrapper: {
+        flex: 1,
+        position: 'relative',
     },
     image: {
         width: '100%',
@@ -262,88 +246,51 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    // Top Row - Status indicators
-    topRow: {
+    // Heart Badge - Top Right
+    heartBadge: {
+        position: 'absolute',
+        top: 6,
+        right: 6,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        borderRadius: 10,
+        padding: 4,
+    },
+    // Staging Badge - Top Left
+    stagingBadge: {
         position: 'absolute',
         top: 6,
         left: 6,
-        right: 6,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    statusBadge: {
         width: 20,
         height: 20,
         borderRadius: 10,
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-    },
-    noPreviewBadge: {
-        marginLeft: 'auto',
-    },
-    stagingBadge: {
-        width: 18,
-        height: 18,
-        borderRadius: 9,
         backgroundColor: Colors.primary,
         alignItems: 'center',
         justifyContent: 'center',
-        marginLeft: 'auto',
     },
     // Play Overlay
     playOverlay: {
         ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.4)',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'rgba(0,0,0,0.3)',
     },
-    playButtonBlur: {
-        width: 42,
-        height: 42,
-        borderRadius: 21,
+    playButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(137, 90, 246, 0.9)',
         alignItems: 'center',
         justifyContent: 'center',
-        overflow: 'hidden',
-        backgroundColor: Colors.primaryAlpha(0.7),
     },
-    // Bottom Info
-    infoGradient: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        paddingTop: 28,
-        paddingBottom: 8,
-        paddingHorizontal: 8,
-    },
-    trackName: {
-        fontSize: 11,
-        fontWeight: '600',
-        color: '#fff',
-        lineHeight: 14,
-        textShadowColor: 'rgba(0,0,0,0.5)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 2,
-    },
-    artistName: {
-        fontSize: 9,
-        color: 'rgba(255,255,255,0.75)',
-        marginTop: 1,
-        textShadowColor: 'rgba(0,0,0,0.5)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 2,
-    },
-    // Add Button
+    // Add Button - Bottom Right
     addButton: {
         position: 'absolute',
-        bottom: 36,
+        bottom: 6,
         right: 6,
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        backgroundColor: 'rgba(255,255,255,0.15)',
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
@@ -353,7 +300,50 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.primary,
         borderColor: Colors.primary,
     },
+    // Text Container - Below Image
+    textContainer: {
+        paddingHorizontal: 2,
+        paddingTop: 8,
+    },
+    trackName: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#fff',
+        lineHeight: 15,
+    },
+    artistName: {
+        fontSize: 10,
+        color: 'rgba(255,255,255,0.5)',
+        marginTop: 2,
+        lineHeight: 13,
+    },
+    // Ghost State
+    ghostCard: {
+        width: TILE_SIZE - 12,
+        height: TILE_SIZE - 12,
+        borderRadius: 10,
+        borderWidth: 2,
+        borderStyle: 'dashed',
+        borderColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: 'rgba(21,16,34,0.5)',
+    },
+    ghostImage: {
+        flex: 1,
+        borderRadius: 8,
+    },
+    ghostText: {
+        height: 12,
+        width: 50,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderRadius: 4,
+        marginTop: 8,
+    },
+    ghostTextSmall: {
+        height: 10,
+        width: 35,
+        marginTop: 4,
+    },
 });
 
 export default memo(TrackGridItem);
-export { TILE_SIZE, GRID_GAP, GRID_PADDING };
+export { TILE_SIZE, GRID_GAP, GRID_PADDING, CARD_HEIGHT };

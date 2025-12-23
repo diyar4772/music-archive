@@ -163,10 +163,10 @@ function PioneerBadge({
 
     // Calculate progress to next tier
     const currentTierConfig = TIERS[tier];
-    const nextTier = tier === 'gold' ? 'gold' 
+    const nextTier = tier === 'gold' ? 'gold'
         : tier === 'silver' ? 'gold'
-        : tier === 'bronze' ? 'silver'
-        : 'bronze';
+            : tier === 'bronze' ? 'silver'
+                : 'bronze';
     const nextTierConfig = TIERS[nextTier];
 
     const targetCount = nextTierConfig.min;
@@ -188,7 +188,7 @@ function PioneerBadge({
         if (showConfetti) {
             setConfettiVisible(true);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            
+
             // Badge celebration animation
             badgeScale.value = withSequence(
                 withSpring(1.2),
@@ -249,10 +249,10 @@ function PioneerBadge({
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                     >
-                        <Ionicons 
-                            name={currentTierConfig.icon} 
-                            size={14} 
-                            color="#fff" 
+                        <Ionicons
+                            name={currentTierConfig.icon}
+                            size={14}
+                            color="#fff"
                         />
                     </LinearGradient>
                 </Animated.View>
@@ -297,10 +297,10 @@ function PioneerBadge({
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                     >
-                        <Ionicons 
-                            name={currentTierConfig.icon} 
-                            size={28} 
-                            color="#fff" 
+                        <Ionicons
+                            name={currentTierConfig.icon}
+                            size={28}
+                            color="#fff"
                         />
                     </LinearGradient>
                 </Animated.View>
@@ -308,7 +308,7 @@ function PioneerBadge({
                 {/* Badge info */}
                 <View style={styles.infoContainer}>
                     <Text style={styles.tierName}>{currentTierConfig.name}</Text>
-                    
+
                     {/* Progress section */}
                     <View style={styles.progressSection}>
                         <View style={styles.progressLabelRow}>
@@ -319,7 +319,7 @@ function PioneerBadge({
                                 {Math.round(progressPercent)}%
                             </Text>
                         </View>
-                        
+
                         <View style={styles.progressBarContainer}>
                             <Animated.View style={[styles.progressBarFill, progressBarStyle]}>
                                 <LinearGradient

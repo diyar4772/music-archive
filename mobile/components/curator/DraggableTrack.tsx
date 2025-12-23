@@ -1,16 +1,15 @@
 /**
- * 🎵 Draggable Track Component - 60fps Drag & Drop
+ * 🎵 Draggable Track Component - Floating Ghost Design
  * 
- * Uses react-native-reanimated and gesture-handler for smooth animations.
- * Features:
- * - 60fps pan gesture animations on UI thread
- * - Ghost component shows song name + artist during drag
- * - Scale + shadow effects when dragging
- * - Haptic feedback on drag start/end
- * - Communicates position to parent for drop zone detection
+ * Based on HTML reference design with:
+ * - Floating ghost card during drag
+ * - Scale 1.1 + rotation effect
+ * - Shadow and glow effects
+ * - Album art with info overlay
+ * - Pulsing animation ring
  */
 
-import React, { memo, useCallback, useMemo } from 'react';
+import React, { memo, useCallback } from 'react';
 import {
     View,
     Text,
@@ -20,24 +19,26 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
     withSpring,
     withTiming,
+    withRepeat,
     runOnJS,
-    useAnimatedGestureHandler,
+    interpolate,
+    Extrapolate,
 } from 'react-native-reanimated';
-import { PanGestureHandler, PanGestureHandlerGestureEvent } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Colors } from '../../constants/theme';
 import { CuratorTrack } from '../../stores/curatorStore';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const GRID_GAP = 10;
-const GRID_PADDING = 12;
+const GRID_GAP = 12;
+const GRID_PADDING = 16;
 const TILE_SIZE = (SCREEN_WIDTH - (GRID_PADDING * 2) - (GRID_GAP * 2)) / 3;
+const CARD_HEIGHT = TILE_SIZE + 44;
 
 // Spring config for natural feel
 const SPRING_CONFIG = {
@@ -56,11 +57,6 @@ interface DraggableTrackProps {
     disabled?: boolean;
 }
 
-type AnimatedGHContext = {
-    startX: number;
-    startY: number;
-};
-
 function DraggableTrack({
     track,
     isLiked = false,
@@ -70,13 +66,15 @@ function DraggableTrack({
     onTap,
     disabled = false,
 }: DraggableTrackProps) {
-    // Shared values for animation (runs on UI thread)
+    // Shared values for animation
     const translateX = useSharedValue(0);
     const translateY = useSharedValue(0);
     const scale = useSharedValue(1);
-    const isDragging = useSharedValue(false);
-    const shadowOpacity = useSharedValue(0);
-    const zIndex = useSharedValue(1);
+    const isDragging = useSharedValue(0); // 0 = not dragging, 1 = dragging
+    const rotation = useSharedValue(0);
+    const pulseScale = useSharedValue(1);
+    const startX = useSharedValue(0);
+    const startY = useSharedValue(0);
 
     // JS callbacks
     const triggerHapticStart = useCallback(() => {
@@ -98,73 +96,88 @@ function DraggableTrack({
         onTap?.(track);
     }, [track, onTap]);
 
-    // Gesture handler
-    const gestureHandler = useAnimatedGestureHandler<
-        PanGestureHandlerGestureEvent,
-        AnimatedGHContext
-    >({
-        onStart: (_, ctx) => {
-            ctx.startX = translateX.value;
-            ctx.startY = translateY.value;
-            isDragging.value = true;
-            scale.value = withSpring(1.08, SPRING_CONFIG);
-            shadowOpacity.value = withTiming(1, { duration: 150 });
-            zIndex.value = 1000;
+    // Pan gesture using new Gesture API
+    const panGesture = Gesture.Pan()
+        .enabled(!disabled)
+        .minDistance(10)
+        .onStart(() => {
+            'worklet';
+            startX.value = translateX.value;
+            startY.value = translateY.value;
+            isDragging.value = withTiming(1, { duration: 150 });
+            scale.value = withSpring(1.1, SPRING_CONFIG);
+            rotation.value = withSpring(3, SPRING_CONFIG);
+            // Start pulse animation
+            pulseScale.value = withRepeat(
+                withTiming(1.3, { duration: 800 }),
+                -1,
+                true
+            );
             runOnJS(triggerHapticStart)();
-        },
-        onActive: (event, ctx) => {
-            translateX.value = ctx.startX + event.translationX;
-            translateY.value = ctx.startY + event.translationY;
-
-            // Notify parent of position for drop zone detection
-            runOnJS(notifyMove)(
-                event.absoluteX,
-                event.absoluteY
-            );
-        },
-        onEnd: (event) => {
-            // Snap back to origin
+        })
+        .onUpdate((event) => {
+            'worklet';
+            translateX.value = startX.value + event.translationX;
+            translateY.value = startY.value + event.translationY;
+            runOnJS(notifyMove)(event.absoluteX, event.absoluteY);
+        })
+        .onEnd((event) => {
+            'worklet';
             translateX.value = withSpring(0, SPRING_CONFIG);
             translateY.value = withSpring(0, SPRING_CONFIG);
             scale.value = withSpring(1, SPRING_CONFIG);
-            shadowOpacity.value = withTiming(0, { duration: 150 });
-            isDragging.value = false;
-            zIndex.value = 1;
-
-            runOnJS(triggerHapticEnd)(
-                event.absoluteX,
-                event.absoluteY
-            );
-        },
-        onCancel: () => {
+            rotation.value = withSpring(0, SPRING_CONFIG);
+            isDragging.value = withTiming(0, { duration: 150 });
+            pulseScale.value = 1;
+            runOnJS(triggerHapticEnd)(event.absoluteX, event.absoluteY);
+        })
+        .onFinalize(() => {
+            'worklet';
             translateX.value = withSpring(0, SPRING_CONFIG);
             translateY.value = withSpring(0, SPRING_CONFIG);
             scale.value = withSpring(1, SPRING_CONFIG);
-            shadowOpacity.value = withTiming(0, { duration: 150 });
-            isDragging.value = false;
-            zIndex.value = 1;
-        },
-    });
+            rotation.value = withSpring(0, SPRING_CONFIG);
+            isDragging.value = withTiming(0, { duration: 150 });
+            pulseScale.value = 1;
+        });
 
-    // Animated styles (run on UI thread)
+    // Tap gesture
+    const tapGesture = Gesture.Tap()
+        .enabled(!disabled)
+        .onStart(() => {
+            'worklet';
+            runOnJS(handleTap)();
+        });
+
+    // Compose gestures
+    const composedGesture = Gesture.Exclusive(panGesture, tapGesture);
+
+    // Animated styles
     const animatedContainerStyle = useAnimatedStyle(() => ({
         transform: [
             { translateX: translateX.value },
             { translateY: translateY.value },
             { scale: scale.value },
+            { rotate: `${rotation.value}deg` },
         ],
-        zIndex: zIndex.value,
+        zIndex: isDragging.value > 0.5 ? 1000 : 1,
     }));
 
+    // Shadow style during drag
     const animatedShadowStyle = useAnimatedStyle(() => ({
-        shadowOpacity: shadowOpacity.value * 0.6,
-        elevation: isDragging.value ? 20 : 4,
+        shadowOpacity: interpolate(isDragging.value, [0, 1], [0, 0.6], Extrapolate.CLAMP),
+        elevation: interpolate(isDragging.value, [0, 1], [0, 20], Extrapolate.CLAMP),
     }));
 
-    // Ghost info overlay - visible during drag
+    // Ghost overlay style
     const animatedGhostStyle = useAnimatedStyle(() => ({
-        opacity: isDragging.value ? withTiming(1, { duration: 100 }) : withTiming(0, { duration: 100 }),
-        transform: [{ scale: isDragging.value ? 1 : 0.9 }],
+        opacity: isDragging.value,
+    }));
+
+    // Pulse ring style
+    const animatedPulseStyle = useAnimatedStyle(() => ({
+        opacity: interpolate(isDragging.value, [0, 1], [0, 0.5], Extrapolate.CLAMP),
+        transform: [{ scale: pulseScale.value }],
     }));
 
     // Truncate helper
@@ -172,212 +185,170 @@ function DraggableTrack({
         text.length > maxLen ? text.slice(0, maxLen - 1) + '…' : text;
 
     return (
-        <PanGestureHandler
-            onGestureEvent={gestureHandler}
-            enabled={!disabled}
-            minDist={10}
-            activeOffsetX={[-10, 10]}
-            activeOffsetY={[-10, 10]}
-        >
-            <Animated.View
-                style={[
-                    styles.container,
-                    animatedContainerStyle,
-                    animatedShadowStyle,
-                ]}
-            >
-                {/* Main tile content */}
-                <View style={styles.tile}>
+        <GestureDetector gesture={composedGesture}>
+            <Animated.View style={[styles.container, animatedContainerStyle, animatedShadowStyle]}>
+                {/* Pulse Ring - Behind card during drag */}
+                <Animated.View style={[styles.pulseRing, animatedPulseStyle]} />
+
+                {/* Main Card */}
+                <View style={styles.card}>
                     {/* Album Art */}
-                    {track.image ? (
-                        <Image
-                            source={{ uri: track.image }}
-                            style={styles.image}
+                    <View style={styles.imageContainer}>
+                        {track.image ? (
+                            <Image source={{ uri: track.image }} style={styles.image} />
+                        ) : (
+                            <View style={[styles.image, styles.placeholder]}>
+                                <Ionicons name="musical-note" size={28} color="#444" />
+                            </View>
+                        )}
+
+                        {/* Gradient Overlay for text */}
+                        <LinearGradient
+                            colors={['transparent', 'rgba(0,0,0,0.7)']}
+                            style={styles.imageGradient}
                         />
-                    ) : (
-                        <View style={[styles.image, styles.placeholder]}>
-                            <Ionicons name="musical-note" size={28} color="#444" />
-                        </View>
-                    )}
 
-                    {/* Like indicator */}
-                    {isLiked && (
-                        <View style={styles.topRow}>
-                            <BlurView intensity={40} tint="dark" style={styles.statusBadge}>
-                                <Ionicons name="heart" size={10} color={Colors.accent} />
-                            </BlurView>
-                        </View>
-                    )}
-
-                    {/* Bottom Info Gradient */}
-                    <LinearGradient
-                        colors={['transparent', 'rgba(0,0,0,0.9)']}
-                        style={styles.infoGradient}
-                    >
-                        <Text style={styles.trackName} numberOfLines={1}>
-                            {truncate(track.name, 16)}
-                        </Text>
-                        <Text style={styles.artistName} numberOfLines={1}>
-                            {truncate(track.artist, 18)}
-                        </Text>
-                    </LinearGradient>
-
-                    {/* Drag Handle Indicator */}
-                    <View style={styles.dragHandle}>
-                        <Ionicons name="menu" size={14} color="rgba(255,255,255,0.5)" />
+                        {/* Heart Badge - Bottom Right of image */}
+                        {isLiked && (
+                            <View style={styles.heartBadge}>
+                                <Ionicons name="heart" size={14} color={Colors.primary} />
+                            </View>
+                        )}
                     </View>
                 </View>
 
-                {/* Ghost Component - Shown during drag */}
-                <Animated.View style={[styles.ghostOverlay, animatedGhostStyle]}>
-                    <BlurView intensity={80} tint="dark" style={styles.ghostContent}>
-                        <View style={styles.ghostInfo}>
-                            <Ionicons name="musical-notes" size={16} color={Colors.primary} />
-                            <View style={styles.ghostTextContainer}>
-                                <Text style={styles.ghostTrackName} numberOfLines={1}>
-                                    {track.name}
-                                </Text>
-                                <Text style={styles.ghostArtistName} numberOfLines={1}>
-                                    {track.artist}
-                                </Text>
-                            </View>
-                        </View>
-                        <View style={styles.dropHint}>
-                            <Ionicons name="arrow-down" size={12} color={Colors.accent} />
-                            <Text style={styles.dropHintText}>Staging'e bırak</Text>
-                        </View>
-                    </BlurView>
+                {/* Text Below Card */}
+                <View style={styles.textContainer}>
+                    <Text style={styles.trackName} numberOfLines={1}>
+                        {truncate(track.name, 14)}
+                    </Text>
+                    <Text style={styles.artistName} numberOfLines={1}>
+                        {truncate(track.artist, 16)}
+                    </Text>
+                </View>
+
+                {/* Ghost Info - Shows during drag */}
+                <Animated.View style={[styles.ghostInfo, animatedGhostStyle]}>
+                    <View style={styles.ghostCard}>
+                        <Text style={styles.ghostTrackName} numberOfLines={1}>
+                            {track.name}
+                        </Text>
+                        <Text style={styles.ghostArtistName} numberOfLines={1}>
+                            {track.artist}
+                        </Text>
+                    </View>
                 </Animated.View>
             </Animated.View>
-        </PanGestureHandler>
+        </GestureDetector>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         width: TILE_SIZE,
-        height: TILE_SIZE + 8,
-        // Shadow for dragging effect
+        height: CARD_HEIGHT,
+        paddingHorizontal: 6,
+        paddingTop: 6,
+        // Shadow for dragging
         shadowColor: Colors.primary,
-        shadowOffset: { width: 0, height: 8 },
-        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 12 },
+        shadowRadius: 20,
     },
-    tile: {
-        flex: 1,
-        borderRadius: 14,
+    // Pulse animation ring
+    pulseRing: {
+        position: 'absolute',
+        top: -10,
+        left: -10,
+        width: TILE_SIZE + 8,
+        height: TILE_SIZE + 8,
+        borderRadius: 20,
+        borderWidth: 2,
+        borderColor: 'rgba(255,255,255,0.2)',
+        backgroundColor: 'rgba(137, 90, 246, 0.1)',
+    },
+    card: {
+        width: TILE_SIZE - 12,
+        height: TILE_SIZE - 12,
+        borderRadius: 12,
         overflow: 'hidden',
-        backgroundColor: '#151515',
+        backgroundColor: '#1f1b27',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.06)',
+        borderColor: 'rgba(137, 90, 246, 0.3)',
+    },
+    imageContainer: {
+        flex: 1,
+        position: 'relative',
     },
     image: {
         width: '100%',
         height: '100%',
-        position: 'absolute',
+    },
+    imageGradient: {
+        ...StyleSheet.absoluteFillObject,
     },
     placeholder: {
         backgroundColor: '#1a1a1a',
         alignItems: 'center',
         justifyContent: 'center',
     },
-    topRow: {
+    heartBadge: {
         position: 'absolute',
-        top: 6,
-        left: 6,
-        flexDirection: 'row',
-        gap: 4,
-    },
-    statusBadge: {
-        width: 20,
-        height: 20,
-        borderRadius: 10,
+        bottom: 8,
+        right: 8,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: 'rgba(0,0,0,0.3)',
         alignItems: 'center',
         justifyContent: 'center',
-        overflow: 'hidden',
     },
-    infoGradient: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        paddingTop: 28,
-        paddingBottom: 8,
-        paddingHorizontal: 8,
+    // Text below card
+    textContainer: {
+        paddingHorizontal: 2,
+        paddingTop: 8,
     },
     trackName: {
-        fontSize: 11,
-        fontWeight: '600',
+        fontSize: 12,
+        fontWeight: '700',
         color: '#fff',
-        lineHeight: 14,
-        textShadowColor: 'rgba(0,0,0,0.5)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 2,
+        lineHeight: 15,
     },
     artistName: {
-        fontSize: 9,
-        color: 'rgba(255,255,255,0.75)',
-        marginTop: 1,
-        textShadowColor: 'rgba(0,0,0,0.5)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 2,
+        fontSize: 10,
+        color: 'rgba(255,255,255,0.5)',
+        marginTop: 2,
+        lineHeight: 13,
     },
-    dragHandle: {
-        position: 'absolute',
-        top: 6,
-        right: 6,
-        width: 20,
-        height: 20,
-        borderRadius: 4,
-        backgroundColor: 'rgba(0,0,0,0.4)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    // Ghost overlay - shows track info when dragging
-    ghostOverlay: {
-        position: 'absolute',
-        top: TILE_SIZE + 12,
-        left: -TILE_SIZE / 2,
-        right: -TILE_SIZE / 2,
-        alignItems: 'center',
-    },
-    ghostContent: {
-        borderRadius: 12,
-        overflow: 'hidden',
-        padding: 12,
-        minWidth: TILE_SIZE * 1.8,
-    },
+    // Ghost info overlay
     ghostInfo: {
-        flexDirection: 'row',
+        position: 'absolute',
+        bottom: -40,
+        left: -20,
+        right: -20,
         alignItems: 'center',
-        gap: 10,
     },
-    ghostTextContainer: {
-        flex: 1,
+    ghostCard: {
+        backgroundColor: 'rgba(31, 27, 39, 0.95)',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(137, 90, 246, 0.4)',
+        minWidth: 120,
     },
     ghostTrackName: {
         fontSize: 13,
         fontWeight: '700',
         color: '#fff',
+        textAlign: 'center',
     },
     ghostArtistName: {
         fontSize: 11,
-        color: 'rgba(255,255,255,0.7)',
+        color: Colors.primary,
         marginTop: 2,
-    },
-    dropHint: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 8,
-        gap: 4,
-    },
-    dropHintText: {
-        fontSize: 10,
-        color: Colors.accent,
-        fontWeight: '500',
+        textAlign: 'center',
     },
 });
 
 export default memo(DraggableTrack);
-export { TILE_SIZE, GRID_GAP, GRID_PADDING };
-
+export { TILE_SIZE, GRID_GAP, GRID_PADDING, CARD_HEIGHT };

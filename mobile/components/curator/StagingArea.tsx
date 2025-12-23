@@ -1,14 +1,14 @@
 /**
- * 🎭 Staging Area - Enhanced
+ * 🎭 Staging Area - Floating Panel Design
  * 
- * Bottom panel for selected tracks before playlist creation
- * Features:
- * - Horizontal scrollable track list with names
- * - Target playlist selector
- * - Remove button with haptic feedback
- * - Empty placeholder slots
- * - Finalize playlist button
- * - Glassmorphism design
+ * Floating bottom panel for playlist creation
+ * Matches the HTML reference design with:
+ * - Rounded top corners (2rem)
+ * - Shadow from top
+ * - Icon header with item count
+ * - Empty slot placeholder at start
+ * - Track thumbnails with remove & track name
+ * - Finalize button with gradient
  */
 
 import React, { memo, useCallback, useState } from 'react';
@@ -46,10 +46,8 @@ interface StagingAreaProps {
     onPlaylistSelect?: (playlist: Playlist | null) => void;
 }
 
-const THUMB_SIZE = 64;
-const PLACEHOLDER_COUNT = 5;
+const THUMB_SIZE = 72;
 
-// Mock playlists for selection (replace with real data from props)
 const DEFAULT_PLAYLISTS: Playlist[] = [
     { id: 'new', name: '+ Yeni Liste Oluştur', color: Colors.primary },
 ];
@@ -76,17 +74,15 @@ function StagingArea({
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             return;
         }
-
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         onFinalize(stagingTracks);
     }, [stagingTracks, onFinalize]);
 
     const handleClear = useCallback(() => {
         if (stagingTracks.length === 0) return;
-
         Alert.alert(
             'Temizle',
-            'Tüm şarkıları staging alanından kaldırmak istiyor musunuz?',
+            'Tüm şarkıları kaldırmak istiyor musunuz?',
             [
                 { text: 'İptal', style: 'cancel' },
                 {
@@ -108,149 +104,96 @@ function StagingArea({
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }, [onPlaylistSelect]);
 
-    const emptySlots = Math.max(0, PLACEHOLDER_COUNT - stagingTracks.length);
-
-    // Truncate text
     const truncate = (text: string, max: number) =>
         text.length > max ? text.slice(0, max - 1) + '…' : text;
 
     return (
-        <View style={styles.container}>
-            {/* Header */}
-            <View style={styles.header}>
-                <View style={styles.headerLeft}>
-                    <Text style={styles.title}>Staging Area</Text>
+        <View style={styles.wrapper}>
+            {/* Top Gradient Fade */}
+            <LinearGradient
+                colors={['transparent', '#0A0A0A']}
+                style={styles.fadeGradient}
+                pointerEvents="none"
+            />
+
+            {/* Main Panel */}
+            <View style={styles.container}>
+                {/* Header Row */}
+                <View style={styles.header}>
+                    <View style={styles.headerLeft}>
+                        <View style={styles.iconCircle}>
+                            <Ionicons name="add" size={18} color={Colors.primary} />
+                        </View>
+                        <Text style={styles.title}>Staging Area</Text>
+                    </View>
                     <View style={styles.countBadge}>
-                        <Text style={styles.countText}>{stagingTracks.length}</Text>
+                        <Text style={styles.countText}>{stagingTracks.length} Items</Text>
                     </View>
                 </View>
+
+                {/* Track Thumbnails */}
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.scrollContent}
+                    style={styles.scrollView}
+                >
+                    {/* Empty Slot Placeholder - Always first */}
+                    <TouchableOpacity style={styles.emptySlot} activeOpacity={0.6}>
+                        <View style={styles.emptySlotInner}>
+                            <Ionicons name="add" size={22} color="rgba(137, 90, 246, 0.5)" />
+                        </View>
+                        <View style={styles.emptySlotText} />
+                    </TouchableOpacity>
+
+                    {/* Selected Tracks */}
+                    {stagingTracks.map((track) => (
+                        <View key={track.id} style={styles.trackSlot}>
+                            <View style={styles.thumbContainer}>
+                                <TouchableOpacity
+                                    style={styles.thumb}
+                                    onPress={() => onTrackPress?.(track)}
+                                    activeOpacity={0.8}
+                                >
+                                    {track.image ? (
+                                        <Image source={{ uri: track.image }} style={styles.thumbImage} />
+                                    ) : (
+                                        <View style={[styles.thumbImage, styles.placeholder]}>
+                                            <Ionicons name="musical-note" size={20} color="#444" />
+                                        </View>
+                                    )}
+                                </TouchableOpacity>
+
+                                {/* Remove Button - Top Right Corner */}
+                                <TouchableOpacity
+                                    style={styles.removeBtn}
+                                    onPress={() => handleRemove(track.id)}
+                                    activeOpacity={0.8}
+                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                >
+                                    <Ionicons name="close" size={11} color="#fff" />
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Track Name */}
+                            <Text style={styles.thumbName} numberOfLines={1}>
+                                {truncate(track.name, 10)}
+                            </Text>
+                        </View>
+                    ))}
+                </ScrollView>
+
+                {/* Clear Button (if items exist) */}
                 {stagingTracks.length > 0 && (
-                    <TouchableOpacity onPress={handleClear} activeOpacity={0.7}>
-                        <Text style={styles.clearBtn}>Temizle</Text>
+                    <TouchableOpacity
+                        style={styles.clearBtn}
+                        onPress={handleClear}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={styles.clearBtnText}>Temizle</Text>
                     </TouchableOpacity>
                 )}
             </View>
-
-            {/* Track Thumbnails */}
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.scrollContent}
-                style={styles.scrollView}
-            >
-                {/* Selected Tracks */}
-                {stagingTracks.map((track, index) => (
-                    <View key={track.id} style={styles.thumbWrapper}>
-                        <TouchableOpacity
-                            style={styles.thumb}
-                            onPress={() => onTrackPress?.(track)}
-                            activeOpacity={0.8}
-                        >
-                            {track.image ? (
-                                <Image source={{ uri: track.image }} style={styles.thumbImage} />
-                            ) : (
-                                <View style={[styles.thumbImage, styles.placeholder]}>
-                                    <Ionicons name="musical-note" size={18} color="#444" />
-                                </View>
-                            )}
-
-                            {/* Remove Button */}
-                            <TouchableOpacity
-                                style={styles.removeBtn}
-                                onPress={() => handleRemove(track.id)}
-                                activeOpacity={0.8}
-                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                                <Ionicons name="close" size={12} color="#fff" />
-                            </TouchableOpacity>
-
-                            {/* Index Badge */}
-                            <View style={styles.indexBadge}>
-                                <Text style={styles.indexText}>{index + 1}</Text>
-                            </View>
-                        </TouchableOpacity>
-
-                        {/* Track Name Under Thumbnail */}
-                        <Text style={styles.thumbTrackName} numberOfLines={1}>
-                            {truncate(track.name, 10)}
-                        </Text>
-                    </View>
-                ))}
-
-                {/* Empty Placeholder Slots */}
-                {Array.from({ length: emptySlots }).map((_, index) => (
-                    <View key={`empty-${index}`} style={styles.thumbWrapper}>
-                        <View style={styles.emptySlot}>
-                            <Ionicons name="add" size={18} color="rgba(255,255,255,0.2)" />
-                        </View>
-                    </View>
-                ))}
-
-                {/* Target Playlist Selector - Always at end */}
-                <TouchableOpacity
-                    style={styles.playlistSelector}
-                    onPress={() => setShowPlaylistModal(true)}
-                    activeOpacity={0.8}
-                >
-                    <LinearGradient
-                        colors={currentSelectedPlaylist
-                            ? [Colors.primary, Colors.primaryDark]
-                            : ['#2a2a2a', '#1a1a1a']
-                        }
-                        style={styles.playlistSelectorGradient}
-                    >
-                        <Ionicons
-                            name={currentSelectedPlaylist ? 'folder' : 'folder-outline'}
-                            size={20}
-                            color={currentSelectedPlaylist ? '#fff' : '#888'}
-                        />
-                        <Text style={[
-                            styles.playlistSelectorText,
-                            currentSelectedPlaylist && styles.playlistSelectorTextActive
-                        ]}>
-                            {currentSelectedPlaylist
-                                ? truncate(currentSelectedPlaylist.name, 8)
-                                : 'Hedef'
-                            }
-                        </Text>
-                    </LinearGradient>
-                </TouchableOpacity>
-            </ScrollView>
-
-            {/* Finalize Button */}
-            <TouchableOpacity
-                style={[styles.finalizeBtn, stagingTracks.length === 0 && styles.finalizeBtnDisabled]}
-                onPress={handleFinalize}
-                activeOpacity={0.9}
-                disabled={stagingTracks.length === 0}
-            >
-                <LinearGradient
-                    colors={stagingTracks.length > 0
-                        ? [Colors.primary, Colors.primaryDark]
-                        : ['#333', '#222']
-                    }
-                    style={styles.finalizeGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                >
-                    <Ionicons
-                        name="checkmark-done"
-                        size={20}
-                        color={stagingTracks.length > 0 ? '#fff' : '#666'}
-                    />
-                    <Text style={[
-                        styles.finalizeText,
-                        stagingTracks.length === 0 && styles.finalizeTextDisabled
-                    ]}>
-                        Playlist Oluştur
-                    </Text>
-                    {stagingTracks.length > 0 && (
-                        <View style={styles.finalizeCount}>
-                            <Text style={styles.finalizeCountText}>{stagingTracks.length}</Text>
-                        </View>
-                    )}
-                </LinearGradient>
-            </TouchableOpacity>
 
             {/* Playlist Selection Modal */}
             <Modal
@@ -308,77 +251,124 @@ function StagingArea({
 }
 
 const styles = StyleSheet.create({
-    container: {
-        backgroundColor: '#1a1028',
-        borderRadius: 20,
-        padding: 14,
-        borderWidth: 1,
-        borderColor: 'rgba(139, 92, 246, 0.15)',
+    wrapper: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
     },
+    fadeGradient: {
+        height: 48,
+        width: '100%',
+    },
+    container: {
+        backgroundColor: 'rgba(21, 16, 34, 0.95)',
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        borderTopWidth: 1,
+        borderLeftWidth: 1,
+        borderRightWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        paddingHorizontal: 20,
+        paddingTop: 18,
+        paddingBottom: 32,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -10 },
+        shadowOpacity: 0.5,
+        shadowRadius: 20,
+        elevation: 20,
+    },
+    // Header
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: 14,
     },
     headerLeft: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: 10,
+    },
+    iconCircle: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: 'rgba(137, 90, 246, 0.2)',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     title: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: 'rgba(255,255,255,0.9)',
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#fff',
     },
     countBadge: {
-        backgroundColor: Colors.primaryAlpha(0.3),
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 10,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
     countText: {
         fontSize: 11,
-        fontWeight: '700',
-        color: Colors.primary,
-    },
-    clearBtn: {
-        fontSize: 13,
-        color: Colors.error,
         fontWeight: '500',
+        color: 'rgba(255,255,255,0.4)',
     },
+    // Scroll Container
     scrollView: {
-        marginBottom: 14,
+        marginBottom: 8,
     },
     scrollContent: {
-        gap: 10,
-        paddingVertical: 4,
+        gap: 14,
+        paddingVertical: 6,
     },
-    thumbWrapper: {
+    // Empty Slot
+    emptySlot: {
+        width: THUMB_SIZE + 8,
         alignItems: 'center',
+    },
+    emptySlotInner: {
         width: THUMB_SIZE,
+        height: THUMB_SIZE,
+        borderRadius: 14,
+        borderWidth: 2,
+        borderStyle: 'dashed',
+        borderColor: 'rgba(137, 90, 246, 0.4)',
+        backgroundColor: 'rgba(137, 90, 246, 0.05)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    emptySlotText: {
+        height: 10,
+        width: 40,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 5,
+        marginTop: 8,
+    },
+    // Track Slot
+    trackSlot: {
+        width: THUMB_SIZE + 8,
+        alignItems: 'center',
+    },
+    thumbContainer: {
+        position: 'relative',
     },
     thumb: {
         width: THUMB_SIZE,
         height: THUMB_SIZE,
-        borderRadius: 10,
+        borderRadius: 14,
         overflow: 'hidden',
-        borderWidth: 2,
-        borderColor: Colors.primaryAlpha(0.4),
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
     thumbImage: {
         width: '100%',
         height: '100%',
     },
-    thumbTrackName: {
-        fontSize: 9,
-        color: 'rgba(255,255,255,0.6)',
-        marginTop: 4,
-        textAlign: 'center',
-        maxWidth: THUMB_SIZE,
-    },
     placeholder: {
-        backgroundColor: '#151515',
+        backgroundColor: '#1a1a1a',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -386,100 +376,33 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: -6,
         right: -6,
-        width: 22,
-        height: 22,
-        borderRadius: 11,
-        backgroundColor: Colors.error,
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 10,
-        borderWidth: 2,
-        borderColor: '#1a1028',
-    },
-    indexBadge: {
-        position: 'absolute',
-        bottom: 4,
-        left: 4,
-        minWidth: 16,
-        height: 16,
-        borderRadius: 8,
-        backgroundColor: Colors.primaryAlpha(0.9),
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 4,
-    },
-    indexText: {
-        fontSize: 9,
-        fontWeight: 'bold',
-        color: '#fff',
-    },
-    emptySlot: {
-        width: THUMB_SIZE,
-        height: THUMB_SIZE,
+        width: 20,
+        height: 20,
         borderRadius: 10,
-        borderWidth: 1.5,
-        borderStyle: 'dashed',
-        borderColor: 'rgba(255,255,255,0.12)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    // Playlist Selector
-    playlistSelector: {
-        width: THUMB_SIZE,
-        height: THUMB_SIZE + 18,
-        marginLeft: 4,
-    },
-    playlistSelectorGradient: {
-        width: THUMB_SIZE,
-        height: THUMB_SIZE,
-        borderRadius: 10,
+        backgroundColor: 'rgba(0,0,0,0.6)',
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.1)',
     },
-    playlistSelectorText: {
-        fontSize: 9,
-        color: '#888',
-        marginTop: 4,
-        fontWeight: '600',
-    },
-    playlistSelectorTextActive: {
-        color: '#fff',
-    },
-    // Finalize Button
-    finalizeBtn: {
-        borderRadius: 14,
-        overflow: 'hidden',
-    },
-    finalizeBtnDisabled: {
-        opacity: 0.6,
-    },
-    finalizeGradient: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 14,
-        gap: 10,
-    },
-    finalizeText: {
-        fontSize: 16,
+    thumbName: {
+        fontSize: 10,
         fontWeight: '700',
         color: '#fff',
+        marginTop: 8,
+        textAlign: 'center',
+        maxWidth: THUMB_SIZE,
     },
-    finalizeTextDisabled: {
-        color: '#666',
+    // Clear Button
+    clearBtn: {
+        alignSelf: 'flex-end',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
     },
-    finalizeCount: {
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 10,
-    },
-    finalizeCountText: {
+    clearBtnText: {
         fontSize: 12,
-        fontWeight: '700',
-        color: '#fff',
+        color: 'rgba(255,255,255,0.4)',
+        fontWeight: '500',
     },
     // Modal
     modalOverlay: {
@@ -523,7 +446,7 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     playlistOptionSelected: {
-        backgroundColor: Colors.primaryAlpha(0.2),
+        backgroundColor: 'rgba(137, 90, 246, 0.2)',
         borderWidth: 1,
         borderColor: Colors.primary,
     },
