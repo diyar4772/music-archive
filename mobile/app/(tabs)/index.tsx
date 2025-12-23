@@ -68,7 +68,15 @@ const SkeletonList = ({ isArtist = false }: { isArtist?: boolean }) => (
 );
 
 export default function HomeScreen() {
-  const { user, userData, refreshUserData } = useAuthStore();
+  const {
+    user,
+    userData,
+    refreshUserData,
+    addLikeOptimistic,
+    removeLikeOptimistic,
+    addFollowOptimistic,
+    removeFollowOptimistic,
+  } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState<'artist' | 'track'>('artist');
   const [artistResults, setArtistResults] = useState<Artist[]>([]);
@@ -171,22 +179,36 @@ export default function HomeScreen() {
     }
   }, [playingTrackId]);
 
-  // ❤️ Like Track
+  // ❤️ Like Track with Optimistic UI
   const [likingTrackId, setLikingTrackId] = useState<string | null>(null);
 
   const handleLikeTrack = async (track: Track) => {
     if (likingTrackId === track.id) return; // Prevent double-tap
 
+    const isLiked = likedTrackIds.includes(track.id);
     setLikingTrackId(track.id);
-    try {
-      const isLiked = likedTrackIds.includes(track.id);
 
+    // 🎯 Optimistic Update - Immediately update UI
+    if (isLiked) {
+      removeLikeOptimistic(track.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else {
+      addLikeOptimistic({
+        trackId: track.id,
+        trackName: track.name,
+        artistName: track.artist,
+        image: track.image,
+        previewUrl: track.preview_url,
+      });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    try {
       if (isLiked) {
         // Unlike - Remove from library
         await api.delete(`/library/track/${track.id}`);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else {
-        // Like - Add to library using new endpoint
+        // Like - Add to library
         await api.post('/library/like', {
           spotifyId: track.id,
           title: track.name,
@@ -196,13 +218,25 @@ export default function HomeScreen() {
           previewUrl: track.preview_url,
           source: 'search',
         });
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
-
-      // Refresh user data
-      await refreshUserData();
+      // Background sync to ensure data consistency
+      refreshUserData();
     } catch (error: any) {
+      // ⚠️ Rollback on error
       console.error('Like error:', error?.response?.data || error.message);
+      if (isLiked) {
+        // Was trying to unlike, restore the like
+        addLikeOptimistic({
+          trackId: track.id,
+          trackName: track.name,
+          artistName: track.artist,
+          image: track.image,
+          previewUrl: track.preview_url,
+        });
+      } else {
+        // Was trying to like, remove the optimistic like
+        removeLikeOptimistic(track.id);
+      }
       Alert.alert('Hata', error?.response?.data?.error || 'Şarkı eklenirken bir hata oluştu');
     } finally {
       setLikingTrackId(null);

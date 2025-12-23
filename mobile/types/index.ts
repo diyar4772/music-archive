@@ -54,17 +54,12 @@ export interface UserFollow {
 export interface UserLike {
     trackId: string;
     trackName: string;
+    artistName?: string;
     image: string | null;
     previewUrl: string | null;
 }
 
-export interface UserAlbumFollow {
-    albumId: string;
-    albumName: string;
-    image: string | null;
-    artistName: string;
-}
-
+// Rating types
 export interface UserRating {
     itemId: string;
     itemType: 'track' | 'album';
@@ -72,6 +67,32 @@ export interface UserRating {
     artistName: string;
     image: string | null;
     rating: number;
+}
+
+// Playlist types
+export interface Playlist {
+    id: string;
+    name: string;
+    coverImage?: string;
+    trackCount: number;
+    tracks?: PlaylistTrack[];
+    createdAt?: string;
+}
+
+export interface PlaylistTrack {
+    trackId: string;
+    trackName: string;
+    artistName?: string;
+    image?: string;
+    previewUrl?: string;
+    addedAt?: string;
+}
+
+export interface UserAlbumFollow {
+    albumId: string;
+    albumName: string;
+    image: string | null;
+    artistName: string;
 }
 
 export interface UserData {

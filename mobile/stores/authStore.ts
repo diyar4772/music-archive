@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { User, UserData } from '../types';
+import { User, UserData, UserLike, UserFollow } from '../types';
 import authService from '../services/auth';
-import { getToken, getStoredUser, removeToken } from '../services/api';
+import { getToken, getStoredUser, removeToken, setOnUnauthorized } from '../services/api';
 
 interface AuthStore {
     // State
@@ -17,7 +17,13 @@ interface AuthStore {
     logout: () => Promise<void>;
     checkAuth: () => Promise<void>;
     fetchUserData: () => Promise<void>;
-    refreshUserData: () => Promise<void>; // Added for realtime UI updates
+    refreshUserData: () => Promise<void>;
+    
+    // Optimistic UI Updates
+    addLikeOptimistic: (like: UserLike) => void;
+    removeLikeOptimistic: (trackId: string) => void;
+    addFollowOptimistic: (follow: UserFollow) => void;
+    removeFollowOptimistic: (artistId: string) => void;
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -125,6 +131,73 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             console.error('Error refreshing user data:', error);
         }
     },
+
+    // ===== Optimistic UI Updates =====
+    // These update local state immediately for instant UI feedback
+    
+    addLikeOptimistic: (like: UserLike) => {
+        const { userData } = get();
+        if (!userData) return;
+        
+        // Check if already exists
+        if (userData.likes?.some(l => l.trackId === like.trackId)) return;
+        
+        set({
+            userData: {
+                ...userData,
+                likes: [...(userData.likes || []), like],
+            },
+        });
+    },
+
+    removeLikeOptimistic: (trackId: string) => {
+        const { userData } = get();
+        if (!userData) return;
+        
+        set({
+            userData: {
+                ...userData,
+                likes: (userData.likes || []).filter(l => l.trackId !== trackId),
+            },
+        });
+    },
+
+    addFollowOptimistic: (follow: UserFollow) => {
+        const { userData } = get();
+        if (!userData) return;
+        
+        // Check if already exists
+        if (userData.follows?.some(f => f.artistId === follow.artistId)) return;
+        
+        set({
+            userData: {
+                ...userData,
+                follows: [...(userData.follows || []), follow],
+            },
+        });
+    },
+
+    removeFollowOptimistic: (artistId: string) => {
+        const { userData } = get();
+        if (!userData) return;
+        
+        set({
+            userData: {
+                ...userData,
+                follows: (userData.follows || []).filter(f => f.artistId !== artistId),
+            },
+        });
+    },
 }));
+
+// 🔒 Register global unauthorized handler
+// This ensures any 401 response triggers a proper logout
+setOnUnauthorized(() => {
+    const store = useAuthStore.getState();
+    if (store.isAuthenticated) {
+        console.log('🔒 Auth: Unauthorized detected, forcing logout');
+        store.logout();
+    }
+});
 
 export default useAuthStore;

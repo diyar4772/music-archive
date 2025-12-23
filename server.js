@@ -1985,56 +1985,69 @@ app.get('/api/search/enhanced', authenticateToken, async (req, res) => {
 // 📚 MOBILE LIBRARY API - For React Native App
 // ============================================
 // These endpoints power the mobile app's library functionality
-// Mock auth is used for quick testing - replace with authenticateToken in production
+// In production: requires valid JWT token
+// In development: allows mock user fallback for testing
 
-// 🔧 Mock Auth Middleware (for testing - skips token validation, uses mock user)
-const mockAuth = async (req, res, next) => {
-    // Try to get real user from token first
+// 🔧 Mobile Auth Middleware (production-safe with dev fallback)
+const mobileAuth = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
+    // 1. Always try real token first
     if (token) {
         try {
             const user = jwt.verify(token, JWT_SECRET);
             req.user = user;
             return next();
         } catch (err) {
-            // Token invalid, continue to mock user
+            // Token invalid - in production, reject immediately
+            if (process.env.NODE_ENV === 'production') {
+                return res.status(401).json({ 
+                    success: false, 
+                    error: 'Invalid or expired token. Please login again.' 
+                });
+            }
+            // In development, continue to fallback
         }
     }
 
-    // For testing without auth - get first user from DB or use in-memory mock
+    // 2. In production, no token = unauthorized
+    if (process.env.NODE_ENV === 'production') {
+        return res.status(401).json({ 
+            success: false, 
+            error: 'Authentication required. Please login.' 
+        });
+    }
+
+    // 3. Development only: Mock user fallback for testing
+    console.log('⚠️ DEV MODE: Using mock authentication');
+    
     if (useInMemory) {
-        // In-memory mode - use string ID
-        req.user = { id: 'mock_user_001', username: 'test_user' };
+        req.user = { id: 'mock_user_001', username: 'dev_test_user' };
         return next();
     }
 
     try {
-        // MongoDB mode - get first real user for testing
         const firstUser = await User.findOne({}).lean();
         if (firstUser) {
             req.user = { id: firstUser._id.toString(), username: firstUser.username };
         } else {
-            // No users exist - create a test user
             const testUser = await User.create({
-                username: 'test_user',
-                password: await bcrypt.hash('test123', 12)
+                username: 'dev_test_user',
+                password: await bcrypt.hash('devtest123', 12)
             });
             req.user = { id: testUser._id.toString(), username: testUser.username };
-            console.log('📚 Created test user for Library API testing');
+            console.log('📚 DEV: Created test user for API testing');
         }
         next();
     } catch (err) {
-        console.error('MockAuth error:', err.message);
-        // Fallback to mock ID that won't work but will give clear error
-        req.user = { id: 'mock_user_001', username: 'test_user' };
-        next();
+        console.error('MobileAuth fallback error:', err.message);
+        return res.status(500).json({ success: false, error: 'Authentication service error' });
     }
 };
 
 // 🟢 POST /api/library/like - Archive/Like a song
-app.post('/api/library/like', mockAuth, async (req, res) => {
+app.post('/api/library/like', mobileAuth, async (req, res) => {
     try {
         const { spotifyId, title, artist, albumArt, previewUrl, artistId, source = 'manual', mood } = req.body;
 
@@ -2124,7 +2137,7 @@ app.post('/api/library/like', mockAuth, async (req, res) => {
 });
 
 // 🔴 DELETE /api/library/track/:spotifyId - Remove a song from library
-app.delete('/api/library/track/:spotifyId', mockAuth, async (req, res) => {
+app.delete('/api/library/track/:spotifyId', mobileAuth, async (req, res) => {
     try {
         const { spotifyId } = req.params;
 
@@ -2170,7 +2183,7 @@ app.delete('/api/library/track/:spotifyId', mockAuth, async (req, res) => {
 });
 
 // 👥 POST /api/library/follow - Follow an artist
-app.post('/api/library/follow', mockAuth, async (req, res) => {
+app.post('/api/library/follow', mobileAuth, async (req, res) => {
     try {
         const { artistName, artistId, image } = req.body;
 
@@ -2248,7 +2261,7 @@ app.post('/api/library/follow', mockAuth, async (req, res) => {
 });
 
 // 📝 POST /api/library/note - Add/Update a memory note to a track
-app.post('/api/library/note', mockAuth, async (req, res) => {
+app.post('/api/library/note', mobileAuth, async (req, res) => {
     try {
         const { spotifyId, note } = req.body;
 
@@ -2300,7 +2313,7 @@ app.post('/api/library/note', mockAuth, async (req, res) => {
 });
 
 // 📊 GET /api/library/stats - Get library statistics
-app.get('/api/library/stats', mockAuth, async (req, res) => {
+app.get('/api/library/stats', mobileAuth, async (req, res) => {
     try {
         if (useInMemory) {
             const tracks = inMemoryDB.likes.filter(l => l.userId === req.user.id);
@@ -2355,7 +2368,7 @@ app.get('/api/library/stats', mockAuth, async (req, res) => {
 });
 
 // 📋 GET /api/library/tracks - Get all tracks in library (with pagination)
-app.get('/api/library/tracks', mockAuth, async (req, res) => {
+app.get('/api/library/tracks', mobileAuth, async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 50;
@@ -2442,7 +2455,7 @@ app.get('/api/library/tracks', mockAuth, async (req, res) => {
 });
 
 // 👥 GET /api/library/artists - Get all followed artists
-app.get('/api/library/artists', mockAuth, async (req, res) => {
+app.get('/api/library/artists', mobileAuth, async (req, res) => {
     try {
         if (useInMemory) {
             const artists = inMemoryDB.follows.filter(f => f.userId === req.user.id);
@@ -2475,7 +2488,7 @@ app.get('/api/library/artists', mockAuth, async (req, res) => {
 });
 
 // 🔍 GET /api/library/check/:spotifyId - Check if a track is in library
-app.get('/api/library/check/:spotifyId', mockAuth, async (req, res) => {
+app.get('/api/library/check/:spotifyId', mobileAuth, async (req, res) => {
     try {
         const { spotifyId } = req.params;
 

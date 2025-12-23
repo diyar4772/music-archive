@@ -3,6 +3,14 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
+// Auth event system for cross-module communication
+type AuthEventCallback = () => void;
+let onUnauthorizedCallback: AuthEventCallback | null = null;
+
+export const setOnUnauthorized = (callback: AuthEventCallback) => {
+    onUnauthorizedCallback = callback;
+};
+
 // API Base URL Configuration
 // Development: Automatically uses Expo's hostUri for dynamic IP
 // Production: Uses configured PROD_API_URL or Render.com URL
@@ -121,14 +129,19 @@ api.interceptors.request.use(
     }
 );
 
-// Response interceptor - Handle errors
+// Response interceptor - Handle errors and auth failures
 api.interceptors.response.use(
     (response) => response,
     async (error: AxiosError) => {
         if (error.response?.status === 401) {
-            // Token expired or invalid
+            // Token expired or invalid - clean up and notify
+            console.log('🔒 API: Unauthorized - clearing token and triggering logout');
             await removeToken();
-            // You might want to redirect to login here
+            
+            // Trigger logout callback if registered
+            if (onUnauthorizedCallback) {
+                onUnauthorizedCallback();
+            }
         }
         return Promise.reject(error);
     }

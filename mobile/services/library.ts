@@ -119,6 +119,45 @@ export async function createPlaylist(name: string, coverImage?: string): Promise
     return response.data;
 }
 
+export async function deletePlaylist(playlistId: string): Promise<{ message: string }> {
+    const response = await api.delete(`/playlists/${playlistId}`);
+    return response.data;
+}
+
+export interface PlaylistTrackParams {
+    trackId: string;
+    trackName: string;
+    image?: string;
+    previewUrl?: string;
+    artistName?: string;
+}
+
+export async function addTrackToPlaylist(playlistId: string, track: PlaylistTrackParams): Promise<{ message: string }> {
+    const response = await api.post(`/playlists/${playlistId}/add`, track);
+    return response.data;
+}
+
+export async function removeTrackFromPlaylist(playlistId: string, trackId: string): Promise<{ message: string }> {
+    const response = await api.delete(`/playlists/${playlistId}/tracks/${encodeURIComponent(trackId)}`);
+    return response.data;
+}
+
+export async function updatePlaylistCover(playlistId: string, coverImage: string): Promise<{ message: string }> {
+    const response = await api.put(`/playlists/${playlistId}/cover`, { coverImage });
+    return response.data;
+}
+
+export interface PlaylistDetails extends Playlist {
+    PlaylistTracks?: Array<{
+        trackId: string;
+        trackName: string;
+        artistName?: string;
+        image?: string;
+        previewUrl?: string;
+        createdAt?: string;
+    }>;
+}
+
 // ===== Enhanced Search =====
 
 export interface EnhancedTrack {
@@ -160,5 +199,9 @@ export default {
     unfollowArtist,
     getPlaylists,
     createPlaylist,
+    deletePlaylist,
+    addTrackToPlaylist,
+    removeTrackFromPlaylist,
+    updatePlaylistCover,
     enhancedSearch,
 };
