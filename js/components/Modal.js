@@ -1,174 +1,109 @@
-/**
- * Modal Component
- * Handles modal display and interactions
- */
+// Modal Controller
+// Generic modal open/close with animations
 
 /**
- * Creates HTML content for the artist detail modal
- * @param {Object} artist - Artist data object
- * @returns {string} HTML string
+ * Open a modal by ID
+ * @param {string} modalId - Modal element ID
+ * @param {string} contentId - Optional content element ID for animation
  */
-export function createArtistModalContent(artist) {
-    const hasImage = artist.image && artist.image !== null;
+export function openModal(modalId, contentId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
 
-    // Generate links HTML
-    const linksHtml = generateLinksHtml(artist.links);
+    modal.classList.remove('hidden');
 
-    // Generate albums HTML
-    const albumsHtml = generateAlbumsHtml(artist.albums);
-
-    return `
-        <div class="modal__artist-header">
-            ${hasImage
-            ? `<img src="${artist.image}" alt="${artist.name}" class="modal__artist-image" onerror="this.outerHTML='<div class=\\'modal__artist-image-placeholder\\'>🎤</div>'">`
-            : `<div class="modal__artist-image-placeholder">🎤</div>`
+    // Animate content if provided
+    if (contentId) {
+        const content = document.getElementById(contentId);
+        if (content) {
+            setTimeout(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
         }
-            <div class="modal__artist-info">
-                <h2 class="modal__artist-name">${artist.name}</h2>
-                <p class="modal__artist-genre">${artist.genre || 'Müzik'}</p>
-                <p class="modal__artist-bio">${artist.bio || 'Biyografi bilgisi mevcut değil.'}</p>
-                ${linksHtml}
-            </div>
-        </div>
-        
-        ${albumsHtml}
-    `;
+    } else {
+        setTimeout(() => modal.classList.add('visible'), 10);
+    }
 }
 
 /**
- * Generates HTML for external links
- * @param {Object} links - Links object
- * @returns {string} HTML string
+ * Close a modal by ID
+ * @param {string} modalId - Modal element ID
+ * @param {string} contentId - Optional content element ID for animation
  */
-function generateLinksHtml(links) {
-    if (!links) return '';
+export function closeModal(modalId, contentId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
 
-    const linkItems = [];
-
-    if (links.wikipedia) {
-        linkItems.push(`
-            <a href="${links.wikipedia}" target="_blank" rel="noopener" class="modal__link modal__link--wikipedia">
-                📖 Wikipedia
-            </a>
-        `);
+    // Animate content if provided
+    if (contentId) {
+        const content = document.getElementById(contentId);
+        if (content) {
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+        }
+    } else {
+        modal.classList.remove('visible');
     }
 
-    if (links.spotify) {
-        linkItems.push(`
-            <a href="${links.spotify}" target="_blank" rel="noopener" class="modal__link modal__link--spotify">
-                🎧 Spotify
-            </a>
-        `);
-    }
-
-    if (links.youtube) {
-        linkItems.push(`
-            <a href="${links.youtube}" target="_blank" rel="noopener" class="modal__link modal__link--youtube">
-                ▶️ YouTube
-            </a>
-        `);
-    }
-
-    if (links.appleMusic) {
-        linkItems.push(`
-            <a href="${links.appleMusic}" target="_blank" rel="noopener" class="modal__link modal__link--apple">
-                🍎 Apple Music
-            </a>
-        `);
-    }
-
-    if (linkItems.length === 0) return '';
-
-    return `<div class="modal__links">${linkItems.join('')}</div>`;
+    setTimeout(() => modal.classList.add('hidden'), 300);
 }
 
 /**
- * Generates HTML for albums grid
- * @param {Array} albums - Array of album objects
- * @returns {string} HTML string
+ * Show confirmation modal
+ * @param {Object} options - Confirmation options
  */
-function generateAlbumsHtml(albums) {
-    if (!albums || albums.length === 0) {
-        return '';
+export function showConfirmModal(options) {
+    const { title, message, icon, iconBg, confirmText, onConfirm } = options;
+
+    const titleEl = document.getElementById('confirmTitle');
+    const messageEl = document.getElementById('confirmMessage');
+    const iconEl = document.getElementById('confirmIcon');
+    const confirmBtn = document.getElementById('confirmYesBtn');
+
+    if (titleEl) titleEl.innerText = title || 'Emin misiniz?';
+    if (messageEl) messageEl.innerText = message || 'Bu işlemi geri alamazsınız.';
+
+    if (icon && iconEl) {
+        iconEl.innerHTML = `<i class="${icon} text-2xl text-white"></i>`;
+    }
+    if (iconBg && iconEl) {
+        iconEl.className = `w-16 h-16 ${iconBg} rounded-full flex items-center justify-center mx-auto mb-4`;
     }
 
-    const albumCards = albums.map(album => `
-        <div class="album-card" data-album-id="${album.id}" title="Detaylar için tıkla">
-            ${album.image
-            ? `<img src="${album.image}" alt="${album.title}" class="album-card__image" onerror="this.outerHTML='<div class=\\'album-card__placeholder\\'>💿</div>'">`
-            : `<div class="album-card__placeholder">💿</div>`
-        }
-            <div class="album-card__info">
-                <p class="album-card__title" title="${album.title}">${album.title}</p>
-                <p class="album-card__year">${album.year || '-'}</p>
-            </div>
-        </div>
-    `).join('');
+    if (confirmBtn) {
+        confirmBtn.innerHTML = `<i class="fa-solid fa-check mr-2"></i>${confirmText || 'Evet, Sil'}`;
+        confirmBtn.onclick = () => {
+            if (onConfirm) onConfirm();
+            closeConfirmModal();
+        };
+    }
 
-    return `
-        <div class="modal__section">
-            <h3 class="modal__section-title">💿 Albümler (${albums.length}) - <span style="font-size: 0.8em; color: var(--color-text-muted);">Detay için tıkla</span></h3>
-            <div class="albums-grid" id="albumsGrid">
-                ${albumCards}
-            </div>
-        </div>
-    `;
+    openModal('confirmModal', 'confirmModalContent');
 }
 
 /**
- * Modal Controller Class
+ * Close confirmation modal
  */
-export class ModalController {
-    constructor(overlayId, modalId, closeButtonId, contentId) {
-        this.overlay = document.getElementById(overlayId);
-        this.modal = document.getElementById(modalId);
-        this.closeButton = document.getElementById(closeButtonId);
-        this.content = document.getElementById(contentId);
+export function closeConfirmModal() {
+    closeModal('confirmModal', 'confirmModalContent');
+}
 
-        this.init();
-    }
-
-    init() {
-        // Close on button click
-        if (this.closeButton) {
-            this.closeButton.addEventListener('click', () => this.close());
+/**
+ * Initialize modal close handlers
+ */
+export function initModals() {
+    // Close modals on backdrop click
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal')) {
+            e.target.classList.remove('visible');
+            setTimeout(() => e.target.classList.add('hidden'), 300);
         }
+    });
 
-        // Close on overlay click (outside modal)
-        if (this.overlay) {
-            this.overlay.addEventListener('click', (e) => {
-                if (e.target === this.overlay) {
-                    this.close();
-                }
-            });
-        }
-
-        // Close on Escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.isOpen()) {
-                this.close();
-            }
-        });
-    }
-
-    open(content = '') {
-        if (this.content && content) {
-            this.content.innerHTML = content;
-        }
-        if (this.overlay) {
-            this.overlay.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        }
-    }
-
-    close() {
-        if (this.overlay) {
-            this.overlay.classList.remove('active');
-            document.body.style.overflow = '';
-        }
-    }
-
-    isOpen() {
-        return this.overlay?.classList.contains('active') || false;
-    }
+    // Expose to global for inline handlers
+    window.openModal = openModal;
+    window.closeModal = closeModal;
+    window.showConfirmModal = showConfirmModal;
+    window.closeConfirmModal = closeConfirmModal;
 }

@@ -226,9 +226,9 @@
     <!-- Search Section -->
     <div class="w-full max-w-xl mb-8 relative z-40">
         <div class="flex gap-3 relative">
-            <input type="text" id="searchInput" placeholder="Search for artists or tracks..."
+            <input type="text" id="searchInput" name="search" placeholder="Search for artists or tracks..."
                 class="flex-1 px-5 py-3 rounded-full bg-gray-800 border-none focus:ring-2 focus:ring-[#1DB954] text-white outline-none"
-                autocomplete="off">
+                autocomplete="off" data-form-type="other" data-lpignore="true">
             <button onclick="performSearch()" class="btn-spotify text-black font-bold px-6 py-3 rounded-full">
                 <i class="fa-solid fa-magnifying-glass"></i>
             </button>
@@ -290,6 +290,76 @@
                     <h3 class="text-lg font-bold text-gray-300 group-hover:text-white">Yeni Liste</h3>
                     <p class="text-sm text-gray-500">Oluştur</p>
                 </div>
+            </div>
+        </div>
+
+        <!-- Collection Statistics -->
+        <div id="statCardsContainer" class="mb-8">
+            <!-- Stats will be rendered by Dashboard.js -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="stat-card bg-gradient-to-br from-green-600 to-green-800 p-5 rounded-xl shadow-lg">
+                    <div class="text-3xl font-bold" id="statTracks">0</div>
+                    <div class="text-sm text-green-200">Şarkı</div>
+                </div>
+                <div class="stat-card bg-gradient-to-br from-purple-600 to-purple-800 p-5 rounded-xl shadow-lg">
+                    <div class="text-3xl font-bold" id="statArtists">0</div>
+                    <div class="text-sm text-purple-200">Sanatçı</div>
+                </div>
+                <div class="stat-card bg-gradient-to-br from-blue-600 to-blue-800 p-5 rounded-xl shadow-lg">
+                    <div class="text-3xl font-bold" id="statPlaylists">0</div>
+                    <div class="text-sm text-blue-200">Liste</div>
+                </div>
+                <div class="stat-card bg-gradient-to-br from-amber-600 to-amber-800 p-5 rounded-xl shadow-lg">
+                    <div class="text-3xl font-bold" id="statRating">⭐ –</div>
+                    <div class="text-sm text-amber-200">Ort. Puan</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recently Added & Top Rated Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- Recently Added -->
+            <div class="bg-[#1a1a1a] rounded-xl p-5">
+                <div id="recentlyAddedContainer">
+                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-clock text-green-500"></i>
+                        Son Eklenenler
+                    </h3>
+                    <div class="text-gray-400 text-center py-8">
+                        <i class="fa-solid fa-music text-2xl mb-2"></i>
+                        <p>Henüz şarkı eklenmedi</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Rated -->
+            <div class="bg-[#1a1a1a] rounded-xl p-5">
+                <div id="topRatedContainer">
+                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-trophy text-amber-500"></i>
+                        En Yüksek Puanlı
+                    </h3>
+                    <div class="text-gray-400 text-center py-8">
+                        <i class="fa-solid fa-star text-2xl mb-2"></i>
+                        <p>Henüz puan verilmedi</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export Section -->
+        <div id="exportContainer" class="mb-8 flex justify-end">
+            <div class="flex gap-2">
+                <button onclick="exportToCSV()"
+                    class="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition text-sm">
+                    <i class="fa-solid fa-file-csv"></i>
+                    CSV İndir
+                </button>
+                <button onclick="exportStats()"
+                    class="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition text-sm">
+                    <i class="fa-solid fa-download"></i>
+                    Yedekle
+                </button>
             </div>
         </div>
 
@@ -564,6 +634,24 @@
                     </a>
                 </div>
 
+                <!-- Personal Note -->
+                <div class="bg-white/5 rounded-xl p-4 mb-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <p class="text-sm text-gray-400">
+                            <i class="fa-solid fa-pen-to-square mr-1"></i>
+                            Kişisel Not
+                        </p>
+                        <button id="trackNoteSaveBtn" onclick="saveTrackNote()"
+                            class="text-xs text-green-500 hover:text-green-400 hidden">
+                            <i class="fa-solid fa-check mr-1"></i>Kaydet
+                        </button>
+                    </div>
+                    <textarea id="trackDetailNote"
+                        placeholder="Bu şarkı için kişisel not ekle... (örn: 'Yaz konseri hatırası', 'Annem'in favorisi')"
+                        class="w-full bg-transparent border border-gray-600 rounded-lg p-3 text-white text-sm resize-none focus:outline-none focus:border-green-500 transition"
+                        rows="2" oninput="showNoteSaveBtn()"></textarea>
+                </div>
+
                 <!-- Actions -->
                 <div class="flex gap-3">
                     <button id="trackDetailLikeBtn" onclick="toggleLikeFromDetail()"
@@ -622,6 +710,7 @@
         let tempTrackToAdd = null;
         let confirmCallback = null; // For confirmation modal
         let currentTrackDetail = null; // For track detail modal
+        let searchHistory = JSON.parse(localStorage.getItem('searchHistory') || '[]'); // Search history
 
         // --- Confirmation Modal Functions ---
         function showConfirmModal(options) {
@@ -851,6 +940,11 @@
                 renderFollowingPreview();
                 renderFollowedAlbums();
 
+                // Update Statistics Cards
+                updateStatCards();
+                renderRecentlyAdded();
+                renderTopRated();
+
             } catch (e) { console.error('Data sync failed'); }
         }
 
@@ -973,6 +1067,239 @@
             }
         }
 
+        // --- Statistics & Dashboard Functions ---
+        function updateStatCards() {
+            // Update stat card values
+            const statTracks = document.getElementById('statTracks');
+            const statArtists = document.getElementById('statArtists');
+            const statPlaylists = document.getElementById('statPlaylists');
+            const statRating = document.getElementById('statRating');
+
+            if (statTracks) statTracks.innerText = likedTracks.length;
+            if (statArtists) statArtists.innerText = followedArtists.length;
+            if (statPlaylists) statPlaylists.innerText = playlists.length;
+            if (statRating) statRating.innerText = '⭐ ' + getAverageRating();
+        }
+
+        function getAverageRating() {
+            const ratings = userRatings.filter(r => r.rating > 0);
+            if (ratings.length === 0) return '–';
+            const sum = ratings.reduce((acc, r) => acc + r.rating, 0);
+            return (sum / ratings.length).toFixed(1);
+        }
+
+        function renderRecentlyAdded() {
+            const container = document.getElementById('recentlyAddedContainer');
+            if (!container) return;
+
+            // Sort by added date
+            const recentTracks = [...likedTracks]
+                .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+                .slice(0, 5);
+
+            if (recentTracks.length === 0) {
+                container.innerHTML = `
+                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-clock text-green-500"></i>
+                        Son Eklenenler
+                    </h3>
+                    <div class="text-gray-400 text-center py-8">
+                        <i class="fa-solid fa-music text-2xl mb-2"></i>
+                        <p>Henüz şarkı eklenmedi</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-clock text-green-500"></i>
+                    Son Eklenenler
+                </h3>
+                <div class="space-y-2">
+                    ${recentTracks.map(track => `
+                        <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-[#282828] transition cursor-pointer"
+                             onclick="openTrackDetail({ id: '${track.trackId}', name: '${escapeHtml(track.trackName)}', artist: '${escapeHtml(track.artist)}', image: '${track.image}', preview_url: '${track.previewUrl || ''}' })">
+                            <img src="${track.image || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded object-cover">
+                            <div class="flex-1 min-w-0">
+                                <div class="font-medium truncate">${track.trackName}</div>
+                                <div class="text-xs text-gray-400 truncate">${track.artist}</div>
+                            </div>
+                            <div class="text-xs text-gray-500">
+                                ${track.createdAt ? formatDateShort(track.createdAt) : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderTopRated() {
+            const container = document.getElementById('topRatedContainer');
+            if (!container) return;
+
+            // Get tracks with ratings
+            const topTracks = likedTracks
+                .map(track => {
+                    const rating = userRatings.find(r => r.trackId === track.trackId);
+                    return { ...track, rating: rating ? rating.rating : 0 };
+                })
+                .filter(track => track.rating > 0)
+                .sort((a, b) => b.rating - a.rating)
+                .slice(0, 5);
+
+            if (topTracks.length === 0) {
+                container.innerHTML = `
+                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-trophy text-amber-500"></i>
+                        En Yüksek Puanlı
+                    </h3>
+                    <div class="text-gray-400 text-center py-8">
+                        <i class="fa-solid fa-star text-2xl mb-2"></i>
+                        <p>Henüz puan verilmedi</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-trophy text-amber-500"></i>
+                    En Yüksek Puanlı
+                </h3>
+                <div class="space-y-2">
+                    ${topTracks.map((track, index) => `
+                        <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-[#282828] transition cursor-pointer"
+                             onclick="openTrackDetail({ id: '${track.trackId}', name: '${escapeHtml(track.trackName)}', artist: '${escapeHtml(track.artist)}', image: '${track.image}', preview_url: '${track.previewUrl || ''}' })">
+                            <div class="w-6 text-center font-bold ${index < 3 ? 'text-amber-500' : 'text-gray-500'}">
+                                ${index + 1}
+                            </div>
+                            <img src="${track.image || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded object-cover">
+                            <div class="flex-1 min-w-0">
+                                <div class="font-medium truncate">${track.trackName}</div>
+                                <div class="text-xs text-gray-400 truncate">${track.artist}</div>
+                            </div>
+                            <div class="flex items-center gap-1 text-amber-500">
+                                <i class="fa-solid fa-star text-sm"></i>
+                                <span class="font-bold">${track.rating}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function formatDateShort(date) {
+            const d = new Date(date);
+            return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/'/g, "\\'").replace(/"/g, '\\"');
+        }
+
+        // --- Export Functions ---
+        function exportToCSV() {
+            if (likedTracks.length === 0) {
+                showToast('❌ Dışa aktarılacak şarkı yok');
+                return;
+            }
+
+            // CSV headers
+            const headers = ['Şarkı Adı', 'Sanatçı', 'Albüm', 'Puan', 'Eklenme Tarihi'];
+
+            // Build rows
+            const rows = likedTracks.map(track => {
+                const rating = userRatings.find(r => r.trackId === track.trackId);
+                const ratingVal = rating ? rating.rating : '';
+                const date = track.createdAt ? formatDateShort(track.createdAt) : '';
+
+                return [
+                    escapeCSV(track.trackName),
+                    escapeCSV(track.artist),
+                    escapeCSV(track.album || ''),
+                    ratingVal,
+                    date
+                ].join(',');
+            });
+
+            // Combine
+            const csvContent = [headers.join(','), ...rows].join('\n');
+
+            // Download
+            downloadFile(csvContent, `koleksiyon_${getDateString()}.csv`, 'text/csv');
+            showToast('✅ CSV dosyası indirildi');
+        }
+
+        function exportStats() {
+            const stats = {
+                exportDate: new Date().toISOString(),
+                totalTracks: likedTracks.length,
+                totalArtists: followedArtists.length,
+                totalPlaylists: playlists.length,
+                averageRating: getAverageRating(),
+                tracks: likedTracks.map(t => ({
+                    name: t.trackName,
+                    artist: t.artist,
+                    album: t.album,
+                    rating: (userRatings.find(r => r.trackId === t.trackId) || {}).rating || null,
+                    addedAt: t.createdAt
+                })),
+                artists: followedArtists.map(a => ({
+                    name: a.artistName,
+                    id: a.artistId
+                }))
+            };
+
+            const jsonContent = JSON.stringify(stats, null, 2);
+            downloadFile(jsonContent, `koleksiyon_yedek_${getDateString()}.json`, 'application/json');
+            showToast('✅ JSON yedek dosyası indirildi');
+        }
+
+        function escapeCSV(str) {
+            if (!str) return '';
+            if (str.includes(',') || str.includes('\n') || str.includes('"')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+        }
+
+        function getDateString() {
+            const now = new Date();
+            return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        }
+
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType + ';charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            URL.revokeObjectURL(url);
+        }
+
+        // --- Search History Functions ---
+        function addToSearchHistory(query) {
+            if (!query || !query.trim()) return;
+
+            // Remove duplicates and add to front
+            searchHistory = [query, ...searchHistory.filter(q => q.toLowerCase() !== query.toLowerCase())].slice(0, 10);
+            localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
+        }
+
+        function clearSearchHistory() {
+            searchHistory = [];
+            localStorage.removeItem('searchHistory');
+            document.getElementById('autocompleteList').classList.add('hidden');
+            showToast('🗑️ Arama geçmişi temizlendi');
+        }
+
         function showDashboard() {
             document.getElementById('results').classList.add('hidden');
             document.getElementById('dashboard').classList.remove('hidden');
@@ -989,6 +1316,9 @@
         async function performSearch(overrideQuery) {
             const query = overrideQuery || document.getElementById('searchInput').value;
             if (!query) return;
+
+            // Save to search history
+            addToSearchHistory(query);
 
             document.getElementById('dashboard').classList.add('hidden');
             document.getElementById('results').classList.remove('hidden');
@@ -1018,7 +1348,7 @@
                     renderArtistPage(data);
                 } else if (searchType === 'album') {
                     renderAlbumResults(data);
-                } else {
+                } else if (searchType === 'track') {
                     renderTrackResults(data);
                 }
             } catch (e) {
@@ -2678,6 +3008,13 @@
             const isLiked = likedTracks.some(l => l.trackId === trackId);
             updateTrackDetailLikeBtn(isLiked);
 
+            // Load user note
+            const likedTrack = likedTracks.find(l => l.trackId === trackId);
+            const noteTextarea = document.getElementById('trackDetailNote');
+            const noteSaveBtn = document.getElementById('trackNoteSaveBtn');
+            noteTextarea.value = likedTrack?.userNote || '';
+            noteSaveBtn.classList.add('hidden');
+
             // Show modal
             const modal = document.getElementById('trackDetailModal');
             const content = document.getElementById('trackDetailContent');
@@ -2697,6 +3034,51 @@
                 modal.classList.add('hidden');
                 currentTrackDetail = null;
             }, 300);
+        }
+
+        function showNoteSaveBtn() {
+            document.getElementById('trackNoteSaveBtn').classList.remove('hidden');
+        }
+
+        async function saveTrackNote() {
+            if (!currentTrackDetail || !token) {
+                showToast('❌ Giriş yapmalısınız');
+                return;
+            }
+
+            const noteTextarea = document.getElementById('trackDetailNote');
+            const note = noteTextarea.value.trim();
+            const noteSaveBtn = document.getElementById('trackNoteSaveBtn');
+
+            try {
+                noteSaveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>Kaydediliyor...';
+
+                const res = await fetch(`${API_URL}/library/note`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ trackId: currentTrackDetail.id, note })
+                });
+
+                if (!res.ok) throw new Error('Not kaydedilemedi');
+
+                // Update local state
+                const trackIndex = likedTracks.findIndex(t => t.trackId === currentTrackDetail.id);
+                if (trackIndex >= 0) {
+                    likedTracks[trackIndex].userNote = note;
+                }
+
+                noteSaveBtn.innerHTML = '<i class="fa-solid fa-check mr-1"></i>Kaydedildi!';
+                setTimeout(() => noteSaveBtn.classList.add('hidden'), 1500);
+                showToast('📝 Not kaydedildi');
+
+            } catch (error) {
+                console.error('Note save error:', error);
+                noteSaveBtn.innerHTML = '<i class="fa-solid fa-check mr-1"></i>Kaydet';
+                showToast('❌ Not kaydedilemedi');
+            }
         }
 
         function playTrackFromDetail() {
@@ -2768,6 +3150,37 @@
             list.innerHTML = '';
             let hasResults = false;
 
+            // 0. Search History Matches
+            const historyMatches = searchHistory.filter(h =>
+                h.toLowerCase().includes(query.toLowerCase()) && h.toLowerCase() !== query.toLowerCase()
+            ).slice(0, 3);
+
+            if (historyMatches.length > 0) {
+                const header = document.createElement('div');
+                header.className = 'px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider bg-[#303030] flex justify-between items-center';
+                header.innerHTML = `
+                    <span>Son Aramalar</span>
+                    <button onclick="event.stopPropagation(); clearSearchHistory();" class="text-xs text-red-400 hover:text-red-300">Temizle</button>
+                `;
+                list.appendChild(header);
+
+                historyMatches.forEach(term => {
+                    const div = document.createElement('div');
+                    div.className = 'autocomplete-item flex items-center gap-3 p-3 cursor-pointer text-white transition hover:bg-[#333]';
+                    div.onclick = () => {
+                        document.getElementById('searchInput').value = term;
+                        list.classList.add('hidden');
+                        performSearch(term);
+                    };
+                    div.innerHTML = `
+                        <i class="fa-solid fa-clock text-gray-400"></i>
+                        <span>${term}</span>
+                    `;
+                    list.appendChild(div);
+                });
+                hasResults = true;
+            }
+
             // 1. Local Matches (Followed Artists)
             const localMatches = followedArtists.filter(a => a.artistName.toLowerCase().includes(query.toLowerCase()));
             if (localMatches.length > 0) {
@@ -2800,7 +3213,7 @@
             try {
                 // If searching for tracks, we might want to show track results here too, but for now let's stick to artists for autocomplete 
                 // OR adapt based on searchType. usage: type param.
-                const typeParam = searchType === 'track' ? 'track' : 'artist';
+                const typeParam = searchType === 'track' ? 'track' : (searchType === 'album' ? 'album' : 'artist');
                 const res = await fetch(`${API_URL}/search?artist=${encodeURIComponent(query)}&type=${typeParam}`);
                 const results = await res.json();
 

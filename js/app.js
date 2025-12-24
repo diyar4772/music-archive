@@ -1,274 +1,181 @@
-import { renderArtistCards } from './components/ArtistCard.js';
-import { ModalController, createArtistModalContent } from './components/Modal.js';
-import { AddArtistFormController } from './components/AddArtistForm.js';
-import { AlbumModalController } from './components/AlbumModal.js';
+/**
+ * Music Archive Web - Main Application Entry Point
+ * Koleksiyoner Arşivi - Web Frontend
+ * 
+ * This is the modular version of the application.
+ * All functionality is split into separate modules for better maintainability.
+ */
 
-import { spotifyService } from './services/spotify.js';
+import { store } from './state/store.js';
+import { initAuth, isAuthenticated, getCurrentUser } from './services/auth.js';
+import { initSearch, setSearchType, performSearch } from './services/search.js';
+import { getLikedTracks, getFollowedArtists, getPlaylists } from './services/library.js';
+import { getRatings } from './services/rating.js';
+import { initMiniPlayer } from './components/MiniPlayer.js';
+import { initModals } from './components/Modal.js';
+import { initDashboard, showDashboard, renderStatCards, renderRecentlyAdded, renderTopRated } from './components/Dashboard.js';
+import { exportToCSV, exportStats } from './components/Export.js';
+import { debounce, showToast } from './utils.js';
+import { API_URL } from './config.js';
 
-// Application State
-const state = {
-    artists: [],
-    currentArtist: null,
-    searchQuery: '',
-    filterGenre: 'all'
-};
+/**
+ * Initialize the application
+ */
+async function initApp() {
+    console.log('🎵 Music Archive Web - Initializing...');
 
-// DOM Elements
-const elements = {
-    artistGrid: document.getElementById('artistsGrid'),
-    searchInput: document.getElementById('searchArtist'),
-    genreFilter: document.getElementById('genreFilter'),
-    artistModal: null,
-    albumModal: null,
-    addArtistForm: null
-};
+    // Initialize auth
+    initAuth();
 
-// Data Service'i override ediyoruz - artık Spotify destekli
-async function loadArtists() {
-    // 1. Local JSON'dan listeyi al
-    let baseList = [];
-    try {
-        const response = await fetch('js/data/artists.json?v=' + Date.now());
-        baseList = await response.json();
-    } catch (e) {
-        console.error("Local veri yüklenemedi", e);
-        baseList = [];
+    // Initialize UI components
+    initModals();
+    initMiniPlayer();
+    initSearch();
+
+    // Update auth UI
+    updateAuthUI();
+
+    // Load user data if authenticated
+    if (isAuthenticated()) {
+        await fetchUserData();
     }
 
-    // 2. Spotify'dan verileri zenginleştir
-    const enrichedList = await Promise.all(baseList.map(async (localArtist) => {
-        try {
-            let spotifyData = null;
+    // Initialize dashboard
+    initDashboard();
 
-            if (localArtist.spotifyId) {
-                // ID varsa direkt çek
-                spotifyData = await spotifyService.getArtist(localArtist.spotifyId);
-            } else {
-                // ID yoksa isimle ara
-                spotifyData = await spotifyService.searchArtist(localArtist.name);
-            }
+    // Setup global event listeners
+    setupEventListeners();
 
-            if (spotifyData) {
-                return {
-                    ...localArtist,
-                    id: localArtist.id, // Kendi ID'mizi koru
-                    spotifyId: spotifyData.id,
-                    name: spotifyData.name, // Spotify'daki resmi ismi kullan
-                    image: spotifyData.images && spotifyData.images.length > 0 ? spotifyData.images[0].url : null,
-                    genres: spotifyData.genres,
-                    popularity: spotifyData.popularity,
-                    spotifyUrl: spotifyData.external_urls.spotify
-                };
-            }
-            return localArtist;
-        } catch (error) {
-            console.error(`Error fetching data for ${localArtist.name}:`, error);
-            return localArtist;
-        }
-    }));
+    // Apply saved settings
+    applySettings();
 
-    state.artists = enrichedList;
-    renderArtistCards(state.artists, elements.artistGrid);
+    console.log('✅ Music Archive Web - Ready!');
 }
 
 /**
- * Initialize Application
+ * Fetch all user data from API
  */
-async function init() {
-    console.log('Uygulama başlatılıyor...');
+async function fetchUserData() {
+    try {
+        // Fetch all data in parallel
+        await Promise.all([
+            getLikedTracks(),
+            getFollowedArtists(),
+            getPlaylists(),
+            getRatings()
+        ]);
 
-    // Initialize Modals
-    elements.artistModal = new ModalController('modalOverlay', 'artistModal', 'modalClose', 'modalContent');
-    elements.albumModal = new AlbumModalController({
-        onClose: () => {
-            console.log('Albüm modal kapatıldı');
-        }
-    });
+        // Refresh UI
+        renderStatCards();
+        renderRecentlyAdded();
+        renderTopRated();
 
-    // Initialize Add Artist Form
-    elements.addArtistForm = new AddArtistFormController({
-        overlayId: 'addArtistOverlay',
-        closeButtonId: 'addArtistClose',
-        openButtonId: 'addArtistBtn',
-        formId: 'addArtistForm',
-        onSubmit: handleAddArtist
-    });
+    } catch (error) {
+        console.error('Failed to fetch user data:', error);
+        showToast('❌ Veriler yüklenemedi');
+    }
+}
 
-    // Setup Event Listeners
-    setupEventListeners();
+/**
+ * Update authentication UI
+ */
+function updateAuthUI() {
+    const authSection = document.getElementById('authSection');
+    if (!authSection) return;
 
-    // Load Data
-    await loadArtists();
-    console.log('Veriler yüklendi');
+    const user = getCurrentUser();
+
+    if (user) {
+        authSection.innerHTML = `
+            <button onclick="document.getElementById('profileDropdown').classList.toggle('hidden')" 
+                    class="flex items-center gap-2 bg-gray-800 px-3 py-1 rounded-full">
+                <div class="bg-purple-600 w-8 h-8 rounded-full flex items-center justify-center font-bold">
+                    ${user[0].toUpperCase()}
+                </div>
+            </button>
+        `;
+    } else {
+        authSection.innerHTML = `
+            <button onclick="openAuthModal()" 
+                    class="btn-spotify text-black font-bold px-6 py-2 rounded-full">
+                Giriş Yap
+            </button>
+        `;
+    }
 }
 
 /**
  * Setup global event listeners
  */
 function setupEventListeners() {
-    // Search Input
-    elements.searchInput.addEventListener('input', (e) => {
-        state.searchQuery = e.target.value.toLowerCase();
-        filterArtists();
-    });
-
-    // Genre Filter
-    elements.genreFilter.addEventListener('change', (e) => {
-        state.filterGenre = e.target.value;
-        filterArtists();
-    });
-
-    // Delegated Event Listeners for Cards
-    document.addEventListener('click', async (e) => {
-        const artistCard = e.target.closest('.artist-card');
-        if (artistCard) {
-            const artistId = artistCard.dataset.artistId;
-            await handleArtistClick(artistId);
+    // Close dropdowns on outside click
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#authSection')) {
+            document.getElementById('profileDropdown')?.classList.add('hidden');
+        }
+        if (!e.target.closest('.w-full.max-w-xl')) {
+            document.getElementById('autocompleteList')?.classList.add('hidden');
         }
     });
 
-    // Album Click Listener
-    // Note: This is now handled within the modal content rendering or separate delegation
-    // But since modal content is dynamic, we attach listener to document for modal elements too
-    document.addEventListener('click', handleAlbumClick);
-}
-
-/**
- * Handle artist card click - Fetch details from Spotify
- */
-async function handleArtistClick(artistId) {
-    const artist = state.artists.find(a => a.id === artistId);
-    if (!artist) return;
-
-    state.currentArtist = artist;
-
-    // Open modal with loading state
-    elements.artistModal.open('<div style="text-align:center; padding: 2rem;">Yükleniyor...</div>');
-
-    try {
-        // Fetch albums from Spotify
-        let albums = [];
-        if (artist.spotifyId) {
-            const spotifyAlbums = await spotifyService.getArtistAlbums(artist.spotifyId);
-            // Map Spotify albums to our format
-            albums = spotifyAlbums.map(album => ({
-                id: album.id,
-                title: album.name,
-                image: album.images && album.images.length > 0 ? album.images[0].url : null,
-                year: album.release_date.substring(0, 4),
-                spotifyId: album.id,
-                totalTracks: album.total_tracks
-            }));
-
-            // Remove duplicates (Spotify sometimes returns same album in different markets)
-            albums = albums.filter((v, i, a) => a.findIndex(t => (t.title === v.title)) === i);
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        // Ctrl+K or Cmd+K for search focus
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            document.getElementById('searchInput')?.focus();
         }
 
-        // Update artist object with albums
-        const artistWithAlbums = { ...artist, albums };
-
-        // Render Full Modal Content
-        // We need to adapt createArtistModalContent to handle new data structure if needed
-        const content = createArtistModalContent(artistWithAlbums);
-
-        // Re-open/Update modal content
-        const modalContentEl = document.getElementById('modalContent');
-        if (modalContentEl) modalContentEl.innerHTML = content;
-
-    } catch (error) {
-        console.error("Albüm detayı çekilemedi:", error);
-        elements.artistModal.open('<div style="text-align:center; color:red;">Veri yüklenemedi.</div>');
-    }
+        // Escape to close modals
+        if (e.key === 'Escape') {
+            const visibleModals = document.querySelectorAll('.modal.visible');
+            visibleModals.forEach(modal => {
+                modal.classList.remove('visible');
+                setTimeout(() => modal.classList.add('hidden'), 300);
+            });
+        }
+    });
 }
 
 /**
- * Handle album card click inside Artist Modal
+ * Apply saved settings (theme, language)
  */
-async function handleAlbumClick(e) {
-    const albumCard = e.target.closest('.album-card');
-    if (!albumCard) return;
+function applySettings() {
+    const theme = localStorage.getItem('theme') || 'dark';
+    const lang = localStorage.getItem('lang') || 'tr';
 
-    const albumId = albumCard.dataset.albumId;
-    if (!albumId) return;
+    applyTheme(theme);
+    // Language could be applied here too
+}
 
-    // Show loading in album modal? Or just open it
-    // Best UX: Open modal with loading spinner, then fetch tracks
+/**
+ * Apply theme
+ */
+function applyTheme(theme) {
+    const body = document.body;
 
-    // We need album details. If we have it in memory:
-    // But track list is NOT in memory efficiently. We fetch it now.
-
-    const artist = state.currentArtist;
-    // Find album basic info from artist.albums (which we populated in handleArtistClick)
-    // Note: createArtistModalContent renders .album-card with data-album-id which is spotify ID now
-
-    // Find the album in the currently open artist albums list (which we attached to DOM or state?)
-    // In handleArtistClick we created `artistWithAlbums`. We didn't save it to state.currenArtist fully.
-    // Let's assume we can fetch album details again or find it.
-
-    // Easier: Just fetch album details from Spotify by ID
-
-    try {
-        elements.albumModal.open({ title: 'Yükleniyor...', tracks: [] }, artist.name, artist.spotifyId);
-
-        const tracks = await spotifyService.getAlbumTracks(albumId);
-        const albumDetails = await spotifyService.getAlbum(albumId);
-
-        const fullAlbum = {
-            id: albumDetails.id,
-            title: albumDetails.name,
-            cover: albumDetails.images && albumDetails.images.length > 0 ? albumDetails.images[0].url : null,
-            year: albumDetails.release_date.substring(0, 4),
-            spotifyId: albumDetails.id,
-            tracks: tracks.map(t => ({
-                title: t.name,
-                duration: msToTime(t.duration_ms),
-                preview_url: t.preview_url,
-                spotifyId: t.id
-            }))
-        };
-
-        // Update Modal
-        elements.albumModal.open(fullAlbum, artist.name, artist.spotifyId);
-
-    } catch (error) {
-        console.error("Albüm şarkıları çekilemedi:", error);
+    if (theme === 'light') {
+        body.style.backgroundColor = '#f3f4f6';
+        body.style.color = '#1f2937';
+        body.classList.add('light-mode');
+    } else {
+        body.style.backgroundColor = '#121212';
+        body.style.color = 'white';
+        body.classList.remove('light-mode');
     }
 }
 
-// Opsiyonel: Saniye -> Dakika:Saniye çevirici
-function msToTime(duration) {
-    var milliseconds = Math.floor((duration % 1000) / 100),
-        seconds = Math.floor((duration / 1000) % 60),
-        minutes = Math.floor((duration / (1000 * 60)) % 60);
+// ============ EXPORTS FOR GLOBAL ACCESS ============
+// These are needed during the transition period while inline handlers exist
 
-    minutes = (minutes < 10) ? "0" + minutes : minutes;
-    seconds = (seconds < 10) ? "0" + seconds : seconds;
+window.performSearch = performSearch;
+window.setSearchType = setSearchType;
+window.showDashboard = showDashboard;
+window.showToast = showToast;
+window.exportToCSV = exportToCSV;
+window.exportStats = exportStats;
+window.store = store;
+window.API_URL = API_URL;
 
-    return minutes + ":" + seconds;
-}
-
-
-function filterArtists() {
-    const query = state.searchQuery;
-    const genre = state.filterGenre;
-
-    const filtered = state.artists.filter(artist => {
-        const matchesSearch = artist.name.toLowerCase().includes(query) ||
-            (artist.genre && artist.genre.toLowerCase().includes(query));
-        const matchesGenre = genre === 'all' || (artist.genre && artist.genre.toLowerCase().includes(genre.toLowerCase())) ||
-            (artist.genres && artist.genres.some(g => g.includes(genre.toLowerCase())));
-
-        return matchesSearch && matchesGenre;
-    });
-
-    renderArtistCards(filtered, elements.artistGrid);
-}
-
-function handleAddArtist(formData) {
-    // Bu fonksiyonu şimdilik pasifize edebiliriz veya Spotify search ile entegre edebiliriz
-    // Manuel ekleme yerine "Arama" daha mantıklı.
-    console.log("Manuel ekleme devre dışı, otomatik kullanılıyor.");
-}
-
-// Start app
-document.addEventListener('DOMContentLoaded', init);
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', initApp);
