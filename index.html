@@ -1,16 +1,70 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Music Library</title>
+
+    <!-- Google Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        // Primary accent
+                        primary: "#4DB6AC",
+
+                        // Backgrounds
+                        "background-light": "#F3F4F6",
+                        "background-dark": "#0d0d12",
+                        "card-light": "#FFFFFF",
+                        "card-dark": "#1a1a24",
+
+                        // Text
+                        "text-light": "#1F2937",
+                        "text-dark": "#E0E0E0",
+                        "text-secondary-light": "#6B7280",
+                        "text-secondary-dark": "#A1A1AA",
+
+                        // Accent colors
+                        "accent-coral": "#E58E83",
+                        "accent-purple": "#7E57C2",
+                        "accent-teal": "#4DB6AC",
+                        "accent-orange": "#D65A31",
+                    },
+                    fontFamily: {
+                        display: ["Inter", "sans-serif"],
+                    },
+                    boxShadow: {
+                        'glow-coral': '0 0 20px rgba(229, 142, 131, 0.15)',
+                        'glow-purple': '0 0 20px rgba(126, 87, 194, 0.15)',
+                        'glow-teal': '0 0 20px rgba(77, 182, 172, 0.15)',
+                        'glow-orange': '0 0 20px rgba(214, 90, 49, 0.15)',
+                    }
+                },
+            },
+        };
+    </script>
+
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <style>
+        /* Base font family */
         body {
-            background-color: #121212;
-            color: white;
+            font-family: 'Inter', sans-serif;
         }
 
         .spotify-green {
@@ -28,6 +82,23 @@
 
         .btn-spotify:hover {
             background-color: #1ed760;
+        }
+
+        /* Text Glow Effects */
+        .text-glow-coral {
+            text-shadow: 0 0 20px rgba(229, 142, 131, 0.5);
+        }
+
+        .text-glow-purple {
+            text-shadow: 0 0 20px rgba(126, 87, 194, 0.5);
+        }
+
+        .text-glow-teal {
+            text-shadow: 0 0 20px rgba(77, 182, 172, 0.5);
+        }
+
+        .text-glow-orange {
+            text-shadow: 0 0 20px rgba(214, 90, 49, 0.5);
         }
 
         .modal {
@@ -49,19 +120,40 @@
             top: 100%;
             left: 0;
             right: 0;
-            background: #282828;
-            border-radius: 0 0 8px 8px;
+            border-radius: 0 0 12px 12px;
             z-index: 50;
             max-height: 300px;
             overflow-y: auto;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Light mode autocomplete */
+        .autocomplete-list {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-top: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .dark .autocomplete-list {
+            background: #1a1a24;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-top: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
         }
 
         .autocomplete-item:hover {
-            background: #333;
+            background: #f3f4f6;
+        }
+
+        .dark .autocomplete-item:hover {
+            background: rgba(255, 255, 255, 0.05);
         }
 
         .playing-row {
+            background-color: rgba(29, 185, 84, 0.1);
+        }
+
+        .dark .playing-row {
             background-color: rgba(29, 185, 84, 0.1);
         }
 
@@ -71,12 +163,10 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: linear-gradient(to right, #282828, #181818);
-            border-top: 1px solid #333;
             padding: 12px 20px;
             z-index: 1000;
             transform: translateY(100%);
-            transition: transform 0.3s ease;
+            transition: transform 0.3s ease, background-color 0.2s ease;
         }
 
         .mini-player.active {
@@ -152,47 +242,62 @@
     </style>
 </head>
 
-<body class="min-h-screen flex flex-col items-center py-6 px-4">
+<body
+    class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark min-h-screen flex flex-col items-center py-6 px-4 transition-colors duration-200 font-display">
 
     <!-- Top Bar -->
     <div class="w-full max-w-6xl flex justify-between items-center mb-6 relative z-50">
         <h1 class="text-3xl font-bold cursor-pointer" onclick="showDashboard()">Music <span
                 class="spotify-green">Library</span></h1>
 
-        <div id="authSection" class="relative"></div>
+        <div class="flex items-center gap-3">
+            <!-- Theme Toggle Button -->
+            <button id="themeToggle" onclick="toggleTheme()"
+                class="w-10 h-10 rounded-full bg-gray-200 dark:bg-[#2A2A2A] hover:bg-gray-300 dark:hover:bg-[#3E3E3E] flex items-center justify-center text-text-light dark:text-white transition-colors"
+                title="Toggle Theme">
+                <span id="themeIconMaterial" class="material-icons">brightness_6</span>
+            </button>
+
+            <div id="authSection" class="relative"></div>
+        </div>
 
         <div id="profileDropdown"
-            class="hidden absolute right-0 top-12 bg-[#282828] w-56 rounded shadow-xl z-50 border border-gray-700">
+            class="hidden absolute right-0 top-12 bg-white dark:bg-card-dark w-56 rounded-lg shadow-xl z-50 border border-gray-200 dark:border-white/5">
             <button onclick="openProfileModal('likes')"
-                class="w-full text-left px-4 py-3 hover:bg-[#333] border-b border-gray-700 flex justify-between items-center">
-                <span data-lang="liked_songs">Beğenilen Şarkılar</span> <i class="fa-solid fa-heart text-green-500"></i>
+                class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 border-b border-gray-200 dark:border-white/5 flex justify-between items-center transition-colors">
+                <span data-lang="liked_songs">Beğenilen Şarkılar</span> <i
+                    class="fa-solid fa-heart text-accent-coral"></i>
             </button>
             <button onclick="openProfileModal('follows')"
-                class="w-full text-left px-4 py-3 hover:bg-[#333] border-b border-gray-700 flex justify-between items-center">
-                <span data-lang="following">Takip Edilenler</span> <i class="fa-solid fa-user text-blue-400"></i>
+                class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 border-b border-gray-200 dark:border-white/5 flex justify-between items-center transition-colors">
+                <span data-lang="following">Takip Edilenler</span> <i class="fa-solid fa-user text-accent-purple"></i>
             </button>
             <button onclick="openProfileModal('playlists')"
-                class="w-full text-left px-4 py-3 hover:bg-[#333] border-b border-gray-700 flex justify-between items-center">
-                <span data-lang="playlists">Listelerim</span> <i class="fa-solid fa-music text-green-500"></i>
+                class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 border-b border-gray-200 dark:border-white/5 flex justify-between items-center transition-colors">
+                <span data-lang="playlists">Listelerim</span> <i class="fa-solid fa-music text-accent-teal"></i>
             </button>
             <button onclick="createPlaylist()"
-                class="w-full text-left px-4 py-3 hover:bg-[#333] border-b border-gray-700 flex justify-between items-center">
+                class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 border-b border-gray-200 dark:border-white/5 flex justify-between items-center transition-colors">
                 <span data-lang="create_playlist">Liste Oluştur</span> <i class="fa-solid fa-plus"></i>
             </button>
             <button onclick="openSettingsModal()"
-                class="w-full text-left px-4 py-3 hover:bg-[#333] border-b border-gray-700 flex justify-between items-center">
+                class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 border-b border-gray-200 dark:border-white/5 flex justify-between items-center transition-colors">
                 <span data-lang="settings">Ayarlar</span> <i class="fa-solid fa-gear text-gray-400"></i>
             </button>
-            <button onclick="logout()" class="w-full text-left px-4 py-3 hover:bg-[#333] text-red-400">
+            <button onclick="logout()"
+                class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 text-red-400 transition-colors">
                 <span data-lang="logout">Çıkış Yap</span>
             </button>
         </div>
     </div>
 
     <!-- Settings Modal -->
-    <div id="settingsModal" class="modal hidden fixed inset-0 bg-black/80 z-[70] flex items-center justify-center p-4">
-        <div class="bg-[#282828] w-full max-w-md rounded-2xl p-6 relative">
-            <button onclick="closeSettingsModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+    <div id="settingsModal"
+        class="modal hidden fixed inset-0 bg-black/50 dark:bg-black/80 z-[70] flex items-center justify-center p-4">
+        <div
+            class="bg-white dark:bg-card-dark w-full max-w-md rounded-2xl p-6 relative shadow-xl border border-gray-200 dark:border-white/5">
+            <button onclick="closeSettingsModal()"
+                class="absolute top-4 right-4 text-gray-400 hover:text-text-light dark:hover:text-white transition-colors">
                 <i class="fa-solid fa-times text-xl"></i>
             </button>
             <h2 class="text-2xl font-bold mb-6" data-lang="settings">Ayarlar</h2>
@@ -202,10 +307,12 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <h3 class="font-bold" data-lang="theme">Tema</h3>
-                        <p class="text-xs text-gray-400" data-lang="theme_desc">Koyu/Açık mod değiştir</p>
+                        <p class="text-xs text-text-secondary-light dark:text-text-secondary-dark"
+                            data-lang="theme_desc">Koyu/Açık mod değiştir</p>
                     </div>
-                    <button onclick="toggleTheme()" class="bg-[#333] p-3 rounded-lg hover:bg-[#444] transition">
-                        <i id="themeIcon" class="fa-solid fa-moon text-yellow-400 text-xl"></i>
+                    <button onclick="toggleTheme()"
+                        class="bg-gray-100 dark:bg-[#333] p-3 rounded-lg hover:bg-gray-200 dark:hover:bg-[#444] transition-colors">
+                        <i id="themeIcon" class="fa-solid fa-moon text-yellow-400 dark:text-yellow-400 text-xl"></i>
                     </button>
                 </div>
 
@@ -213,7 +320,7 @@
                 <div>
                     <h3 class="font-bold mb-2" data-lang="language">Dil</h3>
                     <select id="languageSelect" onchange="changeLanguage(this.value)"
-                        class="w-full bg-[#333] border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-green-500">
+                        class="w-full bg-gray-100 dark:bg-[#333] border border-gray-200 dark:border-gray-600 rounded-lg p-3 text-text-light dark:text-white focus:outline-none focus:border-green-500 transition-colors">
                         <option value="tr">🇹🇷 Türkçe</option>
                         <option value="en">🇬🇧 English</option>
                         <option value="ku">🟢 Kurdî (Kurmancî)</option>
@@ -227,7 +334,7 @@
     <div class="w-full max-w-xl mb-8 relative z-40">
         <div class="flex gap-3 relative">
             <input type="text" id="searchInput" name="search" placeholder="Search for artists or tracks..."
-                class="flex-1 px-5 py-3 rounded-full bg-gray-800 border-none focus:ring-2 focus:ring-[#1DB954] text-white outline-none"
+                class="flex-1 px-5 py-3 rounded-full bg-white dark:bg-card-dark border border-gray-200 dark:border-white/5 focus:ring-2 focus:ring-[#1DB954] text-text-light dark:text-white outline-none shadow-sm transition-colors"
                 autocomplete="off" data-form-type="other" data-lpignore="true">
             <button onclick="performSearch()" class="btn-spotify text-black font-bold px-6 py-3 rounded-full">
                 <i class="fa-solid fa-magnifying-glass"></i>
@@ -238,11 +345,11 @@
         <!-- Filter Chips -->
         <div class="flex gap-2 mt-4 justify-center flex-wrap">
             <button onclick="setSearchType('artist')" id="type-artist"
-                class="px-3 py-1 bg-[#282828] rounded-full text-sm font-medium hover:bg-[#333] ring-1 ring-transparent focus:ring-green-500 transition text-green-500">Musicians</button>
+                class="px-3 py-1 bg-white dark:bg-card-dark border border-gray-200 dark:border-white/5 rounded-full text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ring-1 ring-transparent focus:ring-green-500 transition-colors text-green-500">Musicians</button>
             <button onclick="setSearchType('track')" id="type-track"
-                class="px-3 py-1 bg-[#282828] rounded-full text-sm font-medium hover:bg-[#333] ring-1 ring-transparent focus:ring-green-500 transition">Songs</button>
+                class="px-3 py-1 bg-white dark:bg-card-dark border border-gray-200 dark:border-white/5 rounded-full text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ring-1 ring-transparent focus:ring-green-500 transition-colors">Songs</button>
             <button onclick="setSearchType('album')" id="type-album"
-                class="px-3 py-1 bg-[#282828] rounded-full text-sm font-medium hover:bg-[#333] ring-1 ring-transparent focus:ring-green-500 transition">Albums</button>
+                class="px-3 py-1 bg-white dark:bg-card-dark border border-gray-200 dark:border-white/5 rounded-full text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ring-1 ring-transparent focus:ring-green-500 transition-colors">Albums</button>
         </div>
     </div>
 
@@ -250,82 +357,133 @@
     <div id="dashboard" class="w-full max-w-6xl animate-fade-in">
         <h2 class="text-2xl font-bold mb-6">Kütüphanem</h2>
 
-        <!-- Top Row: Special Cards -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <!-- Liked Songs Card -->
+        <!-- Bento Grid Layout -->
+        <div class="grid grid-cols-4 md:grid-cols-4 gap-4 mb-8">
+            <!-- Liked Songs Card - Hero 2x2 -->
             <div onclick="openProfileModal('likes')"
-                class="bg-gradient-to-br from-indigo-600 to-purple-700 p-5 rounded-xl cursor-pointer hover:scale-[1.02] transition shadow-lg flex items-center gap-4 group">
-                <i class="fa-solid fa-heart text-3xl text-white/80 group-hover:scale-110 transition"></i>
+                class="col-span-2 row-span-2 bg-white dark:bg-card-dark p-6 rounded-2xl cursor-pointer hover:scale-[1.02] transition-all shadow-sm dark:shadow-glow-coral border border-gray-100 dark:border-accent-coral/20 flex flex-col justify-between group relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-accent-coral/10 rounded-full blur-3xl -mr-10 -mt-10">
+                </div>
                 <div>
-                    <h3 class="text-lg font-bold">Beğenilenler</h3>
-                    <p class="text-sm text-gray-200" id="likedCount">0 şarkı</p>
+                    <div class="w-14 h-14 bg-accent-coral/20 rounded-2xl flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-heart text-2xl text-accent-coral"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-accent-coral text-glow-coral">Beğenilenler</h3>
+                    <p class="text-text-secondary-light dark:text-text-secondary-dark mt-1">En sevdiğin şarkılar</p>
+                </div>
+                <div class="mt-4">
+                    <p class="text-4xl font-bold" id="likedCount">0</p>
+                    <p class="text-sm text-text-secondary-light dark:text-text-secondary-dark">şarkı</p>
                 </div>
             </div>
 
-            <!-- Following Card -->
+            <!-- Following Card - 2x1 -->
             <div onclick="openProfileModal('follows')"
-                class="bg-gradient-to-br from-blue-600 to-cyan-600 p-5 rounded-xl cursor-pointer hover:scale-[1.02] transition shadow-lg flex items-center gap-4 group">
-                <i class="fa-solid fa-user-group text-3xl text-white/80 group-hover:scale-110 transition"></i>
-                <div>
-                    <h3 class="text-lg font-bold">Takip Edilenler</h3>
-                    <p class="text-sm text-gray-200" id="followingCount">0 sanatçı</p>
+                class="col-span-2 bg-white dark:bg-card-dark p-5 rounded-2xl cursor-pointer hover:scale-[1.02] transition-all shadow-sm dark:shadow-glow-purple border border-gray-100 dark:border-accent-purple/20 flex items-center gap-4 group relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-accent-purple/10 rounded-full blur-2xl -mr-6 -mt-6">
                 </div>
+                <div class="w-12 h-12 bg-accent-purple/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <i class="fa-solid fa-user-group text-xl text-accent-purple"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-bold text-accent-purple">Takip Edilenler</h3>
+                    <p class="text-sm text-text-secondary-light dark:text-text-secondary-dark" id="followingCount">0
+                        sanatçı</p>
+                </div>
+                <i class="fa-solid fa-chevron-right text-gray-400 group-hover:text-accent-purple transition-colors"></i>
             </div>
 
-            <!-- My Playlists Card -->
+            <!-- My Playlists Card - 1x1 -->
             <div onclick="openProfileModal('playlists')"
-                class="bg-gradient-to-br from-green-600 to-emerald-700 p-5 rounded-xl cursor-pointer hover:scale-[1.02] transition shadow-lg flex items-center gap-4 group">
-                <i class="fa-solid fa-list text-3xl text-white/80 group-hover:scale-110 transition"></i>
-                <div>
-                    <h3 class="text-lg font-bold">Listelerim</h3>
-                    <p class="text-sm text-gray-200" id="playlistCount">0 liste</p>
+                class="bg-white dark:bg-card-dark p-5 rounded-2xl cursor-pointer hover:scale-[1.02] transition-all shadow-sm dark:shadow-glow-teal border border-gray-100 dark:border-accent-teal/20 flex flex-col justify-between group relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-16 h-16 bg-accent-teal/10 rounded-full blur-xl -mr-4 -mt-4"></div>
+                <div class="w-10 h-10 bg-accent-teal/20 rounded-xl flex items-center justify-center">
+                    <i class="fa-solid fa-list text-lg text-accent-teal"></i>
+                </div>
+                <div class="mt-3">
+                    <h3 class="font-bold text-accent-teal">Listelerim</h3>
+                    <p class="text-2xl font-bold mt-1" id="playlistCount">0</p>
                 </div>
             </div>
 
-            <!-- Create Playlist Button -->
-            <div onclick="createPlaylist()"
-                class="bg-[#282828] hover:bg-[#333] p-5 rounded-xl cursor-pointer transition shadow-lg flex items-center gap-4 border border-dashed border-gray-600 group">
-                <i class="fa-solid fa-plus text-3xl text-gray-400 group-hover:text-green-500 transition"></i>
-                <div>
-                    <h3 class="text-lg font-bold text-gray-300 group-hover:text-white">Yeni Liste</h3>
-                    <p class="text-sm text-gray-500">Oluştur</p>
+            <!-- Average Rating Card - 1x1 -->
+            <div
+                class="bg-white dark:bg-card-dark p-5 rounded-2xl shadow-sm dark:shadow-glow-orange border border-gray-100 dark:border-accent-orange/20 flex flex-col justify-between relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-16 h-16 bg-accent-orange/10 rounded-full blur-xl -mr-4 -mt-4">
+                </div>
+                <div class="w-10 h-10 bg-accent-orange/20 rounded-xl flex items-center justify-center">
+                    <i class="fa-solid fa-star text-lg text-accent-orange"></i>
+                </div>
+                <div class="mt-3">
+                    <h3 class="font-bold text-accent-orange">Ort. Puan</h3>
+                    <p class="text-2xl font-bold mt-1" id="statRating">–</p>
                 </div>
             </div>
         </div>
 
-        <!-- Collection Statistics -->
+        <!-- Quick Stats Row -->
         <div id="statCardsContainer" class="mb-8">
-            <!-- Stats will be rendered by Dashboard.js -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="stat-card bg-gradient-to-br from-green-600 to-green-800 p-5 rounded-xl shadow-lg">
-                    <div class="text-3xl font-bold" id="statTracks">0</div>
-                    <div class="text-sm text-green-200">Şarkı</div>
+            <div class="grid grid-cols-3 gap-4">
+                <div
+                    class="stat-card bg-white dark:bg-card-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/5 flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 bg-green-100 dark:bg-green-500/20 rounded-lg flex items-center justify-center">
+                        <i class="fa-solid fa-music text-green-600 dark:text-green-400"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold" id="statTracks">0</div>
+                        <div class="text-xs text-text-secondary-light dark:text-text-secondary-dark">Şarkı</div>
+                    </div>
                 </div>
-                <div class="stat-card bg-gradient-to-br from-purple-600 to-purple-800 p-5 rounded-xl shadow-lg">
-                    <div class="text-3xl font-bold" id="statArtists">0</div>
-                    <div class="text-sm text-purple-200">Sanatçı</div>
+                <div
+                    class="stat-card bg-white dark:bg-card-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/5 flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 bg-purple-100 dark:bg-purple-500/20 rounded-lg flex items-center justify-center">
+                        <i class="fa-solid fa-microphone text-purple-600 dark:text-purple-400"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold" id="statArtists">0</div>
+                        <div class="text-xs text-text-secondary-light dark:text-text-secondary-dark">Sanatçı</div>
+                    </div>
                 </div>
-                <div class="stat-card bg-gradient-to-br from-blue-600 to-blue-800 p-5 rounded-xl shadow-lg">
-                    <div class="text-3xl font-bold" id="statPlaylists">0</div>
-                    <div class="text-sm text-blue-200">Liste</div>
+                <div
+                    class="stat-card bg-white dark:bg-card-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/5 flex items-center gap-3">
+                    <div class="w-10 h-10 bg-blue-100 dark:bg-blue-500/20 rounded-lg flex items-center justify-center">
+                        <i class="fa-solid fa-layer-group text-blue-600 dark:text-blue-400"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold" id="statPlaylists">0</div>
+                        <div class="text-xs text-text-secondary-light dark:text-text-secondary-dark">Liste</div>
+                    </div>
                 </div>
-                <div class="stat-card bg-gradient-to-br from-amber-600 to-amber-800 p-5 rounded-xl shadow-lg">
-                    <div class="text-3xl font-bold" id="statRating">⭐ –</div>
-                    <div class="text-sm text-amber-200">Ort. Puan</div>
-                </div>
+            </div>
+        </div>
+
+        <!-- Create Playlist Button -->
+        <div onclick="createPlaylist()"
+            class="mb-8 bg-white dark:bg-card-dark hover:bg-gray-50 dark:hover:bg-white/5 p-4 rounded-xl cursor-pointer transition-all shadow-sm border-2 border-dashed border-gray-200 dark:border-white/10 flex items-center gap-4 group">
+            <div
+                class="w-12 h-12 bg-gray-100 dark:bg-white/5 rounded-xl flex items-center justify-center group-hover:bg-green-100 dark:group-hover:bg-green-500/20 transition-colors">
+                <i class="fa-solid fa-plus text-xl text-gray-400 group-hover:text-green-500 transition-colors"></i>
+            </div>
+            <div>
+                <h3
+                    class="text-lg font-bold text-text-secondary-light dark:text-text-secondary-dark group-hover:text-text-light dark:group-hover:text-white transition-colors">
+                    Yeni Liste Oluştur</h3>
+                <p class="text-sm text-text-secondary-light dark:text-text-secondary-dark">Şarkılarını organize et</p>
             </div>
         </div>
 
         <!-- Recently Added & Top Rated Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <!-- Recently Added -->
-            <div class="bg-[#1a1a1a] rounded-xl p-5">
+            <div class="bg-white dark:bg-card-dark rounded-xl p-5 shadow-sm border border-gray-100 dark:border-white/5">
                 <div id="recentlyAddedContainer">
                     <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
                         <i class="fa-solid fa-clock text-green-500"></i>
                         Son Eklenenler
                     </h3>
-                    <div class="text-gray-400 text-center py-8">
+                    <div class="text-text-secondary-light dark:text-text-secondary-dark text-center py-8">
                         <i class="fa-solid fa-music text-2xl mb-2"></i>
                         <p>Henüz şarkı eklenmedi</p>
                     </div>
@@ -333,13 +491,13 @@
             </div>
 
             <!-- Top Rated -->
-            <div class="bg-[#1a1a1a] rounded-xl p-5">
+            <div class="bg-white dark:bg-card-dark rounded-xl p-5 shadow-sm border border-gray-100 dark:border-white/5">
                 <div id="topRatedContainer">
                     <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
                         <i class="fa-solid fa-trophy text-amber-500"></i>
                         En Yüksek Puanlı
                     </h3>
-                    <div class="text-gray-400 text-center py-8">
+                    <div class="text-text-secondary-light dark:text-text-secondary-dark text-center py-8">
                         <i class="fa-solid fa-star text-2xl mb-2"></i>
                         <p>Henüz puan verilmedi</p>
                     </div>
@@ -351,13 +509,13 @@
         <div id="exportContainer" class="mb-8 flex justify-end">
             <div class="flex gap-2">
                 <button onclick="exportToCSV()"
-                    class="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition text-sm">
-                    <i class="fa-solid fa-file-csv"></i>
+                    class="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-card-dark hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/5 rounded-lg transition-colors text-sm">
+                    <i class="fa-solid fa-file-csv text-green-500"></i>
                     CSV İndir
                 </button>
                 <button onclick="exportStats()"
-                    class="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition text-sm">
-                    <i class="fa-solid fa-download"></i>
+                    class="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-card-dark hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/5 rounded-lg transition-colors text-sm">
+                    <i class="fa-solid fa-download text-blue-500"></i>
                     Yedekle
                 </button>
             </div>
@@ -365,14 +523,16 @@
 
         <!-- Playlists Grid -->
         <div id="playlistsSection" class="hidden">
-            <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-music text-green-500"></i>
+            <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i
+                    class="fa-solid fa-music text-accent-teal"></i>
                 Listelerim</h3>
             <div id="playlistsContainer" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-8"></div>
         </div>
 
         <!-- Following Artists Preview -->
         <div id="followingSection" class="hidden">
-            <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-user text-blue-400"></i>
+            <h3 class="text-xl font-bold mb-4 flex items-center gap-2"><i
+                    class="fa-solid fa-user text-accent-purple"></i>
                 Takip Ettiklerim</h3>
             <div id="followingPreview" class="flex gap-4 overflow-x-auto pb-4"></div>
         </div>
@@ -380,19 +540,20 @@
 
     <!-- Results Section -->
     <div id="results" class="w-full max-w-6xl hidden animate-fade-in">
-        <button onclick="showDashboard()" class="mb-6 text-gray-400 hover:text-white flex items-center gap-2">
+        <button onclick="showDashboard()"
+            class="mb-6 text-text-secondary-light dark:text-gray-400 hover:text-text-light dark:hover:text-white flex items-center gap-2 transition-colors">
             <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
         </button>
 
         <!-- Artist Content -->
         <div id="artistContent" class="hidden">
             <div
-                class="flex flex-col md:flex-row items-center gap-8 mb-12 bg-gradient-to-r from-gray-900 to-gray-800 p-8 rounded-2xl shadow-xl">
+                class="flex flex-col md:flex-row items-center gap-8 mb-12 bg-white dark:bg-gradient-to-r dark:from-gray-900 dark:to-gray-800 p-8 rounded-2xl shadow-lg dark:shadow-xl border border-gray-100 dark:border-white/5">
                 <img id="artistImage" src="" class="w-56 h-56 rounded-full object-cover shadow-2xl">
                 <div class="text-center md:text-left flex-1">
                     <h2 id="artistName" class="text-5xl font-extrabold mb-4"></h2>
                     <button id="followBtn" onclick="toggleFollow()"
-                        class="border border-gray-500 hover:border-white px-6 py-2 rounded-full font-bold uppercase text-xs tracking-widest transition">Follow</button>
+                        class="border border-gray-300 dark:border-gray-500 hover:border-text-light dark:hover:border-white px-6 py-2 rounded-full font-bold uppercase text-xs tracking-widest transition-colors">Follow</button>
                 </div>
             </div>
             <h3 class="text-2xl font-bold mb-6">Albums</h3>
@@ -405,31 +566,39 @@
 
     <!-- Modals -->
     <!-- Auth Modal -->
-    <div id="authModal" class="modal hidden fixed inset-0 bg-black/80 flex justify-center items-center z-[70]">
-        <div class="bg-gray-900 p-8 rounded-xl w-full max-w-sm border border-gray-800">
+    <div id="authModal"
+        class="modal hidden fixed inset-0 bg-black/50 dark:bg-black/80 flex justify-center items-center z-[70]">
+        <div
+            class="bg-white dark:bg-card-dark p-8 rounded-xl w-full max-w-sm border border-gray-200 dark:border-white/5 shadow-xl">
             <h2 class="text-2xl font-bold mb-6" id="authTitle">Log In</h2>
             <input type="text" id="authUsername" placeholder="Username"
-                class="w-full bg-gray-800 p-3 rounded mb-4 text-white">
+                class="w-full bg-gray-100 dark:bg-[#1a1a24] border border-gray-200 dark:border-white/10 p-3 rounded-lg mb-4 text-text-light dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors">
             <input type="password" id="authPassword" placeholder="Password"
-                class="w-full bg-gray-800 p-3 rounded mb-6 text-white">
+                class="w-full bg-gray-100 dark:bg-[#1a1a24] border border-gray-200 dark:border-white/10 p-3 rounded-lg mb-6 text-text-light dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors">
             <button onclick="handleAuth()"
                 class="w-full btn-spotify text-black font-bold py-3 rounded-full mb-4">Submit</button>
-            <p class="text-center text-sm text-gray-400 cursor-pointer hover:underline" onclick="toggleAuthMode()"
-                id="authSwitch">Register</p>
-            <button onclick="closeAuthModal()" class="w-full mt-4 text-gray-500 hover:text-white">Close</button>
+            <p class="text-center text-sm text-text-secondary-light dark:text-gray-400 cursor-pointer hover:underline"
+                onclick="toggleAuthMode()" id="authSwitch">Register</p>
+            <button onclick="closeAuthModal()"
+                class="w-full mt-4 text-gray-500 hover:text-text-light dark:hover:text-white transition-colors">Close</button>
         </div>
     </div>
 
     <!-- Album/Playlist Details Modal -->
-    <div id="detailsModal" class="modal hidden fixed inset-0 bg-black/80 flex justify-center items-center z-[60] p-4">
-        <div class="bg-gray-900 rounded-xl w-full max-w-3xl max-h-[85vh] flex flex-col border border-gray-800">
-            <div class="p-6 bg-gradient-to-b from-gray-800 to-gray-900 flex gap-6 items-end relative">
+    <div id="detailsModal"
+        class="modal hidden fixed inset-0 bg-black/50 dark:bg-black/80 flex justify-center items-center z-[60] p-4">
+        <div
+            class="bg-white dark:bg-card-dark rounded-xl w-full max-w-3xl max-h-[85vh] flex flex-col border border-gray-200 dark:border-white/5 shadow-xl">
+            <div
+                class="p-6 bg-gray-50 dark:bg-gradient-to-b dark:from-gray-800 dark:to-transparent flex gap-6 items-end relative rounded-t-xl">
                 <img id="modalCover" src="" class="w-32 h-32 shadow-lg rounded object-cover">
                 <div class="flex-1">
-                    <p class="text-sm uppercase tracking-wider text-gray-400" id="modalType">Album</p>
+                    <p class="text-sm uppercase tracking-wider text-text-secondary-light dark:text-gray-400"
+                        id="modalType">Album</p>
                     <h2 id="modalTitle" class="text-3xl font-bold truncate"></h2>
                 </div>
-                <button onclick="closeDetailsModal()" class="text-gray-400 hover:text-white"><i
+                <button onclick="closeDetailsModal()"
+                    class="text-gray-400 hover:text-text-light dark:hover:text-white transition-colors"><i
                         class="fa-solid fa-xmark fa-xl"></i></button>
             </div>
             <div class="flex-1 overflow-y-auto p-4" id="modalTracks"></div>
@@ -437,22 +606,24 @@
     </div>
 
     <!-- Add to Playlist Modal -->
-    <div id="addToPlaylistModal" class="modal hidden fixed inset-0 bg-black/90 flex justify-center items-center z-[80]"
+    <div id="addToPlaylistModal"
+        class="modal hidden fixed inset-0 bg-black/50 dark:bg-black/90 flex justify-center items-center z-[80]"
         onclick="this.classList.add('hidden'); this.classList.remove('visible');">
-        <div class="bg-gray-800 p-6 rounded-lg w-full max-w-sm" onclick="event.stopPropagation();">
+        <div class="bg-white dark:bg-card-dark p-6 rounded-lg w-full max-w-sm border border-gray-200 dark:border-white/5 shadow-xl"
+            onclick="event.stopPropagation();">
             <h3 class="text-xl font-bold mb-4">Listeye Ekle</h3>
             <div id="playlistOptions" class="space-y-2 max-h-60 overflow-y-auto mb-4"></div>
             <button
                 onclick="document.getElementById('addToPlaylistModal').classList.add('hidden'); document.getElementById('addToPlaylistModal').classList.remove('visible');"
-                class="w-full py-2 bg-gray-700 rounded text-gray-300 hover:bg-gray-600 transition">İptal</button>
+                class="w-full py-2 bg-gray-100 dark:bg-[#2a2a34] rounded-lg text-text-secondary-light dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors">İptal</button>
         </div>
     </div>
 
     <!-- Create Playlist Modal -->
     <div id="createPlaylistModal"
-        class="modal hidden fixed inset-0 bg-black/90 z-[85] flex items-center justify-center p-4"
+        class="modal hidden fixed inset-0 bg-black/50 dark:bg-black/90 z-[85] flex items-center justify-center p-4"
         onclick="closeCreatePlaylistModal()">
-        <div class="bg-gradient-to-b from-gray-800 to-gray-900 p-8 rounded-2xl w-full max-w-md shadow-2xl border border-gray-700"
+        <div class="bg-white dark:bg-gradient-to-b dark:from-gray-800 dark:to-card-dark p-8 rounded-2xl w-full max-w-md shadow-2xl border border-gray-200 dark:border-gray-700"
             onclick="event.stopPropagation();">
             <div class="text-center mb-6">
                 <div
@@ -460,10 +631,10 @@
                     <i class="fa-solid fa-music text-2xl text-white"></i>
                 </div>
                 <h3 class="text-2xl font-bold">Yeni Liste Oluştur</h3>
-                <p class="text-gray-400 text-sm mt-1">Şarkılarını organize et</p>
+                <p class="text-text-secondary-light dark:text-gray-400 text-sm mt-1">Şarkılarını organize et</p>
             </div>
             <input type="text" id="newPlaylistName" placeholder="Liste adı..."
-                class="w-full bg-gray-700/50 border border-gray-600 p-4 rounded-xl mb-6 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
+                class="w-full bg-gray-100 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 p-4 rounded-xl mb-6 text-text-light dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
                 onkeypress="if(event.key==='Enter') confirmCreatePlaylist()">
             <div class="flex gap-3">
                 <button onclick="confirmCreatePlaylist()"
@@ -471,7 +642,7 @@
                     <i class="fa-solid fa-plus mr-2"></i>Oluştur
                 </button>
                 <button onclick="closeCreatePlaylistModal()"
-                    class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-full transition">
+                    class="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-text-light dark:text-white py-3 rounded-full transition-colors">
                     İptal
                 </button>
             </div>
@@ -479,8 +650,9 @@
     </div>
 
     <!-- Confirmation Modal -->
-    <div id="confirmModal" class="modal hidden fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4">
-        <div class="bg-gradient-to-b from-gray-800 to-gray-900 p-8 rounded-2xl w-full max-w-sm shadow-2xl border border-gray-700 transform scale-95 opacity-0 transition-all duration-300"
+    <div id="confirmModal"
+        class="modal hidden fixed inset-0 bg-black/50 dark:bg-black/90 z-[100] flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gradient-to-b dark:from-gray-800 dark:to-card-dark p-8 rounded-2xl w-full max-w-sm shadow-2xl border border-gray-200 dark:border-gray-700 transform scale-95 opacity-0 transition-all duration-300"
             id="confirmModalContent">
             <div class="text-center mb-6">
                 <div id="confirmIcon"
@@ -488,7 +660,8 @@
                     <i class="fa-solid fa-trash text-2xl text-white"></i>
                 </div>
                 <h3 class="text-xl font-bold" id="confirmTitle">Emin misiniz?</h3>
-                <p class="text-gray-400 text-sm mt-2" id="confirmMessage">Bu işlemi geri alamazsınız.</p>
+                <p class="text-text-secondary-light dark:text-gray-400 text-sm mt-2" id="confirmMessage">Bu işlemi geri
+                    alamazsınız.</p>
             </div>
             <div class="flex gap-3">
                 <button id="confirmYesBtn"
@@ -496,7 +669,7 @@
                     <i class="fa-solid fa-check mr-2"></i>Evet, Sil
                 </button>
                 <button onclick="closeConfirmModal()"
-                    class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-full transition">
+                    class="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-text-light dark:text-white py-3 rounded-full transition-colors">
                     İptal
                 </button>
             </div>
@@ -505,9 +678,9 @@
 
     <!-- Change Cover Modal -->
     <div id="changeCoverModal"
-        class="modal hidden fixed inset-0 bg-black/90 z-[110] flex items-center justify-center p-4"
+        class="modal hidden fixed inset-0 bg-black/50 dark:bg-black/90 z-[110] flex items-center justify-center p-4"
         onclick="closeChangeCoverModal()">
-        <div class="bg-gradient-to-b from-gray-800 to-gray-900 p-6 rounded-2xl w-full max-w-md shadow-2xl border border-gray-700 animate-scale-in"
+        <div class="bg-white dark:bg-gradient-to-b dark:from-gray-800 dark:to-card-dark p-6 rounded-2xl w-full max-w-md shadow-2xl border border-gray-200 dark:border-gray-700 animate-scale-in"
             onclick="event.stopPropagation()">
             <div class="text-center mb-4">
                 <div
@@ -515,17 +688,17 @@
                     <i class="fa-solid fa-image text-2xl text-white"></i>
                 </div>
                 <h3 class="text-xl font-bold">Change Cover</h3>
-                <p class="text-gray-400 text-sm mt-1">Upload an image or enter a URL</p>
+                <p class="text-text-secondary-light dark:text-gray-400 text-sm mt-1">Upload an image or enter a URL</p>
             </div>
 
             <!-- Tab Selection -->
             <div class="flex gap-2 mb-4">
                 <button onclick="setCoverTab('upload')" id="coverTabUpload"
-                    class="flex-1 py-2 px-4 rounded-lg text-sm font-medium bg-blue-500 text-white transition">
+                    class="flex-1 py-2 px-4 rounded-lg text-sm font-medium bg-blue-500 text-white transition-colors">
                     <i class="fa-solid fa-upload mr-2"></i>Upload
                 </button>
                 <button onclick="setCoverTab('url')" id="coverTabUrl"
-                    class="flex-1 py-2 px-4 rounded-lg text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600 transition">
+                    class="flex-1 py-2 px-4 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-text-secondary-light dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
                     <i class="fa-solid fa-link mr-2"></i>URL
                 </button>
             </div>
@@ -533,10 +706,11 @@
             <!-- Upload Section -->
             <div id="coverUploadSection" class="mb-4">
                 <label
-                    class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-600 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-gray-700/50 transition">
+                    class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <div class="flex flex-col items-center justify-center pt-5 pb-6">
                         <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-400 mb-2"></i>
-                        <p class="text-sm text-gray-400">Click to upload or drag & drop</p>
+                        <p class="text-sm text-text-secondary-light dark:text-gray-400">Click to upload or drag & drop
+                        </p>
                         <p class="text-xs text-gray-500">PNG, JPG, WEBP (Max 2MB)</p>
                     </div>
                     <input type="file" id="coverFileInput" accept="image/*" class="hidden"
@@ -547,14 +721,14 @@
             <!-- URL Section -->
             <div id="coverUrlSection" class="mb-4 hidden">
                 <input type="text" id="coverUrlInput" placeholder="https://example.com/image.jpg"
-                    class="w-full bg-gray-700 border border-gray-600 p-3 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none">
+                    class="w-full bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 p-3 rounded-lg text-text-light dark:text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none transition-colors">
             </div>
 
             <!-- Preview -->
             <div id="coverPreviewContainer" class="mb-4 hidden">
-                <p class="text-sm text-gray-400 mb-2">Preview:</p>
+                <p class="text-sm text-text-secondary-light dark:text-gray-400 mb-2">Preview:</p>
                 <img id="coverPreviewImg" src=""
-                    class="w-24 h-24 object-cover rounded-lg mx-auto border-2 border-gray-600">
+                    class="w-24 h-24 object-cover rounded-lg mx-auto border-2 border-gray-200 dark:border-gray-600">
             </div>
 
             <div class="flex gap-3">
@@ -563,7 +737,7 @@
                     <i class="fa-solid fa-check mr-2"></i>Save
                 </button>
                 <button onclick="closeChangeCoverModal()"
-                    class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-full transition">
+                    class="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-text-light dark:text-white py-3 rounded-full transition-colors">
                     Cancel
                 </button>
             </div>
@@ -572,14 +746,15 @@
 
     <!-- Track Detail Modal -->
     <div id="trackDetailModal"
-        class="fixed inset-0 bg-black/90 z-[9999] hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        class="fixed inset-0 bg-black/50 dark:bg-black/90 z-[9999] hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div id="trackDetailContent"
-            class="bg-gradient-to-b from-gray-800 to-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl max-h-[90vh] overflow-y-auto transform transition-all duration-300 translate-y-full sm:translate-y-0 opacity-0 scale-95">
+            class="bg-white dark:bg-gradient-to-b dark:from-gray-800 dark:to-card-dark w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl max-h-[90vh] overflow-y-auto transform transition-all duration-300 translate-y-full sm:translate-y-0 opacity-0 scale-95 border-t border-gray-200 dark:border-white/10 sm:border">
             <!-- Header with close -->
             <div
-                class="sticky top-0 bg-gray-800/80 backdrop-blur-sm p-4 flex justify-between items-center border-b border-white/10">
+                class="sticky top-0 bg-gray-50/80 dark:bg-gray-800/80 backdrop-blur-sm p-4 flex justify-between items-center border-b border-gray-200 dark:border-white/10">
                 <h3 class="font-bold text-lg">Şarkı Detayları</h3>
-                <button onclick="closeTrackDetail()" class="text-gray-400 hover:text-white p-2">
+                <button onclick="closeTrackDetail()"
+                    class="text-gray-400 hover:text-text-light dark:hover:text-white p-2 transition-colors">
                     <i class="fa-solid fa-xmark text-xl"></i>
                 </button>
             </div>
@@ -590,13 +765,13 @@
                     <img id="trackDetailImage" src="" class="w-20 h-20 rounded-lg object-cover shadow-lg">
                     <div class="flex-1 min-w-0">
                         <h4 id="trackDetailName" class="font-bold text-xl truncate"></h4>
-                        <p id="trackDetailArtist" class="text-gray-400 truncate"></p>
+                        <p id="trackDetailArtist" class="text-text-secondary-light dark:text-gray-400 truncate"></p>
                     </div>
                 </div>
 
                 <!-- Star Rating -->
-                <div class="bg-white/5 rounded-xl p-4 mb-4">
-                    <p class="text-sm text-gray-400 mb-2">Puanla</p>
+                <div class="bg-gray-100 dark:bg-white/5 rounded-xl p-4 mb-4">
+                    <p class="text-sm text-text-secondary-light dark:text-gray-400 mb-2">Puanla</p>
                     <div id="trackDetailRating" class="flex justify-center gap-2"></div>
                     <p id="trackDetailRatingText" class="text-center text-sm text-gray-500 mt-2"></p>
                 </div>
@@ -609,35 +784,35 @@
                 </button>
 
                 <!-- Streaming Links -->
-                <p class="text-sm text-gray-400 mb-3">Dinle</p>
+                <p class="text-sm text-text-secondary-light dark:text-gray-400 mb-3">Dinle</p>
                 <div class="grid grid-cols-1 gap-3 mb-4">
                     <!-- Spotify -->
                     <a id="trackSpotifyLink" href="#" target="_blank"
-                        class="flex items-center gap-4 bg-[#1DB954]/20 hover:bg-[#1DB954]/30 p-4 rounded-xl transition">
+                        class="flex items-center gap-4 bg-[#1DB954]/10 dark:bg-[#1DB954]/20 hover:bg-[#1DB954]/20 dark:hover:bg-[#1DB954]/30 p-4 rounded-xl transition-colors">
                         <i class="fa-brands fa-spotify text-2xl text-[#1DB954]"></i>
                         <span class="font-bold">Spotify</span>
                         <i class="fa-solid fa-arrow-up-right-from-square text-gray-400 ml-auto"></i>
                     </a>
                     <!-- YouTube -->
                     <a id="trackYoutubeLink" href="#" target="_blank"
-                        class="flex items-center gap-4 bg-[#FF0000]/20 hover:bg-[#FF0000]/30 p-4 rounded-xl transition">
+                        class="flex items-center gap-4 bg-[#FF0000]/10 dark:bg-[#FF0000]/20 hover:bg-[#FF0000]/20 dark:hover:bg-[#FF0000]/30 p-4 rounded-xl transition-colors">
                         <i class="fa-brands fa-youtube text-2xl text-[#FF0000]"></i>
                         <span class="font-bold">YouTube</span>
                         <i class="fa-solid fa-arrow-up-right-from-square text-gray-400 ml-auto"></i>
                     </a>
                     <!-- Apple Music -->
                     <a id="trackAppleMusicLink" href="#" target="_blank"
-                        class="flex items-center gap-4 bg-[#FA2D48]/20 hover:bg-[#FA2D48]/30 p-4 rounded-xl transition">
-                        <i class="fa-brands fa-apple text-2xl text-white"></i>
+                        class="flex items-center gap-4 bg-[#FA2D48]/10 dark:bg-[#FA2D48]/20 hover:bg-[#FA2D48]/20 dark:hover:bg-[#FA2D48]/30 p-4 rounded-xl transition-colors">
+                        <i class="fa-brands fa-apple text-2xl text-text-light dark:text-white"></i>
                         <span class="font-bold">Apple Music</span>
                         <i class="fa-solid fa-arrow-up-right-from-square text-gray-400 ml-auto"></i>
                     </a>
                 </div>
 
                 <!-- Personal Note -->
-                <div class="bg-white/5 rounded-xl p-4 mb-4">
+                <div class="bg-gray-100 dark:bg-white/5 rounded-xl p-4 mb-4">
                     <div class="flex justify-between items-center mb-2">
-                        <p class="text-sm text-gray-400">
+                        <p class="text-sm text-text-secondary-light dark:text-gray-400">
                             <i class="fa-solid fa-pen-to-square mr-1"></i>
                             Kişisel Not
                         </p>
@@ -648,19 +823,19 @@
                     </div>
                     <textarea id="trackDetailNote"
                         placeholder="Bu şarkı için kişisel not ekle... (örn: 'Yaz konseri hatırası', 'Annem'in favorisi')"
-                        class="w-full bg-transparent border border-gray-600 rounded-lg p-3 text-white text-sm resize-none focus:outline-none focus:border-green-500 transition"
+                        class="w-full bg-white dark:bg-transparent border border-gray-200 dark:border-gray-600 rounded-lg p-3 text-text-light dark:text-white text-sm resize-none focus:outline-none focus:border-green-500 transition-colors"
                         rows="2" oninput="showNoteSaveBtn()"></textarea>
                 </div>
 
                 <!-- Actions -->
                 <div class="flex gap-3">
                     <button id="trackDetailLikeBtn" onclick="toggleLikeFromDetail()"
-                        class="flex-1 bg-white/10 hover:bg-white/20 py-3 rounded-xl flex items-center justify-center gap-2 transition">
+                        class="flex-1 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 py-3 rounded-xl flex items-center justify-center gap-2 transition-colors">
                         <i id="trackDetailLikeIcon" class="fa-regular fa-heart"></i>
                         <span id="trackDetailLikeText">Beğen</span>
                     </button>
                     <button id="trackDetailAddBtn" onclick="addToPlaylistFromDetail()"
-                        class="flex-1 bg-white/10 hover:bg-white/20 py-3 rounded-xl flex items-center justify-center gap-2 transition">
+                        class="flex-1 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 py-3 rounded-xl flex items-center justify-center gap-2 transition-colors">
                         <i class="fa-solid fa-plus"></i>
                         <span>Listeye Ekle</span>
                     </button>
@@ -670,7 +845,8 @@
     </div>
 
     <!-- Mini Player -->
-    <div id="miniPlayer" class="mini-player">
+    <div id="miniPlayer"
+        class="mini-player bg-white dark:bg-gradient-to-r dark:from-[#282828] dark:to-[#181818] border-t border-gray-200 dark:border-[#333]">
         <div class="mini-player-progress" onclick="seekTrack(event)">
             <div id="miniPlayerProgress" class="mini-player-progress-bar"></div>
         </div>
@@ -678,15 +854,17 @@
             <img id="miniPlayerImage" src="" class="w-14 h-14 rounded object-cover shadow-lg">
             <div class="flex-1 min-w-0">
                 <p id="miniPlayerTitle" class="font-bold truncate"></p>
-                <p id="miniPlayerArtist" class="text-sm text-gray-400 truncate"></p>
+                <p id="miniPlayerArtist" class="text-sm text-text-secondary-light dark:text-gray-400 truncate"></p>
             </div>
             <div class="flex items-center gap-4">
-                <span id="miniPlayerTime" class="text-xs text-gray-400 w-24 text-center">0:00 / 0:30</span>
+                <span id="miniPlayerTime"
+                    class="text-xs text-text-secondary-light dark:text-gray-400 w-24 text-center">0:00 / 0:30</span>
                 <button onclick="toggleMiniPlayer()"
-                    class="w-12 h-12 bg-white rounded-full flex items-center justify-center hover:scale-105 transition">
-                    <i id="miniPlayerIcon" class="fa-solid fa-play text-black text-xl"></i>
+                    class="w-12 h-12 bg-green-500 dark:bg-white rounded-full flex items-center justify-center hover:scale-105 transition shadow-lg">
+                    <i id="miniPlayerIcon" class="fa-solid fa-play text-white dark:text-black text-xl"></i>
                 </button>
-                <button onclick="closeMiniPlayer()" class="text-gray-400 hover:text-white p-2">
+                <button onclick="closeMiniPlayer()"
+                    class="text-gray-400 hover:text-text-light dark:hover:text-white p-2 transition-colors">
                     <i class="fa-solid fa-xmark text-xl"></i>
                 </button>
             </div>
@@ -839,8 +1017,10 @@
             updateAuthUI();
             if (token) fetchUserData();
 
-            // Load Settings
-            applyTheme(currentTheme);
+            // Load Settings - Apply saved theme on page load
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            currentTheme = savedTheme;
+            applyTheme(savedTheme);
             applyLanguage(currentLang);
             document.getElementById('languageSelect').value = currentLang;
 
@@ -869,26 +1049,52 @@
         }
 
         function toggleTheme() {
-            currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            localStorage.setItem('theme', currentTheme);
-            applyTheme(currentTheme);
+            const html = document.documentElement;
+            const isDark = html.classList.contains('dark');
+
+            if (isDark) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                currentTheme = 'light';
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                currentTheme = 'dark';
+            }
+
+            // Update icons
+            updateThemeIcons();
         }
 
         function applyTheme(theme) {
-            const body = document.body;
-            const icon = document.getElementById('themeIcon');
+            const html = document.documentElement;
 
             if (theme === 'light') {
-                body.style.backgroundColor = '#f3f4f6';
-                body.style.color = '#1f2937';
-                icon.className = 'fa-solid fa-sun text-orange-500';
-                // Add light mode specific overrides if needed via class
-                document.body.classList.add('light-mode');
+                html.classList.remove('dark');
             } else {
-                body.style.backgroundColor = '#121212';
-                body.style.color = 'white';
-                icon.className = 'fa-solid fa-moon text-yellow-400';
-                document.body.classList.remove('light-mode');
+                html.classList.add('dark');
+            }
+
+            updateThemeIcons();
+        }
+
+        function updateThemeIcons() {
+            const isDark = document.documentElement.classList.contains('dark');
+
+            // Update settings modal icon (Font Awesome)
+            const faIcon = document.getElementById('themeIcon');
+            if (faIcon) {
+                if (isDark) {
+                    faIcon.className = 'fa-solid fa-moon text-yellow-400 text-xl';
+                } else {
+                    faIcon.className = 'fa-solid fa-sun text-orange-500 text-xl';
+                }
+            }
+
+            // Update header toggle icon (Material Icons)
+            const materialIcon = document.getElementById('themeIconMaterial');
+            if (materialIcon) {
+                materialIcon.innerText = isDark ? 'dark_mode' : 'light_mode';
             }
         }
 
@@ -927,14 +1133,14 @@
                 albumFollows = data.albumFollows || [];
                 userRatings = data.ratings || []; // ⭐ Load ratings
 
-                // Update all counters
-                document.getElementById('likedCount').innerText = `${likedTracks.length} şarkı`;
+                // Update all counters - Bento Grid format
+                document.getElementById('likedCount').innerText = likedTracks.length;
                 document.getElementById('followingCount').innerText = `${followedArtists.length} sanatçı`;
 
                 // Fetch Playlists
                 const pRes = await fetch(`${API_URL}/playlists`, { headers: { 'Authorization': `Bearer ${token}` } });
                 playlists = await pRes.json();
-                document.getElementById('playlistCount').innerText = `${playlists.length} liste`;
+                document.getElementById('playlistCount').innerText = playlists.length;
 
                 renderPlaylists();
                 renderFollowingPreview();
@@ -957,7 +1163,7 @@
                 section.classList.remove('hidden');
                 playlists.forEach(pl => {
                     const div = document.createElement('div');
-                    div.className = 'bg-[#181818] p-4 rounded-lg hover:bg-[#282828] cursor-pointer transition group';
+                    div.className = 'bg-white dark:bg-card-dark p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer transition-colors group border border-gray-100 dark:border-white/5';
                     div.onclick = () => openPlaylistDetails(pl);
 
                     // Determine cover content
@@ -1011,7 +1217,7 @@
                     div.className = 'flex-shrink-0 w-32 text-center cursor-pointer group';
                     div.onclick = () => performSearch(artist.artistName);
                     div.innerHTML = `
-                        <img src="${artist.image || 'https://via.placeholder.com/128'}" class="w-24 h-24 rounded-full mx-auto object-cover shadow-lg group-hover:ring-2 ring-green-500 transition">
+                        <img src="${artist.image || 'https://via.placeholder.com/128'}" class="w-24 h-24 rounded-full mx-auto object-cover shadow-lg group-hover:ring-2 ring-accent-purple transition">
                         <p class="mt-2 text-sm font-medium truncate">${artist.artistName}</p>
                     `;
                     container.appendChild(div);
@@ -1051,14 +1257,14 @@
                 section.classList.remove('hidden');
                 albumFollows.forEach(album => {
                     const div = document.createElement('div');
-                    div.className = 'flex-shrink-0 w-40 cursor-pointer group bg-[#181818] p-3 rounded-lg hover:bg-[#282828] transition';
+                    div.className = 'flex-shrink-0 w-40 cursor-pointer group bg-white dark:bg-card-dark p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors border border-gray-100 dark:border-white/5';
                     div.onclick = () => openAlbumModal(album.albumId);
                     div.innerHTML = `
                         <div class="relative aspect-square mb-2 overflow-hidden rounded">
                             <img src="${album.image || 'https://via.placeholder.com/150'}" class="w-full h-full object-cover group-hover:scale-105 transition">
                         </div>
                         <p class="font-bold truncate text-sm">${album.albumName}</p>
-                        <p class="text-xs text-gray-400 truncate">${album.artistName}</p>
+                        <p class="text-xs text-text-secondary-light dark:text-gray-400 truncate">${album.artistName}</p>
                     `;
                     container.appendChild(div);
                 });
@@ -1118,12 +1324,12 @@
                 </h3>
                 <div class="space-y-2">
                     ${recentTracks.map(track => `
-                        <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-[#282828] transition cursor-pointer"
+                        <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
                              onclick="openTrackDetail({ id: '${track.trackId}', name: '${escapeHtml(track.trackName)}', artist: '${escapeHtml(track.artist)}', image: '${track.image}', preview_url: '${track.previewUrl || ''}' })">
                             <img src="${track.image || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded object-cover">
                             <div class="flex-1 min-w-0">
                                 <div class="font-medium truncate">${track.trackName}</div>
-                                <div class="text-xs text-gray-400 truncate">${track.artist}</div>
+                                <div class="text-xs text-text-secondary-light dark:text-gray-400 truncate">${track.artist}</div>
                             </div>
                             <div class="text-xs text-gray-500">
                                 ${track.createdAt ? formatDateShort(track.createdAt) : ''}
@@ -1169,17 +1375,17 @@
                 </h3>
                 <div class="space-y-2">
                     ${topTracks.map((track, index) => `
-                        <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-[#282828] transition cursor-pointer"
+                        <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
                              onclick="openTrackDetail({ id: '${track.trackId}', name: '${escapeHtml(track.trackName)}', artist: '${escapeHtml(track.artist)}', image: '${track.image}', preview_url: '${track.previewUrl || ''}' })">
-                            <div class="w-6 text-center font-bold ${index < 3 ? 'text-amber-500' : 'text-gray-500'}">
+                            <div class="w-6 text-center font-bold ${index < 3 ? 'text-accent-orange' : 'text-gray-500'}">
                                 ${index + 1}
                             </div>
                             <img src="${track.image || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded object-cover">
                             <div class="flex-1 min-w-0">
                                 <div class="font-medium truncate">${track.trackName}</div>
-                                <div class="text-xs text-gray-400 truncate">${track.artist}</div>
+                                <div class="text-xs text-text-secondary-light dark:text-gray-400 truncate">${track.artist}</div>
                             </div>
-                            <div class="flex items-center gap-1 text-amber-500">
+                            <div class="flex items-center gap-1 text-accent-orange">
                                 <i class="fa-solid fa-star text-sm"></i>
                                 <span class="font-bold">${track.rating}</span>
                             </div>
@@ -1418,14 +1624,14 @@
             if (data.albums && data.albums.length > 0) {
                 data.albums.forEach(album => {
                     const div = document.createElement('div');
-                    div.className = 'bg-[#181818] p-4 rounded-lg hover:bg-[#282828] cursor-pointer transition group';
+                    div.className = 'bg-white dark:bg-card-dark p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer transition-colors group border border-gray-100 dark:border-white/5';
                     div.onclick = () => openAlbumModal(album.id);
                     div.innerHTML = `
                         <div class="relative aspect-square mb-3 overflow-hidden rounded shadow-lg">
                             <img src="${album.image || 'https://via.placeholder.com/150'}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
                         </div>
                         <p class="font-bold truncate">${album.name}</p>
-                        <p class="text-xs text-gray-400">${album.year || ''}</p>
+                        <p class="text-xs text-text-secondary-light dark:text-gray-400">${album.year || ''}</p>
                     `;
                     grid.appendChild(div);
                 });
@@ -1459,19 +1665,19 @@
             albums.forEach(album => {
                 const isFollowed = albumFollows.some(a => a.albumId === album.id);
                 const card = document.createElement('div');
-                card.className = 'bg-gray-800 p-3 rounded-lg hover:bg-gray-700 transition cursor-pointer group';
+                card.className = 'bg-white dark:bg-card-dark p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer group border border-gray-100 dark:border-white/5';
                 card.innerHTML = `
                     <div class="relative mb-3">
                         <img src="${album.image || 'https://via.placeholder.com/150'}" 
                              class="w-full aspect-square object-cover rounded shadow-lg">
                         <button onclick="event.stopPropagation(); toggleAlbumFollow('${album.id}', '${album.name.replace(/'/g, "\\'")}', '${album.image || ''}', '${album.artist.replace(/'/g, "\\'")}')" 
-                                class="absolute bottom-2 right-2 w-10 h-10 rounded-full ${isFollowed ? 'bg-green-500' : 'bg-gray-900/80'} flex items-center justify-center opacity-0 group-hover:opacity-100 transition transform hover:scale-110"
+                                class="absolute bottom-2 right-2 w-10 h-10 rounded-full ${isFollowed ? 'bg-green-500' : 'bg-gray-100 dark:bg-gray-900/80'} flex items-center justify-center opacity-0 group-hover:opacity-100 transition transform hover:scale-110"
                                 title="${isFollowed ? 'Kütüphaneden Kaldır' : 'Kütüphaneye Ekle'}">
-                            <i class="fa-solid ${isFollowed ? 'fa-check' : 'fa-plus'} text-white"></i>
+                            <i class="fa-solid ${isFollowed ? 'fa-check' : 'fa-plus'} ${isFollowed ? 'text-white' : 'text-text-light dark:text-white'}"></i>
                         </button>
                     </div>
                     <p class="font-bold truncate">${album.name}</p>
-                    <p class="text-xs text-gray-400 truncate">${album.artist} • ${album.year}</p>
+                    <p class="text-xs text-text-secondary-light dark:text-gray-400 truncate">${album.artist} • ${album.year}</p>
                     <p class="text-xs text-gray-500">${album.totalTracks || ''} ${album.totalTracks ? 'songs' : ''}</p>
                 `;
                 card.onclick = () => openAlbumModal(album.id);
@@ -1824,7 +2030,7 @@
 
         function createTrackRowWithRemove(track, playlistId) {
             const div = document.createElement('div');
-            div.className = 'flex items-center gap-4 p-3 hover:bg-white/10 rounded group';
+            div.className = 'flex items-center gap-4 p-3 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors group';
             div.id = `pl-track-${track.trackId}`;
 
             const isLiked = likedTracks.some(t => t.trackId === track.trackId);
@@ -2017,7 +2223,7 @@
                     const sortedArtists = sortItems([...followedArtists], currentSortOrder, 'artistName');
                     sortedArtists.forEach(a => {
                         const div = document.createElement('div');
-                        div.className = 'flex items-center gap-4 p-3 hover:bg-white/10 rounded cursor-pointer';
+                        div.className = 'flex items-center gap-4 p-3 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg cursor-pointer transition-colors';
                         div.onclick = () => { closeDetailsModal(); performSearch(a.artistName); };
                         div.innerHTML = `<img src="${a.image || 'https://via.placeholder.com/48'}" class="w-12 h-12 rounded-full object-cover"><span class="font-bold">${a.artistName}</span>`;
                         list.appendChild(div);
@@ -2035,15 +2241,15 @@
                     const sortedPlaylists = sortItems([...playlists], currentSortOrder, 'name');
                     sortedPlaylists.forEach(pl => {
                         const div = document.createElement('div');
-                        div.className = 'flex items-center gap-4 p-3 hover:bg-white/10 rounded cursor-pointer';
+                        div.className = 'flex items-center gap-4 p-3 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg cursor-pointer transition-colors';
                         div.onclick = () => { closeDetailsModal(); openPlaylistDetails(pl); };
                         div.innerHTML = `
-                            <div class="w-12 h-12 bg-gradient-to-br from-green-600 to-emerald-700 rounded flex items-center justify-center">
+                            <div class="w-12 h-12 bg-gradient-to-br from-accent-teal to-emerald-600 rounded flex items-center justify-center">
                                 <i class="fa-solid fa-music text-white"></i>
                             </div>
                             <div>
                                 <p class="font-bold">${pl.name}</p>
-                                <p class="text-xs text-gray-400">${pl.PlaylistTracks?.length || 0} songs</p>
+                                <p class="text-xs text-text-secondary-light dark:text-gray-400">${pl.PlaylistTracks?.length || 0} songs</p>
                             </div>
                         `;
                         list.appendChild(div);
@@ -2202,7 +2408,7 @@
                 : '';
 
             const div = document.createElement('div');
-            div.className = `flex items-center gap-4 p-3 hover:bg-white/10 rounded group`;
+            div.className = `flex items-center gap-4 p-3 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors group`;
             div.id = `track-${tId}`;
 
             div.innerHTML = `
@@ -2315,7 +2521,7 @@
             } else {
                 playlists.forEach(pl => {
                     const btn = document.createElement('button');
-                    btn.className = 'w-full text-left p-3 hover:bg-gray-700 rounded flex justify-between items-center';
+                    btn.className = 'w-full text-left p-3 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg flex justify-between items-center transition-colors';
                     btn.innerHTML = `<span>${pl.name}</span> <i class="fa-solid fa-plus text-green-500"></i>`;
                     btn.onclick = () => saveToPlaylist(pl.id);
                     options.appendChild(btn);
@@ -2368,7 +2574,7 @@
 
             const toast = document.createElement('div');
             toast.id = 'toast';
-            toast.className = 'fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg z-[100] animate-pulse';
+            toast.className = 'fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 dark:bg-card-dark text-white px-6 py-3 rounded-lg shadow-xl z-[100] border border-gray-700 dark:border-white/10 animate-pulse';
             toast.innerText = message;
             document.body.appendChild(toast);
 
@@ -2529,9 +2735,9 @@
         function updateAuthUI() {
             const div = document.getElementById('authSection');
             if (currentUser) {
-                div.innerHTML = `<button onclick="document.getElementById('profileDropdown').classList.toggle('hidden')" class="flex items-center gap-2 bg-gray-800 px-3 py-1 rounded-full"><div class="bg-purple-600 w-8 h-8 rounded-full flex items-center justify-center font-bold">${currentUser[0]}</div></button>`;
+                div.innerHTML = `<button onclick="document.getElementById('profileDropdown').classList.toggle('hidden')" class="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"><div class="bg-accent-purple w-8 h-8 rounded-full flex items-center justify-center font-bold text-white">${currentUser[0].toUpperCase()}</div></button>`;
             } else {
-                div.innerHTML = `<button onclick="openAuthModal()" class="bg-white text-black font-bold px-4 py-1 rounded-full">Log In</button>`;
+                div.innerHTML = `<button onclick="openAuthModal()" class="bg-green-500 hover:bg-green-400 text-white font-bold px-4 py-2 rounded-full transition-colors">Log In</button>`;
             }
         }
         async function handleAuth() {
