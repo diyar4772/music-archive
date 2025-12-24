@@ -17,7 +17,7 @@ import {
     GestureResponderEvent,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import hapticService from '../../services/hapticService';
 
 interface StarRatingProps {
     rating: number;
@@ -47,8 +47,8 @@ export default function StarRating({
             const isHalf = locationX < size / 2;
             const newRating = isHalf ? starIndex - 0.5 : starIndex;
 
-            // Haptic feedback
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            // Haptic feedback (web-safe)
+            hapticService.lightImpact();
 
             onRate(newRating);
         },

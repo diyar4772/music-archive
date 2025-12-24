@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import hapticService from '../../services/hapticService';
 import { DigTrack } from '../../services/dig';
 import { Colors } from '../../constants/theme';
 
@@ -98,7 +98,7 @@ export default function SwipeCard({
                 if (!hapticTriggered.current) {
                     if (Math.abs(gesture.dx) > SWIPE_THRESHOLD || gesture.dy < -100) {
                         hapticTriggered.current = true;
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        hapticService.lightImpact();
                     }
                 }
             },

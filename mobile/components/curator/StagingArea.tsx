@@ -27,7 +27,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import hapticService from '../../services/hapticService';
 import { Colors } from '../../constants/theme';
 import { useCuratorStore, CuratorTrack } from '../../stores/curatorStore';
 
@@ -65,16 +65,16 @@ function StagingArea({
 
     const handleRemove = useCallback((trackId: string) => {
         removeFromStaging(trackId);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        hapticService.mediumImpact();
     }, [removeFromStaging]);
 
     const handleFinalize = useCallback(() => {
         if (stagingTracks.length === 0) {
             Alert.alert('Boş Liste', 'Lütfen en az bir şarkı ekleyin');
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            hapticService.error();
             return;
         }
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        hapticService.success();
         onFinalize(stagingTracks);
     }, [stagingTracks, onFinalize]);
 
@@ -90,7 +90,7 @@ function StagingArea({
                     style: 'destructive',
                     onPress: () => {
                         clearStaging();
-                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                        hapticService.warning();
                     }
                 }
             ]
@@ -101,7 +101,7 @@ function StagingArea({
         setCurrentSelectedPlaylist(playlist);
         onPlaylistSelect?.(playlist);
         setShowPlaylistModal(false);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        hapticService.lightImpact();
     }, [onPlaylistSelect]);
 
     const truncate = (text: string, max: number) =>

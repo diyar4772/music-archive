@@ -20,7 +20,7 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import hapticService from '../../services/hapticService';
 import { Colors } from '../../constants/theme';
 import { CuratorTrack, useCuratorStore } from '../../stores/curatorStore';
 import audioService from '../../services/audioService';
@@ -92,13 +92,13 @@ function TrackGridItem({
     const handleAddPress = useCallback(() => {
         if (inStaging) {
             removeFromStaging(track.id);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            hapticService.warning();
         } else {
             const added = addToStaging(track);
             if (added) {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                hapticService.success();
             } else {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                hapticService.error();
             }
         }
     }, [inStaging, track, addToStaging, removeFromStaging]);

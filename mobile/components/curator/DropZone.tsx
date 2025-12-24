@@ -19,7 +19,7 @@ import {
     LayoutRectangle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import hapticService from '../../services/hapticService';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -114,7 +114,7 @@ function DropZone({
             // Just entered zone
             wasActive.current = true;
             isOver.value = true;
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            hapticService.lightImpact();
 
             // Start pulse animation
             pulseAnim.value = withRepeat(
@@ -146,7 +146,7 @@ function DropZone({
     useEffect(() => {
         if (!isDragging && wasActive.current && draggingTrack) {
             // Item was dropped while over this zone
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            hapticService.success();
             onDrop(draggingTrack);
             wasActive.current = false;
         }

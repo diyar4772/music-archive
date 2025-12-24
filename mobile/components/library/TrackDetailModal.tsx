@@ -24,7 +24,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
-import * as Haptics from 'expo-haptics';
+import hapticService from '../../services/hapticService';
 import { LinearGradient } from 'expo-linear-gradient';
 import StarRating from '../ui/StarRating';
 import { Colors } from '../../constants/theme';
@@ -107,7 +107,7 @@ export default function TrackDetailModal({
                 artistName: track.artistName || 'Unknown Artist',
                 image: track.image || undefined,
             });
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            hapticService.success();
             await refreshUserData();
         } catch (error: any) {
             console.error('Rating error:', error);
@@ -149,7 +149,7 @@ export default function TrackDetailModal({
 
             soundRef.current = sound;
             setIsPlaying(true);
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            hapticService.lightImpact();
 
             sound.setOnPlaybackStatusUpdate((status) => {
                 if (status.isLoaded && status.didJustFinish) {

@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import hapticService from '../../services/hapticService';
 import { useAuthStore } from '../../stores/authStore';
 import api from '../../services/api';
 import { Artist, Track } from '../../types';
@@ -165,7 +165,7 @@ export default function HomeScreen() {
 
       soundRef.current = sound;
       setPlayingTrackId(track.id);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      hapticService.lightImpact();
 
       // Auto-stop after preview ends
       sound.setOnPlaybackStatusUpdate((status) => {
@@ -200,7 +200,7 @@ export default function HomeScreen() {
         image: track.image,
         previewUrl: track.preview_url,
       });
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      hapticService.mediumImpact();
     }
 
     try {
@@ -260,9 +260,9 @@ export default function HomeScreen() {
 
       // Haptic based on action
       if (response.data?.action === 'followed') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        hapticService.mediumImpact();
       } else {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        hapticService.success();
       }
 
       // Refresh user data

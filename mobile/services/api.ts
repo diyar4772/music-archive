@@ -18,6 +18,18 @@ export const setOnUnauthorized = (callback: AuthEventCallback) => {
 const getBaseURL = () => {
     const extra = Constants.expoConfig?.extra;
 
+    // 🌐 Web Platform - Always use localhost in dev, production URL otherwise
+    if (Platform.OS === 'web') {
+        if (__DEV__) {
+            console.log('🌐 Web API Base URL (dev): http://localhost:3000/api');
+            return 'http://localhost:3000/api';
+        }
+        const prodUrl = extra?.PROD_API_URL || 'https://music-archive.onrender.com/api';
+        console.log('🌐 Web API Base URL (prod):', prodUrl);
+        return prodUrl;
+    }
+
+    // 📱 Mobile Platform
     if (__DEV__) {
         // 🎯 Dynamic IP from Expo Metro bundler
         // hostUri format: "192.168.1.148:8081" (IP:MetroPort)
@@ -38,7 +50,7 @@ const getBaseURL = () => {
     }
 
     // Production - Use configured URL or Render.com
-    const prodUrl = extra?.PROD_API_URL || 'https://your-app.onrender.com/api';
+    const prodUrl = extra?.PROD_API_URL || 'https://music-archive.onrender.com/api';
     return prodUrl;
 };
 
@@ -137,7 +149,7 @@ api.interceptors.response.use(
             // Token expired or invalid - clean up and notify
             console.log('🔒 API: Unauthorized - clearing token and triggering logout');
             await removeToken();
-            
+
             // Trigger logout callback if registered
             if (onUnauthorizedCallback) {
                 onUnauthorizedCallback();

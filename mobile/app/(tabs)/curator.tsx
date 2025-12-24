@@ -24,7 +24,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import hapticService from '../../services/hapticService';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../../stores/authStore';
@@ -184,7 +184,7 @@ export default function CuratorScreen() {
                 });
             }
 
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            hapticService.success();
             Alert.alert(
                 'Başarılı! 🎉',
                 `${tracks.length} şarkı "${playlist.name}" listesine eklendi!`,
@@ -231,7 +231,7 @@ export default function CuratorScreen() {
                 });
             }
 
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            hapticService.success();
             Alert.alert(
                 'Başarılı! 🎉',
                 `"${playlistName.trim()}" listesi ${stagingTracks.length} şarkı ile oluşturuldu!`,

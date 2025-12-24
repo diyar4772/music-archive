@@ -19,7 +19,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import * as Haptics from 'expo-haptics';
+import hapticService from '../../services/hapticService';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -187,7 +187,7 @@ function PioneerBadge({
     useEffect(() => {
         if (showConfetti) {
             setConfettiVisible(true);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            hapticService.success();
 
             // Badge celebration animation
             badgeScale.value = withSequence(

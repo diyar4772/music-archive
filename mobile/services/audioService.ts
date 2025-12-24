@@ -10,7 +10,7 @@
 
 import { Audio, AVPlaybackStatus } from 'expo-av';
 import { Platform } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import hapticService from './hapticService';
 
 // Types
 export interface AudioState {
@@ -245,8 +245,8 @@ export async function playPreview(options: PlayOptions): Promise<boolean> {
         currentSound = sound;
         currentTrackId = trackId;
 
-        // Haptic feedback
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        // Haptic feedback (web-safe)
+        hapticService.mediumImpact();
 
         onStatusChange?.({ isPlaying: true, isLoading: false, currentTrackId: trackId, error: null });
         console.log('🎵 ===== PLAYBACK STARTED =====');

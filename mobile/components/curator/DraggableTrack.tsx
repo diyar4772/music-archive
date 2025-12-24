@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Haptics from 'expo-haptics';
+import hapticService from '../../services/hapticService';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -76,14 +76,14 @@ function DraggableTrack({
     const startX = useSharedValue(0);
     const startY = useSharedValue(0);
 
-    // JS callbacks
+    // JS callbacks (web-safe haptics)
     const triggerHapticStart = useCallback(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        hapticService.mediumImpact();
         onDragStart?.(track);
     }, [track, onDragStart]);
 
     const triggerHapticEnd = useCallback((x: number, y: number) => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        hapticService.lightImpact();
         onDragEnd?.(track, { x, y });
     }, [track, onDragEnd]);
 
@@ -92,7 +92,7 @@ function DraggableTrack({
     }, [onDragMove]);
 
     const handleTap = useCallback(() => {
-        Haptics.selectionAsync();
+        hapticService.selection();
         onTap?.(track);
     }, [track, onTap]);
 

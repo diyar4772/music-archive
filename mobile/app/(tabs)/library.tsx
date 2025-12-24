@@ -19,7 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
-import * as Haptics from 'expo-haptics';
+import hapticService from '../../services/hapticService';
 import { BlurView } from 'expo-blur';
 import { useAuthStore } from '../../stores/authStore';
 import { Colors } from '../../constants/theme';
@@ -213,7 +213,7 @@ export default function LibraryScreen() {
 
             soundRef.current = sound;
             setPlayingTrackId(track.trackId);
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            hapticService.lightImpact();
 
             sound.setOnPlaybackStatusUpdate((status) => {
                 if (status.isLoaded && status.didJustFinish) {
@@ -242,7 +242,7 @@ export default function LibraryScreen() {
                         setDeletingTrackId(track.trackId);
                         try {
                             await api.delete(`/library/track/${track.trackId}`);
-                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            hapticService.success();
                             await refreshUserData();
                             await fetchStats();
                         } catch (error: any) {
@@ -267,7 +267,7 @@ export default function LibraryScreen() {
         setCreatingPlaylist(true);
         try {
             await api.post('/playlists', { name: newPlaylistName.trim() });
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            hapticService.success();
             setNewPlaylistName('');
             setShowCreatePlaylistModal(false);
             await fetchStats();
@@ -694,7 +694,7 @@ export default function LibraryScreen() {
                             gradientColors={['#9333EA', '#7C3AED']}
                             onPress={() => {
                                 setActiveView('likes');
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                hapticService.mediumImpact();
                             }}
                         />
                         <DashboardCard
@@ -704,7 +704,7 @@ export default function LibraryScreen() {
                             gradientColors={['#3B82F6', '#2563EB']}
                             onPress={() => {
                                 setActiveView('follows');
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                hapticService.mediumImpact();
                             }}
                         />
                     </View>
@@ -716,7 +716,7 @@ export default function LibraryScreen() {
                             gradientColors={['#10B981', '#059669']}
                             onPress={() => {
                                 setActiveView('playlists');
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                hapticService.mediumImpact();
                             }}
                         />
                         <DashboardCard
@@ -727,7 +727,7 @@ export default function LibraryScreen() {
                             isDashed
                             onPress={() => {
                                 setShowCreatePlaylistModal(true);
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                hapticService.mediumImpact();
                             }}
                         />
                     </View>
