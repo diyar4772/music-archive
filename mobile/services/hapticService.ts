@@ -9,6 +9,7 @@
 
 import { Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import logger from '../utils/logger';
 
 // Re-export types for convenience
 export const ImpactFeedbackStyle = Haptics.ImpactFeedbackStyle;
@@ -31,7 +32,7 @@ export const selection = async (): Promise<void> => {
     try {
         await Haptics.selectionAsync();
     } catch (error) {
-        console.log('Haptics selection error:', error);
+        logger.debug('Haptics selection error', error, 'hapticService');
     }
 };
 
@@ -47,7 +48,7 @@ export const impact = async (
     try {
         await Haptics.impactAsync(style);
     } catch (error) {
-        console.log('Haptics impact error:', error);
+        logger.debug('Haptics impact error', error, 'hapticService');
     }
 };
 
@@ -84,7 +85,7 @@ export const notification = async (
     try {
         await Haptics.notificationAsync(type);
     } catch (error) {
-        console.log('Haptics notification error:', error);
+        logger.debug('Haptics notification error', error, 'hapticService');
     }
 };
 

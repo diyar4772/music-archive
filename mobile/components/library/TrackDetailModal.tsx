@@ -28,6 +28,8 @@ import hapticService from '../../services/hapticService';
 import { LinearGradient } from 'expo-linear-gradient';
 import StarRating from '../ui/StarRating';
 import { Colors } from '../../constants/theme';
+import { handleApiError } from '../../utils/errorHandler';
+import logger from '../../utils/logger';
 import ratingService from '../../services/rating';
 import { useAuthStore } from '../../stores/authStore';
 
@@ -110,9 +112,8 @@ export default function TrackDetailModal({
             hapticService.success();
             await refreshUserData();
         } catch (error: any) {
-            console.error('Rating error:', error);
+            handleApiError(error, 'handleRating');
             setRating(previousRating);
-            Alert.alert('Hata', 'Puanlama yapılamadı');
         } finally {
             setIsRating(false);
         }

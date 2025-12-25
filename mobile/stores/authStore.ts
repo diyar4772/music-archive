@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { User, UserData, UserLike, UserFollow } from '../types';
 import authService from '../services/auth';
 import { getToken, getStoredUser, removeToken, setOnUnauthorized } from '../services/api';
+import logger from '../utils/logger';
+import { handleApiError } from '../utils/errorHandler';
 
 interface AuthStore {
     // State
@@ -118,7 +120,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             const userData = await authService.getMe();
             set({ userData });
         } catch (error) {
-            console.error('Error fetching user data:', error);
+            handleApiError(error, 'fetchUserData', false); // Don't show alert on background fetch
         }
     },
 
@@ -128,7 +130,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             const userData = await authService.getMe();
             set({ userData });
         } catch (error) {
-            console.error('Error refreshing user data:', error);
+            handleApiError(error, 'refreshUserData', false); // Don't show alert on background refresh
         }
     },
 
@@ -195,7 +197,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 setOnUnauthorized(() => {
     const store = useAuthStore.getState();
     if (store.isAuthenticated) {
-        console.log('🔒 Auth: Unauthorized detected, forcing logout');
+        logger.warn('Unauthorized detected, forcing logout', undefined, 'authStore');
         store.logout();
     }
 });

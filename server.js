@@ -2002,9 +2002,9 @@ const mobileAuth = async (req, res, next) => {
         } catch (err) {
             // Token invalid - in production, reject immediately
             if (process.env.NODE_ENV === 'production') {
-                return res.status(401).json({ 
-                    success: false, 
-                    error: 'Invalid or expired token. Please login again.' 
+                return res.status(401).json({
+                    success: false,
+                    error: 'Invalid or expired token. Please login again.'
                 });
             }
             // In development, continue to fallback
@@ -2013,15 +2013,15 @@ const mobileAuth = async (req, res, next) => {
 
     // 2. In production, no token = unauthorized
     if (process.env.NODE_ENV === 'production') {
-        return res.status(401).json({ 
-            success: false, 
-            error: 'Authentication required. Please login.' 
+        return res.status(401).json({
+            success: false,
+            error: 'Authentication required. Please login.'
         });
     }
 
     // 3. Development only: Mock user fallback for testing
     console.log('⚠️ DEV MODE: Using mock authentication');
-    
+
     if (useInMemory) {
         req.user = { id: 'mock_user_001', username: 'dev_test_user' };
         return next();
@@ -2322,11 +2322,11 @@ app.post('/api/library/enrich-previews', mobileAuth, async (req, res) => {
 
         if (useInMemory) {
             const userLikes = inMemoryDB.likes.filter(l => l.userId === userId);
-            
+
             for (const like of userLikes) {
                 // Skip if already has valid preview URL
-                if (like.previewUrl && 
-                    like.previewUrl !== 'undefined' && 
+                if (like.previewUrl &&
+                    like.previewUrl !== 'undefined' &&
                     like.previewUrl !== 'null' &&
                     like.previewUrl.startsWith('https://')) {
                     alreadyHadPreview++;
@@ -2383,7 +2383,7 @@ app.post('/api/library/enrich-previews', mobileAuth, async (req, res) => {
         const batchSize = 5;
         for (let i = 0; i < likesWithoutPreviews.length; i += batchSize) {
             const batch = likesWithoutPreviews.slice(i, i + batchSize);
-            
+
             await Promise.all(batch.map(async (like) => {
                 try {
                     const result = await getAudioPreview(like.trackName, like.artistName || 'Unknown');

@@ -11,6 +11,7 @@
 import { Audio, AVPlaybackStatus } from 'expo-av';
 import { Platform } from 'react-native';
 import hapticService from './hapticService';
+import logger from '../utils/logger';
 
 // Types
 export interface AudioState {
@@ -47,9 +48,9 @@ async function initializeAudio(): Promise<void> {
             playThroughEarpieceAndroid: false,
         });
         isInitialized = true;
-        console.log('🎵 Audio mode initialized');
+        logger.debug('Audio mode initialized', undefined, 'audioService');
     } catch (error) {
-        console.error('🎵 Audio init error:', error);
+        logger.error('Audio init error', error, 'audioService');
     }
 }
 
@@ -138,7 +139,7 @@ export async function stopAudio(): Promise<void> {
             }
             await currentSound.unloadAsync();
         } catch (error) {
-            console.log('🎵 Cleanup warning:', error);
+            logger.warn('Audio cleanup warning', error, 'audioService');
         }
         currentSound = null;
         currentTrackId = null;
@@ -152,15 +153,12 @@ export async function playPreview(options: PlayOptions): Promise<boolean> {
     const { trackId, previewUrl, onStatusChange, onError, onFinish } = options;
 
     // Debug logging
-    console.log('🎵 ===== PLAY PREVIEW DEBUG =====');
-    console.log('🎵 Track ID:', trackId);
-    console.log('🎵 Preview URL:', previewUrl);
-    console.log('🎵 Platform:', Platform.OS, Platform.Version);
+    logger.debug('Play preview', { trackId, previewUrl, platform: Platform.OS }, 'audioService');
 
     // Comprehensive URL validation
     if (!previewUrl || typeof previewUrl !== 'string') {
         const errorMsg = 'Bu şarkı için önizleme mevcut değil.';
-        console.log('🎵 No preview URL (null/undefined)');
+        logger.debug('No preview URL (null/undefined)', { trackId }, 'audioService');
         onError?.(errorMsg);
         return false;
     }
@@ -173,7 +171,7 @@ export async function playPreview(options: PlayOptions): Promise<boolean> {
         trimmedUrl === 'null' ||
         trimmedUrl === 'none') {
         const errorMsg = 'Bu şarkı için önizleme mevcut değil.';
-        console.log('🎵 Invalid preview URL value:', trimmedUrl);
+        logger.debug('Invalid preview URL value', { trackId, url: trimmedUrl }, 'audioService');
         onError?.(errorMsg);
         return false;
     }
@@ -181,16 +179,16 @@ export async function playPreview(options: PlayOptions): Promise<boolean> {
     // Check if URL is valid
     if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')) {
         const errorMsg = 'Geçersiz URL formatı.';
-        console.log('🎵 Invalid URL format:', trimmedUrl);
+        logger.debug('Invalid URL format', { trackId, url: trimmedUrl }, 'audioService');
         onError?.(errorMsg);
         return false;
     }
 
-    console.log('🎵 URL validated, proceeding with playback...');
+    logger.debug('URL validated, proceeding with playback', { trackId }, 'audioService');
 
     // If same track, toggle off
     if (currentTrackId === trackId && currentSound) {
-        console.log('🎵 Same track, toggling off');
+        logger.debug('Same track, toggling off', { trackId }, 'audioService');
         await stopAudio();
         onStatusChange?.({ isPlaying: false, isLoading: false, currentTrackId: null, error: null });
         return true;
@@ -206,7 +204,7 @@ export async function playPreview(options: PlayOptions): Promise<boolean> {
     onStatusChange?.({ isPlaying: false, isLoading: true, currentTrackId: trackId, error: null });
 
     try {
-        console.log('🎵 Creating sound from URL:', trimmedUrl);
+        logger.debug('Creating sound from URL', { trackId, url: trimmedUrl }, 'audioService');
 
         // Create sound - simpler approach without Android-specific overrides
         const { sound, status } = await Audio.Sound.createAsync(
@@ -219,7 +217,7 @@ export async function playPreview(options: PlayOptions): Promise<boolean> {
             (playbackStatus: AVPlaybackStatus) => {
                 if (playbackStatus.isLoaded) {
                     if (playbackStatus.didJustFinish) {
-                        console.log('🎵 Playback finished');
+                        logger.debug('Playback finished', { trackId }, 'audioService');
                         currentTrackId = null;
                         currentSound = null;
                         onStatusChange?.({ isPlaying: false, isLoading: false, currentTrackId: null, error: null });
@@ -228,7 +226,7 @@ export async function playPreview(options: PlayOptions): Promise<boolean> {
 
                     // Check for errors in playback
                     if ((playbackStatus as any).error) {
-                        console.error('🎵 Playback error:', (playbackStatus as any).error);
+                        logger.error('Playback error', (playbackStatus as any).error, 'audioService');
                         stopAudio();
                         onError?.(`Oynatma hatası: ${(playbackStatus as any).error}`);
                     }
@@ -236,7 +234,7 @@ export async function playPreview(options: PlayOptions): Promise<boolean> {
             }
         );
 
-        console.log('🎵 Sound created successfully, isLoaded:', status.isLoaded);
+        logger.debug('Sound created successfully', { trackId, isLoaded: status.isLoaded }, 'audioService');
 
         if (!status.isLoaded) {
             throw new Error('Sound failed to load');
@@ -249,14 +247,12 @@ export async function playPreview(options: PlayOptions): Promise<boolean> {
         hapticService.mediumImpact();
 
         onStatusChange?.({ isPlaying: true, isLoading: false, currentTrackId: trackId, error: null });
-        console.log('🎵 ===== PLAYBACK STARTED =====');
+        logger.debug('Playback started', { trackId }, 'audioService');
 
         return true;
 
     } catch (error: any) {
-        console.error('🎵 ===== PLAYBACK ERROR =====');
-        console.error('🎵 Error:', error);
-        console.error('🎵 Error message:', error?.message);
+        logger.error('Playback error', error, 'audioService');
 
         // Cleanup
         await stopAudio();

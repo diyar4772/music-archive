@@ -9,6 +9,8 @@
  */
 
 import api from './api';
+import logger from '../utils/logger';
+import { handleApiError } from '../utils/errorHandler';
 
 export interface PioneerStatus {
     playlistCount: number;
@@ -37,7 +39,7 @@ export const pioneerService = {
             return response.data;
         } catch (error) {
             // Return default status if API fails
-            console.error('Pioneer status fetch error:', error);
+            handleApiError(error, 'pioneer.getStatus', false); // Don't show alert, use fallback
             return {
                 playlistCount: 0,
                 isPioneer: false,
@@ -57,7 +59,7 @@ export const pioneerService = {
             const response = await api.post('/api/pioneer/claim', { tier });
             return response.data;
         } catch (error) {
-            console.error('Pioneer claim error:', error);
+            handleApiError(error, 'pioneer.claimReward', false); // Don't show alert, let caller handle
             throw error;
         }
     },
@@ -70,7 +72,7 @@ export const pioneerService = {
             const response = await api.get(`/api/pioneer/leaderboard?limit=${limit}`);
             return response.data.leaderboard || [];
         } catch (error) {
-            console.error('Pioneer leaderboard error:', error);
+            handleApiError(error, 'pioneer.getLeaderboard', false); // Don't show alert, return empty
             return [];
         }
     },
@@ -88,7 +90,7 @@ export const pioneerService = {
             const response = await api.post('/api/pioneer/increment');
             return response.data;
         } catch (error) {
-            console.error('Pioneer increment error:', error);
+            handleApiError(error, 'pioneer.incrementPlaylistCount', false); // Don't show alert, let caller handle
             throw error;
         }
     },

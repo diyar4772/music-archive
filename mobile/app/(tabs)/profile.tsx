@@ -7,6 +7,7 @@ import { Card } from '../../components/ui';
 import { PioneerBadge, TierType } from '../../components/pioneer';
 import { Colors } from '../../constants/theme';
 import { pioneerService } from '../../services/pioneer';
+import logger from '../../utils/logger';
 
 export default function ProfileScreen() {
     const { user, userData, logout, refreshUserData } = useAuthStore();
@@ -43,7 +44,7 @@ export default function ProfileScreen() {
             });
         } catch (error) {
             // Fallback to local playlist count if API fails
-            console.log('Pioneer status fetch failed, using local data');
+            logger.debug('Pioneer status fetch failed, using local data', error, 'ProfileScreen');
         }
     }, []);
 

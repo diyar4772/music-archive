@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import digService, { DigTrack } from '../services/dig';
+import logger from '../utils/logger';
+import { handleApiError } from '../utils/errorHandler';
 
 interface DigState {
     queue: DigTrack[];
@@ -30,7 +32,7 @@ export const useDigStore = create<DigState>((set, get) => ({
                 isLoading: false
             });
         } catch (error: any) {
-            console.error('Failed to load queue:', error);
+            handleApiError(error, 'digStore.loadQueue', false); // Don't show alert, set error state
             set({
                 error: error.message || 'Failed to load tracks',
                 isLoading: false
@@ -49,7 +51,7 @@ export const useDigStore = create<DigState>((set, get) => ({
         try {
             await digService.swipe(currentTrack, action);
         } catch (error) {
-            console.error('Swipe error:', error);
+            handleApiError(error, 'digStore.swipe', false); // Don't show alert, continue to next card
         }
 
         // Move to next card

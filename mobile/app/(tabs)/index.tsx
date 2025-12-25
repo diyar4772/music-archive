@@ -18,6 +18,8 @@ import { useAuthStore } from '../../stores/authStore';
 import api from '../../services/api';
 import { Artist, Track } from '../../types';
 import { Colors } from '../../constants/theme';
+import { handleApiError } from '../../utils/errorHandler';
+import logger from '../../utils/logger';
 
 // 🦴 Skeleton Loader Component
 const SkeletonItem = ({ isArtist = false }: { isArtist?: boolean }) => {
@@ -94,9 +96,21 @@ export default function HomeScreen() {
   // Cleanup audio on unmount
   useEffect(() => {
     return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
+      const cleanup = async () => {
+        try {
+          if (soundRef.current) {
+            const status = await soundRef.current.getStatusAsync();
+            if (status.isLoaded) {
+              await soundRef.current.stopAsync();
+            }
+            await soundRef.current.unloadAsync();
+            soundRef.current = null;
+          }
+        } catch (error) {
+          logger.warn('Audio cleanup error on unmount', error, 'HomeScreen');
+        }
+      };
+      cleanup();
     };
   }, []);
 
@@ -119,8 +133,7 @@ export default function HomeScreen() {
         setArtistResults([]);
       }
     } catch (error) {
-      console.error('Search error:', error);
-      Alert.alert('Hata', 'Arama yapılırken bir hata oluştu');
+      handleApiError(error, 'handleSearch');
     } finally {
       setLoading(false);
     }
@@ -174,8 +187,9 @@ export default function HomeScreen() {
         }
       });
     } catch (error) {
-      console.error('Play error:', error);
+      logger.error('Play error', error, 'HomeScreen');
       setPlayingTrackId(null);
+      Alert.alert('Hata', 'Şarkı oynatılırken bir hata oluştu');
     }
   }, [playingTrackId]);
 
@@ -191,7 +205,7 @@ export default function HomeScreen() {
     // 🎯 Optimistic Update - Immediately update UI
     if (isLiked) {
       removeLikeOptimistic(track.id);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      hapticService.success();
     } else {
       addLikeOptimistic({
         trackId: track.id,
@@ -223,7 +237,7 @@ export default function HomeScreen() {
       refreshUserData();
     } catch (error: any) {
       // ⚠️ Rollback on error
-      console.error('Like error:', error?.response?.data || error.message);
+      handleApiError(error, 'handleLikeTrack');
       if (isLiked) {
         // Was trying to unlike, restore the like
         addLikeOptimistic({
@@ -237,7 +251,6 @@ export default function HomeScreen() {
         // Was trying to like, remove the optimistic like
         removeLikeOptimistic(track.id);
       }
-      Alert.alert('Hata', error?.response?.data?.error || 'Şarkı eklenirken bir hata oluştu');
     } finally {
       setLikingTrackId(null);
     }
@@ -268,8 +281,7 @@ export default function HomeScreen() {
       // Refresh user data
       await refreshUserData();
     } catch (error: any) {
-      console.error('Follow error:', error?.response?.data || error.message);
-      Alert.alert('Hata', error?.response?.data?.error || 'Sanatçı takip edilirken bir hata oluştu');
+      handleApiError(error, 'handleFollowArtist');
     } finally {
       setFollowingArtistId(null);
     }

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
     View,
     Text,
@@ -27,6 +27,8 @@ import api from '../../services/api';
 import { TrackDetailModal } from '../../components/library';
 import { StarRatingInline } from '../../components/ui';
 import { UserLike } from '../../types';
+import { handleApiError } from '../../utils/errorHandler';
+import logger from '../../utils/logger';
 
 // Types
 type ViewType = 'dashboard' | 'likes' | 'follows' | 'playlists';
@@ -50,11 +52,13 @@ interface DashboardCardProps {
     gradientColors: [string, string];
     onPress?: () => void;
     isDashed?: boolean;
+    style?: any;
+    titleStyle?: any;
 }
 
-const DashboardCard = ({ icon, title, subtitle, gradientColors, onPress, isDashed }: DashboardCardProps) => (
+const DashboardCard = ({ icon, title, subtitle, gradientColors, onPress, isDashed, style, titleStyle }: DashboardCardProps) => (
     <TouchableOpacity
-        style={[styles.dashboardCard, isDashed && styles.dashedCard]}
+        style={[styles.dashboardCard, isDashed && styles.dashedCard, style]}
         onPress={onPress}
         activeOpacity={0.8}
     >
@@ -65,18 +69,21 @@ const DashboardCard = ({ icon, title, subtitle, gradientColors, onPress, isDashe
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
             >
-                <View style={styles.cardIconContainer}>
-                    <Ionicons name={icon} size={28} color="#fff" />
+                <View style={[styles.cardIconContainer, isDashed && styles.dashedIconContainer]}>
+                    <Ionicons name={icon} size={24} color={isDashed ? '#666' : '#fff'} />
                 </View>
-                <Text style={styles.cardTitle}>{title}</Text>
-                <Text style={styles.cardSubtitle}>{subtitle}</Text>
+                <View>
+                    <Text style={[styles.cardTitle, titleStyle]} numberOfLines={1}>{title}</Text>
+                    {subtitle ? <Text style={styles.cardSubtitle} numberOfLines={1}>{subtitle}</Text> : null}
+                </View>
             </LinearGradient>
         ) : (
             <View style={styles.dashedCardInner}>
                 <View style={styles.cardIconContainerDashed}>
-                    <Ionicons name={icon} size={32} color="#666" />
+                    <Ionicons name={icon} size={28} color="#666" />
                 </View>
                 <Text style={styles.cardTitleDashed}>{title}</Text>
+                {subtitle ? <Text style={styles.cardSubtitleDashed}>{subtitle}</Text> : null}
             </View>
         )}
     </TouchableOpacity>
@@ -143,13 +150,34 @@ export default function LibraryScreen() {
     const [playingTrackId, setPlayingTrackId] = useState<string | null>(null);
     const [deletingTrackId, setDeletingTrackId] = useState<string | null>(null);
 
+    // Cleanup audio on unmount
+    useEffect(() => {
+        return () => {
+            const cleanup = async () => {
+                try {
+                    if (soundRef.current) {
+                        const status = await soundRef.current.getStatusAsync();
+                        if (status.isLoaded) {
+                            await soundRef.current.stopAsync();
+                        }
+                        await soundRef.current.unloadAsync();
+                        soundRef.current = null;
+                    }
+                } catch (error) {
+                    logger.warn('Audio cleanup error on unmount', error, 'LibraryScreen');
+                }
+            };
+            cleanup();
+        };
+    }, []);
+
     // Fetch dashboard stats on mount
     const fetchStats = useCallback(async () => {
         try {
             const response = await api.get('/library/dashboard');
             setDashboardStats(response.data);
         } catch (error) {
-            console.error('Failed to fetch dashboard stats:', error);
+            handleApiError(error, 'fetchStats', false); // Don't show alert, use fallback
             // Fallback to userData counts
             setDashboardStats({
                 likedTracksCount: userData?.likes?.length || 0,
@@ -221,8 +249,9 @@ export default function LibraryScreen() {
                 }
             });
         } catch (error) {
-            console.error('Play error:', error);
+            logger.error('Play error', error, 'LibraryScreen');
             setPlayingTrackId(null);
+            Alert.alert('Hata', 'Şarkı oynatılırken bir hata oluştu');
         }
     }, [playingTrackId]);
 
@@ -246,8 +275,7 @@ export default function LibraryScreen() {
                             await refreshUserData();
                             await fetchStats();
                         } catch (error: any) {
-                            console.error('Delete error:', error);
-                            Alert.alert('Hata', error?.response?.data?.error || 'Şarkı silinirken bir hata oluştu');
+                            handleApiError(error, 'handleDeleteTrack');
                         } finally {
                             setDeletingTrackId(null);
                         }
@@ -273,8 +301,7 @@ export default function LibraryScreen() {
             await fetchStats();
             Alert.alert('Başarılı', `"${newPlaylistName.trim()}" listesi oluşturuldu!`);
         } catch (error: any) {
-            console.error('Create playlist error:', error);
-            Alert.alert('Hata', error?.response?.data?.error || 'Liste oluşturulamadı');
+            handleApiError(error, 'handleCreatePlaylist');
         } finally {
             setCreatingPlaylist(false);
         }
@@ -283,7 +310,7 @@ export default function LibraryScreen() {
     // 🔙 Go back to dashboard
     const goBackToDashboard = useCallback(() => {
         setActiveView('dashboard');
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        hapticService.lightImpact();
     }, []);
 
     const { likedTracksCount, followedArtistsCount, playlistsCount } = dashboardStats;
@@ -303,12 +330,20 @@ export default function LibraryScreen() {
     const openTrackDetail = useCallback((track: UserLike) => {
         setSelectedTrack(track);
         setShowTrackDetail(true);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        hapticService.lightImpact();
     }, []);
 
     // Get user rating for a track
     const getTrackRating = useCallback((trackId: string) => {
         return userData?.ratings?.find(r => r.itemId === trackId)?.rating || 0;
+    }, [userData?.ratings]);
+
+    // Calculate Average Rating
+    const averageRating = React.useMemo(() => {
+        const ratings = userData?.ratings || [];
+        if (ratings.length === 0) return 0;
+        const sum = ratings.reduce((acc: number, r: any) => acc + r.rating, 0);
+        return (sum / ratings.length).toFixed(1);
     }, [userData?.ratings]);
 
     // 🎵 Track Row with play/delete
@@ -466,7 +501,7 @@ export default function LibraryScreen() {
                 trackCount: p.trackCount || p.tracks?.length || 0,
             })));
         } catch (error) {
-            console.error('Playlist fetch error:', error);
+            handleApiError(error, 'fetchUserPlaylists', false); // Don't show alert, use fallback
             // Fallback to empty if API fails
             setUserPlaylists([]);
         } finally {
@@ -684,53 +719,87 @@ export default function LibraryScreen() {
                     </View>
                 </View>
 
-                {/* 🎛️ Command Center - 2x2 Grid */}
+                {/* 🎛️ Command Center - Dynamic Grid */}
                 <View style={styles.commandCenter}>
-                    <View style={styles.cardRow}>
+                    {/* Top Section: Big Left Card + Right Column */}
+                    <View style={styles.gridTopRow}>
+                        {/* LEFT: Big 'Liked' Card */}
                         <DashboardCard
                             icon="heart"
                             title="Beğenilenler"
                             subtitle={`${likedTracksCount} Şarkı`}
                             gradientColors={['#9333EA', '#7C3AED']}
+                            style={styles.bigCard}
+                            titleStyle={{ fontSize: 20, marginTop: 4 }}
                             onPress={() => {
                                 setActiveView('likes');
                                 hapticService.mediumImpact();
                             }}
                         />
-                        <DashboardCard
-                            icon="people"
-                            title="Sanatçılar"
-                            subtitle={`${followedArtistsCount} Takip`}
-                            gradientColors={['#3B82F6', '#2563EB']}
-                            onPress={() => {
-                                setActiveView('follows');
-                                hapticService.mediumImpact();
-                            }}
-                        />
+
+                        {/* RIGHT: Column */}
+                        <View style={styles.gridRightCol}>
+                            {/* Top Right: Followed */}
+                            <DashboardCard
+                                icon="people"
+                                title="Takip Edilenler"
+                                subtitle={`${followedArtistsCount} Sanatçı`}
+                                gradientColors={['#3B82F6', '#2563EB']}
+                                style={styles.smallCard}
+                                onPress={() => {
+                                    setActiveView('follows');
+                                    hapticService.mediumImpact();
+                                }}
+                            />
+
+                            {/* Bottom Right: Lists + Avg Score */}
+                            <View style={styles.gridRightBottomRow}>
+                                <DashboardCard
+                                    icon="list"
+                                    title="Listelerim"
+                                    subtitle={`${playlistsCount}`}
+                                    gradientColors={['#10B981', '#059669']}
+                                    style={styles.miniCard}
+                                    titleStyle={{ fontSize: 13 }}
+                                    onPress={() => {
+                                        setActiveView('playlists');
+                                        hapticService.mediumImpact();
+                                    }}
+                                />
+                                <DashboardCard
+                                    icon="star"
+                                    title="Ort. Puan"
+                                    subtitle={String(averageRating)}
+                                    gradientColors={['#F59E0B', '#D97706']}
+                                    style={styles.miniCard}
+                                    titleStyle={{ fontSize: 13 }}
+                                    onPress={() => {
+                                        // Optional: Navigate to ratings view
+                                        hapticService.lightImpact();
+                                    }}
+                                />
+                            </View>
+                        </View>
                     </View>
-                    <View style={styles.cardRow}>
-                        <DashboardCard
-                            icon="list"
-                            title="Listelerim"
-                            subtitle={`${playlistsCount} Liste`}
-                            gradientColors={['#10B981', '#059669']}
-                            onPress={() => {
-                                setActiveView('playlists');
-                                hapticService.mediumImpact();
-                            }}
-                        />
-                        <DashboardCard
-                            icon="add"
-                            title="Yeni Liste"
-                            subtitle=""
-                            gradientColors={['#333', '#222']}
-                            isDashed
-                            onPress={() => {
-                                setShowCreatePlaylistModal(true);
-                                hapticService.mediumImpact();
-                            }}
-                        />
-                    </View>
+
+                    {/* Bottom: Create New Playlist (Wide) */}
+                    <TouchableOpacity
+                        style={styles.createPlaylistCard}
+                        onPress={() => {
+                            setShowCreatePlaylistModal(true);
+                            hapticService.mediumImpact();
+                        }}
+                        activeOpacity={0.8}
+                    >
+                        <View style={styles.createIconContainer}>
+                            <Ionicons name="add" size={24} color="#fff" />
+                        </View>
+                        <View style={styles.createTextContainer}>
+                            <Text style={styles.createTitle}>Yeni Liste Oluştur</Text>
+                            <Text style={styles.createSubtitle}>Şarkılarını organize et</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color="#666" />
+                    </TouchableOpacity>
                 </View>
 
                 {/* 🎵 Horizontal Playlists - User Created Only */}
@@ -869,37 +938,61 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     dashboardCard: {
-        width: CARD_WIDTH,
-        height: 110,
         borderRadius: 16,
         overflow: 'hidden',
     },
+    gridTopRow: {
+        flexDirection: 'row',
+        height: 190,
+        gap: 12,
+        marginBottom: 12,
+    },
+    bigCard: {
+        flex: 1.3,
+        height: '100%',
+    },
+    gridRightCol: {
+        flex: 1,
+        gap: 12,
+    },
+    smallCard: {
+        flex: 1,
+    },
+    gridRightBottomRow: {
+        flex: 1,
+        flexDirection: 'row',
+        gap: 12,
+    },
+    miniCard: {
+        flex: 1,
+    },
     cardGradient: {
         flex: 1,
-        padding: 16,
+        padding: 14,
         justifyContent: 'space-between',
     },
     cardIconContainer: {
-        width: 44,
-        height: 44,
-        borderRadius: 12,
+        width: 38,
+        height: 38,
+        borderRadius: 10,
         backgroundColor: 'rgba(255,255,255,0.2)',
         alignItems: 'center',
         justifyContent: 'center',
+        marginBottom: 8,
     },
     cardTitle: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '700',
         color: '#fff',
+        marginBottom: 2,
     },
     cardSubtitle: {
         fontSize: 12,
-        color: 'rgba(255,255,255,0.75)',
-        marginTop: -4,
+        color: 'rgba(255,255,255,0.8)',
     },
-    // Dashed Card (New Playlist)
+    // Dashed Card
     dashedCard: {
-        borderWidth: 2,
+        borderWidth: 1.5,
         borderColor: '#333',
         borderStyle: 'dashed',
         backgroundColor: 'transparent',
@@ -908,12 +1001,15 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 8,
+        gap: 6,
+    },
+    dashedIconContainer: {
+        backgroundColor: 'rgba(255,255,255,0.05)',
     },
     cardIconContainerDashed: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         backgroundColor: '#1e1e1e',
         alignItems: 'center',
         justifyContent: 'center',
@@ -922,6 +1018,45 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
         color: '#666',
+        textAlign: 'center',
+    },
+    cardSubtitleDashed: {
+        fontSize: 11,
+        color: '#444',
+        marginTop: 2,
+    },
+    // Create Playlist Custom Card
+    createPlaylistCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#161616',
+        borderWidth: 1,
+        borderColor: '#222',
+        borderRadius: 16,
+        padding: 16,
+        height: 72,
+    },
+    createIconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: '#252525',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    createTextContainer: {
+        flex: 1,
+        marginLeft: 14,
+    },
+    createTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#fff',
+    },
+    createSubtitle: {
+        fontSize: 12,
+        color: '#666',
+        marginTop: 2,
     },
     // === Section ===
     section: {

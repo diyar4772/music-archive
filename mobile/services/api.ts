@@ -2,6 +2,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import logger from '../utils/logger';
 
 // Auth event system for cross-module communication
 type AuthEventCallback = () => void;
@@ -21,11 +22,11 @@ const getBaseURL = () => {
     // 🌐 Web Platform - Always use localhost in dev, production URL otherwise
     if (Platform.OS === 'web') {
         if (__DEV__) {
-            console.log('🌐 Web API Base URL (dev): http://localhost:3000/api');
+            logger.debug('Web API Base URL (dev): http://localhost:3000/api', undefined, 'api');
             return 'http://localhost:3000/api';
         }
         const prodUrl = extra?.PROD_API_URL || 'https://music-archive.onrender.com/api';
-        console.log('🌐 Web API Base URL (prod):', prodUrl);
+        logger.debug('Web API Base URL (prod)', { url: prodUrl }, 'api');
         return prodUrl;
     }
 
@@ -39,13 +40,13 @@ const getBaseURL = () => {
             // Extract IP from hostUri and use backend port (3000)
             const hostIp = hostUri.split(':')[0];
             const dynamicUrl = `http://${hostIp}:3000/api`;
-            console.log('📱 API Base URL (dynamic):', dynamicUrl);
+            logger.debug('API Base URL (dynamic)', { url: dynamicUrl }, 'api');
             return dynamicUrl;
         }
 
         // Fallback to configured or default
         const devUrl = extra?.DEV_API_URL || 'http://localhost:3000/api';
-        console.log('📱 API Base URL (fallback):', devUrl);
+        logger.debug('API Base URL (fallback)', { url: devUrl }, 'api');
         return devUrl;
     }
 
@@ -86,7 +87,7 @@ export const setToken = async (token: string): Promise<void> => {
             await SecureStore.setItemAsync(TOKEN_KEY, token);
         }
     } catch (error) {
-        console.error('Error saving token:', error);
+        logger.error('Error saving token', error, 'api');
     }
 };
 
@@ -100,7 +101,7 @@ export const removeToken = async (): Promise<void> => {
             await SecureStore.deleteItemAsync(USER_KEY);
         }
     } catch (error) {
-        console.error('Error removing token:', error);
+        logger.error('Error removing token', error, 'api');
     }
 };
 
@@ -123,7 +124,7 @@ export const setStoredUser = async (username: string): Promise<void> => {
             await SecureStore.setItemAsync(USER_KEY, username);
         }
     } catch (error) {
-        console.error('Error saving user:', error);
+        logger.error('Error saving user', error, 'api');
     }
 };
 
@@ -147,7 +148,7 @@ api.interceptors.response.use(
     async (error: AxiosError) => {
         if (error.response?.status === 401) {
             // Token expired or invalid - clean up and notify
-            console.log('🔒 API: Unauthorized - clearing token and triggering logout');
+            logger.warn('Unauthorized - clearing token and triggering logout', undefined, 'api');
             await removeToken();
 
             // Trigger logout callback if registered

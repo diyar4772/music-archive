@@ -34,6 +34,8 @@ import StagingArea from '../../components/curator/StagingArea';
 import { Colors } from '../../constants/theme';
 import api from '../../services/api';
 import audioService, { AudioState } from '../../services/audioService';
+import { handleApiError } from '../../utils/errorHandler';
+import logger from '../../utils/logger';
 
 // Playlist type for selector
 interface Playlist {
@@ -126,7 +128,7 @@ export default function CuratorScreen() {
                 })),
             ]);
         } catch (error) {
-            console.log('Playlist fetch error:', error);
+            handleApiError(error, 'fetchPlaylists', false); // Don't show alert
         }
     };
 
@@ -134,7 +136,7 @@ export default function CuratorScreen() {
      * Play preview using audioService
      */
     const handlePlayPreview = useCallback(async (track: CuratorTrack) => {
-        console.log('🎵 handlePlayPreview:', track.name, track.previewUrl);
+        logger.debug('handlePlayPreview', { trackName: track.name, previewUrl: track.previewUrl }, 'CuratorScreen');
 
         await audioService.togglePlayback({
             trackId: track.id,
@@ -198,8 +200,7 @@ export default function CuratorScreen() {
                 }]
             );
         } catch (error: any) {
-            console.error('Add to playlist error:', error);
-            Alert.alert('Hata', error?.response?.data?.error || 'Şarkılar eklenemedi');
+            handleApiError(error, 'handleAddToExistingPlaylist');
         } finally {
             setIsCreating(false);
         }
@@ -247,8 +248,7 @@ export default function CuratorScreen() {
                 }]
             );
         } catch (error: any) {
-            console.error('Create playlist error:', error);
-            Alert.alert('Hata', error?.response?.data?.error || 'Playlist oluşturulamadı');
+            handleApiError(error, 'handleCreatePlaylist');
         } finally {
             setIsCreating(false);
         }

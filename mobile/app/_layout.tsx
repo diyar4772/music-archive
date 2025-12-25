@@ -9,9 +9,10 @@ import '../global.css';
 
 import { useAuthStore } from '../stores/authStore';
 import { Colors } from '../constants/theme';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 export {
-  ErrorBoundary,
+  ErrorBoundary as ExpoErrorBoundary,
 } from 'expo-router';
 
 export const unstable_settings = {
@@ -85,12 +86,14 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   return (
-    <ThemeProvider value={MusicArchiveDarkTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-      </Stack>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider value={MusicArchiveDarkTheme}>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+        </Stack>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }

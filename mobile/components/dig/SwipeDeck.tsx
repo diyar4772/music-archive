@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import SwipeCard from './SwipeCard';
 import { DigTrack } from '../../services/dig';
 import { Colors } from '../../constants/theme';
+import logger from '../../utils/logger';
 
 interface SwipeDeckProps {
     tracks: DigTrack[];
@@ -36,9 +37,21 @@ export default function SwipeDeck({
     // Cleanup audio on unmount
     useEffect(() => {
         return () => {
-            if (soundRef.current) {
-                soundRef.current.unloadAsync();
-            }
+            const cleanup = async () => {
+                try {
+                    if (soundRef.current) {
+                        const status = await soundRef.current.getStatusAsync();
+                        if (status.isLoaded) {
+                            await soundRef.current.stopAsync();
+                        }
+                        await soundRef.current.unloadAsync();
+                        soundRef.current = null;
+                    }
+                } catch (error) {
+                    logger.warn('Audio cleanup error on unmount', error, 'SwipeDeck');
+                }
+            };
+            cleanup();
         };
     }, []);
 
@@ -90,7 +103,7 @@ export default function SwipeDeck({
                 }
             });
         } catch (error) {
-            console.error('Audio error:', error);
+            logger.error('Audio error', error, 'SwipeDeck');
             setIsPlaying(false);
         }
     }, [currentTrack]);
@@ -113,7 +126,7 @@ export default function SwipeDeck({
                 }
             }
         } catch (error) {
-            console.error('Toggle play error:', error);
+            logger.error('Toggle play error', error, 'SwipeDeck');
         }
     }, [playPreview]);
 
