@@ -1,0 +1,101 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "search": "Search",
+    "profile": "Profile",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "username": "Username",
+    "password": "Password",
+    "loginButton": "Login",
+    "registerButton": "Create Account",
+    "invalidCredentials": "Invalid username or password",
+    "usernameTaken": "Username already taken",
+    "loginSuccess": "Logged in successfully"
+  },
+  "home": {
+    "title": "Home",
+    "searchPlaceholder": "Search for artists or tracks...",
+    "searchArtists": "Artists",
+    "searchTracks": "Tracks",
+    "todayPrompt": "What do you want to listen to today?",
+    "noResults": "No results found",
+    "emptyState": "Start searching to discover music"
+  },
+  "library": {
+    "title": "Your Library",
+    "dashboard": "Dashboard",
+    "likedTracks": "Liked Tracks",
+    "followedArtists": "Followed Artists",
+    "playlists": "Playlists",
+    "recentlyAdded": "Recently Added",
+    "topRated": "Top Rated",
+    "averageRating": "Average Rating",
+    "totalTracks": "{{count}} tracks",
+    "totalTracks_plural": "{{count}} tracks",
+    "totalArtists": "{{count}} artists",
+    "totalArtists_plural": "{{count}} artists",
+    "noTracks": "No tracks yet",
+    "noArtists": "No artists yet",
+    "noPlaylists": "No playlists yet",
+    "createPlaylist": "Create Playlist",
+    "playlistName": "Playlist Name",
+    "playlistCreated": "Playlist created",
+    "playlistDeleted": "Playlist deleted",
+    "trackDeleted": "Track removed",
+    "artistUnfollowed": "Artist unfollowed"
+  },
+  "dig": {
+    "title": "Dig Mode",
+    "discoveryComplete": "Discovery complete!",
+    "refreshPrompt": "Refresh to discover more tracks",
+    "refresh": "Refresh",
+    "loadingTracks": "Loading tracks...",
+    "pass": "Pass",
+    "explore": "Explore",
+    "archive": "Archive",
+    "hint": "← Pass • ↑ Explore • → Archive"
+  },
+  "curator": {
+    "title": "Curator",
+    "searchPlaceholder": "Search tracks...",
+    "stagingArea": "Staging Area",
+    "addToPlaylist": "Add to Playlist",
+    "createNewPlaylist": "Create New Playlist",
+    "finalize": "Finalize",
+    "clear": "Clear",
+    "emptyStaging": "No tracks in staging area",
+    "addTracksPrompt": "Add tracks to create a playlist",
+    "playlistCreated": "Playlist created successfully"
+  },
+  "trackDetail": {
+    "title": "Track Details",
+    "rate": "Rate",
+    "preview": "30s Preview",
+    "listenOn": "Listen on",
+    "spotify": "Spotify",
+    "youtube": "YouTube",
+    "appleMusic": "Apple Music",
+    "rating": "Rating",
+    "noRating": "Not rated"
+  },
+  "errors": {
+    "networkError": "Network error. Please check your connection.",
+    "serverError": "Server error. Please try again later.",
+    "unauthorized": "Session expired. Please login again.",
+    "notFound": "Resource not found",
+    "unknownError": "An unknown error occurred"
+  }
+}
+

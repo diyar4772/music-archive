@@ -1,15 +1,16 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   FlatList,
-  Image,
   StyleSheet,
   Animated,
   Alert,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
@@ -296,7 +297,12 @@ export default function HomeScreen() {
       <View style={styles.resultItem}>
         <TouchableOpacity style={styles.resultMain}>
           {item.image ? (
-            <Image source={{ uri: item.image }} style={styles.artistImage} />
+            <Image 
+              source={{ uri: item.image }} 
+              style={styles.artistImage}
+              cachePolicy="memory-disk"
+              contentFit="cover"
+            />
           ) : (
             <View style={[styles.artistImage, styles.placeholderImage]}>
               <Ionicons name="person" size={24} color="#666" />
@@ -340,7 +346,12 @@ export default function HomeScreen() {
         >
           <View style={styles.trackImageContainer}>
             {item.image ? (
-              <Image source={{ uri: item.image }} style={styles.trackImage} />
+              <Image 
+                source={{ uri: item.image }} 
+                style={styles.trackImage}
+                cachePolicy="memory-disk"
+                contentFit="cover"
+              />
             ) : (
               <View style={[styles.trackImage, styles.placeholderImage]}>
                 <Ionicons name="musical-note" size={24} color="#666" />
@@ -389,7 +400,7 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.greeting}>Merhaba, {user?.username || 'Müziksever'} 👋</Text>
-          <Text style={styles.subtitle}>Bugün ne dinlemek istersin?</Text>
+          <Text style={styles.subtitle}>{t('home.todayPrompt')}</Text>
         </View>
 
         {/* Search Bar */}

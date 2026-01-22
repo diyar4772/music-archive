@@ -1,0 +1,59 @@
+{
+  "common": {
+    "loading": "بارکردن...",
+    "error": "هەڵەیەک ڕوویدا",
+    "retry": "دووبارە هەوڵ بدە",
+    "cancel": "هەڵوەشاندن",
+    "save": "پاشەکەوتکردن",
+    "delete": "سڕینەوە",
+    "edit": "دەستکاریکردن",
+    "close": "داخستن",
+    "search": "گەڕان",
+    "profile": "پرۆفایل",
+    "settings": "ڕێکخستنەکان",
+    "logout": "دەرچوون"
+  },
+  "library": {
+    "title": "کتێبخانەکەت",
+    "likedSongs": "گۆرانییە خوازراوەکان",
+    "following": "شوێنکەوتووەکان",
+    "playlists": "لیستەکانم",
+    "createPlaylist": "لیست دروستکردن",
+    "totalTracks": "{{count}} گۆرانی",
+    "totalTracks_plural": "{{count}} گۆرانی",
+    "totalArtists": "{{count}} هونەرمەند",
+    "totalArtists_plural": "{{count}} هونەرمەند",
+    "recentlyAdded": "دواتر زیادکراوەکان",
+    "topRated": "بەرزترین نرخدراوەکان",
+    "averageRating": "نرخی مامناوەند"
+  },
+  "search": {
+    "placeholder": "گەڕان بەدوای هونەرمەند یان گۆرانی...",
+    "artists": "هونەرمەندەکان",
+    "tracks": "گۆرانییەکان",
+    "albums": "ئەلبومەکان",
+    "noResults": "هیچ ئەنجامێک نەدۆزرایەوە"
+  },
+  "track": {
+    "details": "وردەکارییەکانی گۆرانی",
+    "rate": "نرخدان",
+    "preview": "پێشبینینی 30 چرکە",
+    "listenOn": "بیگوێرە لە",
+    "spotify": "Spotify",
+    "youtube": "YouTube",
+    "appleMusic": "Apple Music"
+  },
+  "playlist": {
+    "create": "لیست دروستکردن",
+    "name": "ناوی لیست",
+    "created": "لیست دروستکرا",
+    "deleted": "لیست سڕایەوە"
+  },
+  "settings": {
+    "title": "ڕێکخستنەکان",
+    "theme": "تێم",
+    "themeDesc": "گۆڕان لە نێوان دۆخی تاریک/ڕووناک",
+    "language": "زمان"
+  }
+}
+

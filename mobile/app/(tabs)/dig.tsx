@@ -1,10 +1,12 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import SwipeDeck from '../../components/dig/SwipeDeck';
 import { useDigStore } from '../../stores/digStore';
 
 export default function DigScreen() {
+    const { t } = useTranslation();
     const { queue, currentIndex, isLoading, loadQueue, swipe } = useDigStore();
 
     useEffect(() => {
@@ -16,7 +18,7 @@ export default function DigScreen() {
             <View style={styles.container}>
                 {/* Header */}
                 <View style={styles.header}>
-                    <Text style={styles.title}>Dig Mode</Text>
+                    <Text style={styles.title}>{t('dig.title')}</Text>
                     {queue.length > 0 && (
                         <Text style={styles.counter}>
                             {currentIndex + 1} / {queue.length}

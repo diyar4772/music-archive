@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import SwipeCard from './SwipeCard';
 import { DigTrack } from '../../services/dig';
 import { Colors } from '../../constants/theme';
@@ -28,6 +29,7 @@ export default function SwipeDeck({
     onRefresh,
     isLoading,
 }: SwipeDeckProps) {
+    const { t } = useTranslation();
     const soundRef = useRef<Audio.Sound | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
 
@@ -155,11 +157,11 @@ export default function SwipeDeck({
                 <View style={styles.emptyIcon}>
                     <Ionicons name="musical-notes" size={60} color="#444" />
                 </View>
-                <Text style={styles.emptyTitle}>Keşif tamamlandı!</Text>
-                <Text style={styles.emptyText}>Daha fazla şarkı keşfetmek için yenile</Text>
+                <Text style={styles.emptyTitle}>{t('dig.discoveryComplete')}</Text>
+                <Text style={styles.emptyText}>{t('dig.refreshPrompt')}</Text>
                 <TouchableOpacity style={styles.refreshButton} onPress={onRefresh} activeOpacity={0.8}>
                     <Ionicons name="refresh" size={20} color="#fff" />
-                    <Text style={styles.refreshText}>Yenile</Text>
+                    <Text style={styles.refreshText}>{t('dig.refresh')}</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -170,7 +172,7 @@ export default function SwipeDeck({
         return (
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={Colors.primary} />
-                <Text style={styles.loadingText}>Şarkılar yükleniyor...</Text>
+                <Text style={styles.loadingText}>{t('dig.loadingTracks')}</Text>
             </View>
         );
     }
@@ -229,7 +231,7 @@ export default function SwipeDeck({
             </View>
 
             {/* Hint */}
-            <Text style={styles.hint}>← Pass • ↑ Explore • → Archive</Text>
+            <Text style={styles.hint}>{t('dig.hint')}</Text>
         </View>
     );
 }

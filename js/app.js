@@ -17,6 +17,7 @@ import { initDashboard, showDashboard, renderStatCards, renderRecentlyAdded, ren
 import { exportToCSV, exportStats } from './components/Export.js';
 import { debounce, showToast } from './utils.js';
 import { API_URL } from './config.js';
+import i18n, { t, changeLanguage } from './services/i18n.js';
 
 /**
  * Initialize the application

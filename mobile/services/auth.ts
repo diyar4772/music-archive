@@ -1,4 +1,4 @@
-import api, { setToken, setStoredUser, removeToken, getToken } from './api';
+import api, { setToken, setRefreshToken, setStoredUser, removeToken, getToken } from './api';
 import { LoginResponse, UserData } from '../types';
 
 export const authService = {
@@ -6,6 +6,9 @@ export const authService = {
     login: async (username: string, password: string): Promise<LoginResponse> => {
         const response = await api.post<LoginResponse>('/login', { username, password });
         await setToken(response.data.token);
+        if (response.data.refreshToken) {
+            await setRefreshToken(response.data.refreshToken);
+        }
         await setStoredUser(response.data.username);
         return response.data;
     },
@@ -14,6 +17,9 @@ export const authService = {
     register: async (username: string, password: string): Promise<LoginResponse> => {
         const response = await api.post<LoginResponse>('/register', { username, password });
         await setToken(response.data.token);
+        if (response.data.refreshToken) {
+            await setRefreshToken(response.data.refreshToken);
+        }
         await setStoredUser(response.data.username);
         return response.data;
     },

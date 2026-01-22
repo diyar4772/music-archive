@@ -26,17 +26,20 @@
                         // Primary accent
                         primary: "#4DB6AC",
 
-                        // Backgrounds
+                        // Backgrounds - Unified with mobile
                         "background-light": "#F3F4F6",
-                        "background-dark": "#0d0d12",
+                        "background-dark": "#0A0A0B",
                         "card-light": "#FFFFFF",
-                        "card-dark": "#1a1a24",
+                        "card-dark": "#1E1E24",
+                        "surface": "#121214",
+                        "surface-elevated": "#1E1E24",
 
-                        // Text
+                        // Text - Unified with mobile
                         "text-light": "#1F2937",
-                        "text-dark": "#E0E0E0",
+                        "text-dark": "#FFFFFF",
                         "text-secondary-light": "#6B7280",
                         "text-secondary-dark": "#A1A1AA",
+                        "text-muted": "#71717A",
 
                         // Accent colors
                         "accent-coral": "#E58E83",
@@ -270,23 +273,23 @@
             </button>
             <button onclick="openProfileModal('follows')"
                 class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 border-b border-gray-200 dark:border-white/5 flex justify-between items-center transition-colors">
-                <span data-lang="following">Takip Edilenler</span> <i class="fa-solid fa-user text-accent-purple"></i>
+                <span data-lang="library.following">Takip Edilenler</span> <i class="fa-solid fa-user text-accent-purple"></i>
             </button>
             <button onclick="openProfileModal('playlists')"
                 class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 border-b border-gray-200 dark:border-white/5 flex justify-between items-center transition-colors">
-                <span data-lang="playlists">Listelerim</span> <i class="fa-solid fa-music text-accent-teal"></i>
+                <span data-lang="library.playlists">Listelerim</span> <i class="fa-solid fa-music text-accent-teal"></i>
             </button>
             <button onclick="createPlaylist()"
                 class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 border-b border-gray-200 dark:border-white/5 flex justify-between items-center transition-colors">
-                <span data-lang="create_playlist">Liste Oluştur</span> <i class="fa-solid fa-plus"></i>
+                <span data-lang="library.createPlaylist">Liste Oluştur</span> <i class="fa-solid fa-plus"></i>
             </button>
             <button onclick="openSettingsModal()"
                 class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 border-b border-gray-200 dark:border-white/5 flex justify-between items-center transition-colors">
-                <span data-lang="settings">Ayarlar</span> <i class="fa-solid fa-gear text-gray-400"></i>
+                <span data-lang="settings.title">Ayarlar</span> <i class="fa-solid fa-gear text-gray-400"></i>
             </button>
             <button onclick="logout()"
                 class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 text-red-400 transition-colors">
-                <span data-lang="logout">Çıkış Yap</span>
+                <span data-lang="common.logout">Çıkış Yap</span>
             </button>
         </div>
     </div>
@@ -318,7 +321,7 @@
 
                 <!-- Language -->
                 <div>
-                    <h3 class="font-bold mb-2" data-lang="language">Dil</h3>
+                    <h3 class="font-bold mb-2" data-lang="settings.language">Dil</h3>
                     <select id="languageSelect" onchange="changeLanguage(this.value)"
                         class="w-full bg-gray-100 dark:bg-[#333] border border-gray-200 dark:border-gray-600 rounded-lg p-3 text-text-light dark:text-white focus:outline-none focus:border-green-500 transition-colors">
                         <option value="tr">🇹🇷 Türkçe</option>
@@ -762,7 +765,7 @@
             <!-- Track Info -->
             <div class="p-6">
                 <div class="flex items-center gap-4 mb-6">
-                    <img id="trackDetailImage" src="" class="w-20 h-20 rounded-lg object-cover shadow-lg">
+                    <img id="trackDetailImage" src="" class="w-20 h-20 rounded-lg object-cover shadow-lg" loading="lazy">
                     <div class="flex-1 min-w-0">
                         <h4 id="trackDetailName" class="font-bold text-xl truncate"></h4>
                         <p id="trackDetailArtist" class="text-text-secondary-light dark:text-gray-400 truncate"></p>
@@ -780,7 +783,7 @@
                 <button id="trackDetailPlayBtn" onclick="playTrackFromDetail()"
                     class="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-4 rounded-xl mb-4 flex items-center justify-center gap-3 hover:opacity-90 transition">
                     <i class="fa-solid fa-play"></i>
-                    <span>30sn Önizle</span>
+                    <span data-lang="track.preview">30sn Önizle</span>
                 </button>
 
                 <!-- Streaming Links -->

@@ -65,6 +65,7 @@ const api = axios.create({
 
 // Token storage keys
 const TOKEN_KEY = 'auth_token';
+const REFRESH_TOKEN_KEY = 'refresh_token';
 const USER_KEY = 'auth_user';
 
 // Token helpers
@@ -95,13 +96,38 @@ export const removeToken = async (): Promise<void> => {
     try {
         if (Platform.OS === 'web') {
             localStorage.removeItem(TOKEN_KEY);
+            localStorage.removeItem(REFRESH_TOKEN_KEY);
             localStorage.removeItem(USER_KEY);
         } else {
             await SecureStore.deleteItemAsync(TOKEN_KEY);
+            await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
             await SecureStore.deleteItemAsync(USER_KEY);
         }
     } catch (error) {
         logger.error('Error removing token', error, 'api');
+    }
+};
+
+export const getRefreshToken = async (): Promise<string | null> => {
+    try {
+        if (Platform.OS === 'web') {
+            return localStorage.getItem(REFRESH_TOKEN_KEY);
+        }
+        return await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+    } catch {
+        return null;
+    }
+};
+
+export const setRefreshToken = async (refreshToken: string): Promise<void> => {
+    try {
+        if (Platform.OS === 'web') {
+            localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+        } else {
+            await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken);
+        }
+    } catch (error) {
+        logger.error('Error saving refresh token', error, 'api');
     }
 };
 
@@ -142,12 +168,48 @@ api.interceptors.request.use(
     }
 );
 
+// Helper function to refresh auth token
+const refreshAuthToken = async (refreshToken: string): Promise<string | null> => {
+    try {
+        const response = await axios.post(`${getBaseURL()}/auth/refresh`, { refreshToken });
+        return response.data.token || null;
+    } catch (error) {
+        logger.error('Failed to refresh token', error, 'api');
+        return null;
+    }
+};
+
 // Response interceptor - Handle errors and auth failures
 api.interceptors.response.use(
     (response) => response,
     async (error: AxiosError) => {
-        if (error.response?.status === 401) {
-            // Token expired or invalid - clean up and notify
+        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            originalRequest._retry = true;
+
+            // Try to refresh token
+            const refreshToken = await getRefreshToken();
+            if (refreshToken) {
+                logger.debug('Attempting to refresh token', undefined, 'api');
+                const newToken = await refreshAuthToken(refreshToken);
+                
+                if (newToken) {
+                    // Save new token
+                    await setToken(newToken);
+                    
+                    // Update authorization header
+                    if (originalRequest.headers) {
+                        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                    }
+                    
+                    // Retry original request
+                    logger.debug('Token refreshed, retrying request', undefined, 'api');
+                    return api.request(originalRequest);
+                }
+            }
+
+            // Refresh failed or no refresh token - clean up and notify
             logger.warn('Unauthorized - clearing token and triggering logout', undefined, 'api');
             await removeToken();
 

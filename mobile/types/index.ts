@@ -105,6 +105,7 @@ export interface UserData {
 // API Response types
 export interface LoginResponse {
     token: string;
+    refreshToken?: string;
     username: string;
 }
 

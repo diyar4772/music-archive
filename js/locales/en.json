@@ -1,0 +1,59 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "search": "Search",
+    "profile": "Profile",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "library": {
+    "title": "Your Library",
+    "likedSongs": "Liked Songs",
+    "following": "Following",
+    "playlists": "My Playlists",
+    "createPlaylist": "Create Playlist",
+    "totalTracks": "{{count}} tracks",
+    "totalTracks_plural": "{{count}} tracks",
+    "totalArtists": "{{count}} artists",
+    "totalArtists_plural": "{{count}} artists",
+    "recentlyAdded": "Recently Added",
+    "topRated": "Top Rated",
+    "averageRating": "Average Rating"
+  },
+  "search": {
+    "placeholder": "Search for artists or tracks...",
+    "artists": "Artists",
+    "tracks": "Tracks",
+    "albums": "Albums",
+    "noResults": "No results found"
+  },
+  "track": {
+    "details": "Track Details",
+    "rate": "Rate",
+    "preview": "30s Preview",
+    "listenOn": "Listen on",
+    "spotify": "Spotify",
+    "youtube": "YouTube",
+    "appleMusic": "Apple Music"
+  },
+  "playlist": {
+    "create": "Create Playlist",
+    "name": "Playlist Name",
+    "created": "Playlist created",
+    "deleted": "Playlist deleted"
+  },
+  "settings": {
+    "title": "Settings",
+    "theme": "Theme",
+    "themeDesc": "Switch between dark/light mode",
+    "language": "Language"
+  }
+}
+

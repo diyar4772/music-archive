@@ -1,0 +1,101 @@
+{
+  "common": {
+    "loading": "Yükleniyor...",
+    "error": "Bir hata oluştu",
+    "retry": "Tekrar Dene",
+    "cancel": "İptal",
+    "save": "Kaydet",
+    "delete": "Sil",
+    "edit": "Düzenle",
+    "close": "Kapat",
+    "search": "Ara",
+    "profile": "Profil",
+    "settings": "Ayarlar",
+    "logout": "Çıkış Yap"
+  },
+  "auth": {
+    "login": "Giriş Yap",
+    "register": "Kayıt Ol",
+    "username": "Kullanıcı Adı",
+    "password": "Şifre",
+    "loginButton": "Giriş Yap",
+    "registerButton": "Hesap Oluştur",
+    "invalidCredentials": "Geçersiz kullanıcı adı veya şifre",
+    "usernameTaken": "Kullanıcı adı zaten alınmış",
+    "loginSuccess": "Başarıyla giriş yapıldı"
+  },
+  "home": {
+    "title": "Ana Sayfa",
+    "searchPlaceholder": "Sanatçı veya şarkı ara...",
+    "searchArtists": "Sanatçılar",
+    "searchTracks": "Şarkılar",
+    "todayPrompt": "Bugün ne dinlemek istersin?",
+    "noResults": "Sonuç bulunamadı",
+    "emptyState": "Müzik keşfetmek için arama yap"
+  },
+  "library": {
+    "title": "Kütüphanen",
+    "dashboard": "Pano",
+    "likedTracks": "Beğenilen Şarkılar",
+    "followedArtists": "Takip Edilen Sanatçılar",
+    "playlists": "Listelerim",
+    "recentlyAdded": "Son Eklenenler",
+    "topRated": "En Çok Puanlananlar",
+    "averageRating": "Ortalama Puan",
+    "totalTracks": "{{count}} şarkı",
+    "totalTracks_plural": "{{count}} şarkı",
+    "totalArtists": "{{count}} sanatçı",
+    "totalArtists_plural": "{{count}} sanatçı",
+    "noTracks": "Henüz şarkı yok",
+    "noArtists": "Henüz sanatçı yok",
+    "noPlaylists": "Henüz liste yok",
+    "createPlaylist": "Liste Oluştur",
+    "playlistName": "Liste Adı",
+    "playlistCreated": "Liste oluşturuldu",
+    "playlistDeleted": "Liste silindi",
+    "trackDeleted": "Şarkı kaldırıldı",
+    "artistUnfollowed": "Sanatçı takibi bırakıldı"
+  },
+  "dig": {
+    "title": "Keşif Modu",
+    "discoveryComplete": "Keşif tamamlandı!",
+    "refreshPrompt": "Daha fazla şarkı keşfetmek için yenile",
+    "refresh": "Yenile",
+    "loadingTracks": "Şarkılar yükleniyor...",
+    "pass": "Geç",
+    "explore": "Keşfet",
+    "archive": "Arşivle",
+    "hint": "← Geç • ↑ Keşfet • → Arşivle"
+  },
+  "curator": {
+    "title": "Küratör",
+    "searchPlaceholder": "Şarkı ara...",
+    "stagingArea": "Hazırlık Alanı",
+    "addToPlaylist": "Listeye Ekle",
+    "createNewPlaylist": "Yeni Liste Oluştur",
+    "finalize": "Tamamla",
+    "clear": "Temizle",
+    "emptyStaging": "Hazırlık alanında şarkı yok",
+    "addTracksPrompt": "Liste oluşturmak için şarkı ekle",
+    "playlistCreated": "Liste başarıyla oluşturuldu"
+  },
+  "trackDetail": {
+    "title": "Şarkı Detayları",
+    "rate": "Puanla",
+    "preview": "30sn Önizle",
+    "listenOn": "Dinle",
+    "spotify": "Spotify",
+    "youtube": "YouTube",
+    "appleMusic": "Apple Music",
+    "rating": "Puan",
+    "noRating": "Puanlanmamış"
+  },
+  "errors": {
+    "networkError": "Ağ hatası. Lütfen bağlantınızı kontrol edin.",
+    "serverError": "Sunucu hatası. Lütfen daha sonra tekrar deneyin.",
+    "unauthorized": "Oturum süresi doldu. Lütfen tekrar giriş yapın.",
+    "notFound": "Kaynak bulunamadı",
+    "unknownError": "Bilinmeyen bir hata oluştu"
+  }
+}
+

@@ -1,0 +1,106 @@
+{
+  "colors": {
+    "primary": {
+      "value": "#8B5CF6",
+      "description": "Electric Violet - Main brand color (unified across web and mobile)"
+    },
+    "primaryDark": {
+      "value": "#7C3AED",
+      "description": "Violet-600 - Pressed/Active states"
+    },
+    "primaryLight": {
+      "value": "#A78BFA",
+      "description": "Violet-400 - Hover/Lighter variant"
+    },
+    "accent": {
+      "value": "#F472B6",
+      "description": "Pink-400 - Hearts, likes, special highlights"
+    },
+    "accentDark": {
+      "value": "#EC4899",
+      "description": "Pink-500 - Active state"
+    },
+    "background": {
+      "value": "#0A0A0B",
+      "description": "Deepest black background"
+    },
+    "surface": {
+      "value": "#121214",
+      "description": "Main background"
+    },
+    "surfaceElevated": {
+      "value": "#1E1E24",
+      "description": "Cards, elevated surfaces"
+    },
+    "surfaceHover": {
+      "value": "#2A2A32",
+      "description": "Hover states"
+    },
+    "textPrimary": {
+      "value": "#FFFFFF",
+      "description": "Primary text color"
+    },
+    "textSecondary": {
+      "value": "#A1A1AA",
+      "description": "Secondary text (Zinc-400)"
+    },
+    "textMuted": {
+      "value": "#71717A",
+      "description": "Muted text (Zinc-500)"
+    },
+    "border": {
+      "value": "#27272A",
+      "description": "Border color (Zinc-800)"
+    },
+    "success": {
+      "value": "#10B981",
+      "description": "Success states (Emerald)"
+    },
+    "error": {
+      "value": "#EF4444",
+      "description": "Error states (Red)"
+    },
+    "warning": {
+      "value": "#F59E0B",
+      "description": "Warning states (Amber)"
+    },
+    "info": {
+      "value": "#3B82F6",
+      "description": "Info states (Blue)"
+    }
+  },
+  "spacing": {
+    "xs": { "value": "4px" },
+    "sm": { "value": "8px" },
+    "md": { "value": "12px" },
+    "lg": { "value": "16px" },
+    "xl": { "value": "20px" },
+    "2xl": { "value": "24px" },
+    "3xl": { "value": "32px" },
+    "4xl": { "value": "40px" }
+  },
+  "borderRadius": {
+    "sm": { "value": "6px" },
+    "md": { "value": "8px" },
+    "lg": { "value": "12px" },
+    "xl": { "value": "16px" },
+    "2xl": { "value": "20px" },
+    "full": { "value": "9999px" }
+  },
+  "typography": {
+    "fontFamily": {
+      "primary": { "value": "Inter, system-ui, sans-serif" }
+    },
+    "fontSize": {
+      "xs": { "value": "11px" },
+      "sm": { "value": "13px" },
+      "base": { "value": "15px" },
+      "lg": { "value": "17px" },
+      "xl": { "value": "20px" },
+      "2xl": { "value": "24px" },
+      "3xl": { "value": "28px" },
+      "4xl": { "value": "34px" }
+    }
+  }
+}
+

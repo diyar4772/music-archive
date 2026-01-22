@@ -1,9 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     View,
     Text,
     FlatList,
-    Image,
     TouchableOpacity,
     StyleSheet,
     ScrollView,
@@ -15,6 +15,7 @@ import {
     Pressable,
     ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -428,6 +429,14 @@ export default function LibraryScreen() {
                 keyExtractor={(item) => item.trackId}
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
+                removeClippedSubviews={true}
+                maxToRenderPerBatch={10}
+                windowSize={5}
+                getItemLayout={(data, index) => ({
+                    length: 80, // Approximate track row height
+                    offset: 80 * index,
+                    index,
+                })}
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
                         <Ionicons name="heart-outline" size={64} color="#333" />
@@ -448,7 +457,12 @@ export default function LibraryScreen() {
                 renderItem={({ item }) => (
                     <TouchableOpacity style={styles.artistRow} activeOpacity={0.7}>
                         {item.image ? (
-                            <Image source={{ uri: item.image }} style={styles.artistRowImage} />
+                            <Image 
+                                source={{ uri: item.image }} 
+                                style={styles.artistRowImage}
+                                cachePolicy="memory-disk"
+                                contentFit="cover"
+                            />
                         ) : (
                             <View style={[styles.artistRowImage, styles.placeholder]}>
                                 <Ionicons name="person" size={24} color="#666" />
@@ -726,8 +740,8 @@ export default function LibraryScreen() {
                         {/* LEFT: Big 'Liked' Card */}
                         <DashboardCard
                             icon="heart"
-                            title="Beğenilenler"
-                            subtitle={`${likedTracksCount} Şarkı`}
+                            title={t('library.likedTracks')}
+                            subtitle={t('library.totalTracks', { count: likedTracksCount })}
                             gradientColors={['#9333EA', '#7C3AED']}
                             style={styles.bigCard}
                             titleStyle={{ fontSize: 20, marginTop: 4 }}
@@ -742,8 +756,8 @@ export default function LibraryScreen() {
                             {/* Top Right: Followed */}
                             <DashboardCard
                                 icon="people"
-                                title="Takip Edilenler"
-                                subtitle={`${followedArtistsCount} Sanatçı`}
+                                title={t('library.followedArtists')}
+                                subtitle={t('library.totalArtists', { count: followedArtistsCount })}
                                 gradientColors={['#3B82F6', '#2563EB']}
                                 style={styles.smallCard}
                                 onPress={() => {
@@ -816,6 +830,9 @@ export default function LibraryScreen() {
                             renderItem={({ item }) => <PlaylistCard playlist={item} />}
                             keyExtractor={(item) => item.id}
                             horizontal
+                            removeClippedSubviews={true}
+                            maxToRenderPerBatch={5}
+                            windowSize={3}
                             showsHorizontalScrollIndicator={false}
                             contentContainerStyle={styles.playlistList}
                         />
@@ -858,7 +875,12 @@ export default function LibraryScreen() {
                             renderItem={({ item }) => (
                                 <TouchableOpacity style={styles.artistChip} activeOpacity={0.7}>
                                     {item.image ? (
-                                        <Image source={{ uri: item.image }} style={styles.artistChipImage} />
+                                        <Image 
+                                            source={{ uri: item.image }} 
+                                            style={styles.artistChipImage}
+                                            cachePolicy="memory-disk"
+                                            contentFit="cover"
+                                        />
                                     ) : (
                                         <View style={[styles.artistChipImage, styles.placeholder]}>
                                             <Ionicons name="person" size={16} color="#666" />

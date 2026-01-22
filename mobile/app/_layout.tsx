@@ -10,6 +10,7 @@ import '../global.css';
 import { useAuthStore } from '../stores/authStore';
 import { Colors } from '../constants/theme';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import '../services/i18n'; // Initialize i18n
 
 export {
   ErrorBoundary as ExpoErrorBoundary,
@@ -88,7 +89,10 @@ function RootLayoutNav() {
   return (
     <ErrorBoundary>
       <ThemeProvider value={MusicArchiveDarkTheme}>
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack 
+          screenOptions={{ headerShown: false }}
+          linking={linking}
+        >
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal' }} />

@@ -48,6 +48,24 @@ const generalLimiter = rateLimit({
     message: { error: 'Too many requests. Please slow down.' }
 });
 
+// 🔒 SECURITY: Per-user rate limiting for Spotify API endpoints
+// Prevents individual users from exhausting Spotify API quota
+const userLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 20, // 20 requests per user per minute
+    keyGenerator: (req) => {
+        // Use user ID if authenticated, otherwise fall back to IP
+        return req.user?.id || req.ip || 'anonymous';
+    },
+    skip: (req) => {
+        // Skip rate limiting for unauthenticated requests (they use generalLimiter)
+        return !req.user;
+    },
+    message: { error: 'Too many search requests. Please slow down.' },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
 // 📱 MOBILE: Enhanced CORS for React Native (Expo) access
 const corsOptions = {
     origin: function (origin, callback) {
@@ -113,8 +131,15 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     isAdmin: { type: Boolean, default: false },
     lastLogin: { type: Date, default: null },
-    loginCount: { type: Number, default: 0 }
+    loginCount: { type: Number, default: 0 },
+    refreshToken: { type: String, default: null } // For JWT refresh mechanism
 }, { timestamps: true });
+
+// Indexes for User schema - CRITICAL for performance
+userSchema.index({ username: 1 }); // Already unique, but explicit index for clarity
+userSchema.index({ refreshToken: 1 }); // For refresh token lookups (frequent query)
+userSchema.index({ lastLogin: -1 }); // For sorting users by last login (admin queries)
+userSchema.index({ createdAt: -1 }); // For sorting by registration date
 
 const followSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -123,6 +148,10 @@ const followSchema = new mongoose.Schema({
     image: { type: String }
 }, { timestamps: true });
 
+// Indexes for Follow schema
+followSchema.index({ userId: 1 }); // For user's followed artists
+followSchema.index({ artistId: 1 }); // For artist popularity queries
+
 const albumFollowSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     albumId: { type: String, required: true },
@@ -130,6 +159,10 @@ const albumFollowSchema = new mongoose.Schema({
     image: { type: String },
     artistName: { type: String }
 }, { timestamps: true });
+
+// Indexes for AlbumFollow schema
+albumFollowSchema.index({ userId: 1 }); // For user's followed albums
+albumFollowSchema.index({ albumId: 1 }); // For album popularity queries
 
 const likeSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -143,11 +176,19 @@ const likeSchema = new mongoose.Schema({
     mood: { type: String, default: null }
 }, { timestamps: true });
 
+// Indexes for Like schema - CRITICAL for performance at scale
+likeSchema.index({ userId: 1 }); // For user's liked tracks (most common query)
+likeSchema.index({ trackId: 1 }); // For "is track liked?" checks
+likeSchema.index({ userId: 1, trackId: 1 }, { unique: true }); // Compound for uniqueness and fast lookups
+
 const playlistSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     name: { type: String, required: true },
     coverImage: { type: String, default: null } // Custom cover image URL
 }, { timestamps: true });
+
+// Indexes for Playlist schema
+playlistSchema.index({ userId: 1 }); // For user's playlists
 
 const playlistTrackSchema = new mongoose.Schema({
     playlistId: { type: mongoose.Schema.Types.ObjectId, ref: 'Playlist', required: true },
@@ -156,6 +197,10 @@ const playlistTrackSchema = new mongoose.Schema({
     image: { type: String },
     previewUrl: { type: String }
 }, { timestamps: true });
+
+// Indexes for PlaylistTrack schema
+playlistTrackSchema.index({ playlistId: 1 }); // For playlist tracks (most common query)
+playlistTrackSchema.index({ trackId: 1 }); // For finding playlists containing a track
 
 // Rating Schema - Şarkı ve Albüm puanlama
 const ratingSchema = new mongoose.Schema({
@@ -176,6 +221,10 @@ const loginHistorySchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     loginAt: { type: Date, default: Date.now }
 }, { timestamps: false });
+
+// Indexes for LoginHistory schema
+loginHistorySchema.index({ userId: 1 }); // For user's login history
+loginHistorySchema.index({ loginAt: -1 }); // For recent logins sorting
 
 // --- Mongoose Models ---
 const User = mongoose.model('User', userSchema);
@@ -473,6 +522,10 @@ app.post('/api/login', authLimiter, async (req, res) => {
             user.lastLogin = new Date();
             user.loginCount = (user.loginCount || 0) + 1;
 
+            // Generate new refresh token on login
+            const refreshToken = generateRefreshToken();
+            user.refreshToken = refreshToken;
+
             // Record login history (in-memory)
             if (!inMemoryDB.loginHistory) inMemoryDB.loginHistory = [];
             inMemoryDB.loginHistory.push({ userId: user._id, loginAt: new Date() });
@@ -484,13 +537,17 @@ app.post('/api/login', authLimiter, async (req, res) => {
             }
 
             const token = jwt.sign({ id: user._id, username: user.username, isAdmin: user.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
-            return res.json({ token, username: user.username });
+            return res.json({ token, refreshToken, username: user.username });
         }
 
         const user = await User.findOne({ username: { $regex: new RegExp(`^${escapeRegex(username)}$`, 'i') } });
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
+
+        // Generate new refresh token on login
+        const refreshToken = generateRefreshToken();
+        user.refreshToken = refreshToken;
 
         // Update login stats
         user.lastLogin = new Date();
@@ -510,17 +567,52 @@ app.post('/api/login', authLimiter, async (req, res) => {
         }
 
         const token = jwt.sign({ id: user._id, username: user.username, isAdmin: user.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
-        res.json({ token, username: user.username });
+        res.json({ token, refreshToken, username: user.username });
     } catch (e) {
         console.error('Login error:', e.message);
         res.status(500).json({ error: 'Login failed' });
     }
 });
 
+// --- Refresh Token Endpoint ---
+app.post('/api/auth/refresh', authLimiter, async (req, res) => {
+    try {
+        const { refreshToken } = req.body;
+
+        if (!refreshToken) {
+            return res.status(400).json({ error: 'Refresh token is required' });
+        }
+
+        if (useInMemory) {
+            const user = inMemoryDB.users.find(u => u.refreshToken === refreshToken);
+            if (!user) {
+                return res.status(401).json({ error: 'Invalid refresh token' });
+            }
+
+            // Generate new access token
+            const token = jwt.sign({ id: user._id, username: user.username, isAdmin: user.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
+            return res.json({ token });
+        }
+
+        // MongoDB: Find user by refresh token
+        const user = await User.findOne({ refreshToken });
+        if (!user) {
+            return res.status(401).json({ error: 'Invalid refresh token' });
+        }
+
+        // Generate new access token
+        const token = jwt.sign({ id: user._id, username: user.username, isAdmin: user.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
+        res.json({ token });
+    } catch (e) {
+        console.error('Refresh token error:', e.message);
+        res.status(500).json({ error: 'Failed to refresh token' });
+    }
+});
+
 // --- Routes: Data (Public) ---
 
-// Search
-app.get('/api/search', async (req, res) => {
+// Search - Protected with per-user rate limiting
+app.get('/api/search', userLimiter, async (req, res) => {
     try {
         const { artist, type } = req.query;
         if (!artist) return res.status(400).json({ error: 'Missing query' });
@@ -597,7 +689,7 @@ app.get('/api/search', async (req, res) => {
 
         // Album search results - with smart ranking
         if (type === 'album') {
-            const albums = searchResp.data.albums.items.map(a => ({
+            let albums = searchResp.data.albums.items.map(a => ({
                 id: a.id,
                 name: a.name,
                 artist: a.artists[0]?.name || 'Unknown',
@@ -607,6 +699,8 @@ app.get('/api/search', async (req, res) => {
                 popularity: a.popularity
             }));
             const rankedAlbums = rankSearchResults(albums, artist, 'name');
+            // Cache results for 1 hour
+            await cacheSet(cacheKey, rankedAlbums, 3600);
             return res.json(rankedAlbums);
         }
 
@@ -630,6 +724,8 @@ app.get('/api/search', async (req, res) => {
             // Spotify preview yoksa iTunes'dan al (enrichTracksWithPreviews fonksiyonu)
             const enrichedTracks = await enrichTracksWithPreviews(rankedTracks);
 
+            // Cache results for 1 hour
+            await cacheSet(cacheKey, enrichedTracks, 3600);
             return res.json(enrichedTracks);
         }
 
@@ -644,14 +740,16 @@ app.get('/api/search', async (req, res) => {
 
         // Smart rank: exact match first, then starts with, then by popularity
         const rankedArtists = rankSearchResults(artists, artist, 'name');
+        // Cache results for 1 hour
+        await cacheSet(cacheKey, rankedArtists, 3600);
         res.json(rankedArtists);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
-// Album Details
-app.get('/api/album/:id', async (req, res) => {
+// Album Details - Rate limited to protect Spotify API quota
+app.get('/api/album/:id', generalLimiter, async (req, res) => {
     try {
         const token = await getSpotifyToken();
         const resp = await axios.get(`https://api.spotify.com/v1/albums/${req.params.id}`, {
@@ -1429,8 +1527,8 @@ const getRandomItems = (arr, count) => {
     return shuffled.slice(0, count);
 };
 
-// Dig Mode: Get SMART personalized tracks queue
-app.get('/api/dig/queue', authenticateToken, async (req, res) => {
+// Dig Mode: Get SMART personalized tracks queue - Rate limited to protect Spotify API
+app.get('/api/dig/queue', authenticateToken, userLimiter, async (req, res) => {
     try {
         const { mood, limit = 15 } = req.query;
         const userId = req.user.id;
@@ -1539,7 +1637,7 @@ app.get('/api/dig/queue', authenticateToken, async (req, res) => {
 });
 
 // Dig Mode: Handle swipe action
-app.post('/api/dig/swipe', authenticateToken, async (req, res) => {
+app.post('/api/dig/swipe', authenticateToken, userLimiter, async (req, res) => {
     try {
         const { trackId, trackName, artistId, artistName, albumId, image, action, mood } = req.body;
         const userId = req.user.id;
@@ -1922,7 +2020,7 @@ app.delete('/api/library/artist/:artistId', authenticateToken, async (req, res) 
 });
 
 // Enhanced Search: Returns isArchived status for each track
-app.get('/api/search/enhanced', authenticateToken, async (req, res) => {
+app.get('/api/search/enhanced', authenticateToken, userLimiter, async (req, res) => {
     try {
         const { q, type = 'track', limit = 20 } = req.query;
         const userId = req.user.id;
@@ -2312,8 +2410,8 @@ app.post('/api/library/note', mobileAuth, async (req, res) => {
     }
 });
 
-// 🔄 POST /api/library/enrich-previews - Enrich old likes with missing preview URLs
-app.post('/api/library/enrich-previews', mobileAuth, async (req, res) => {
+// 🔄 POST /api/library/enrich-previews - Enrich old likes with missing preview URLs - Rate limited
+app.post('/api/library/enrich-previews', mobileAuth, userLimiter, async (req, res) => {
     try {
         const userId = req.user.id;
         let enrichedCount = 0;

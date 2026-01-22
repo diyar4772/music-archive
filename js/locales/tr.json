@@ -1,0 +1,59 @@
+{
+  "common": {
+    "loading": "Yükleniyor...",
+    "error": "Bir hata oluştu",
+    "retry": "Tekrar Dene",
+    "cancel": "İptal",
+    "save": "Kaydet",
+    "delete": "Sil",
+    "edit": "Düzenle",
+    "close": "Kapat",
+    "search": "Ara",
+    "profile": "Profil",
+    "settings": "Ayarlar",
+    "logout": "Çıkış Yap"
+  },
+  "library": {
+    "title": "Kütüphanen",
+    "likedSongs": "Beğenilen Şarkılar",
+    "following": "Takip Edilenler",
+    "playlists": "Listelerim",
+    "createPlaylist": "Liste Oluştur",
+    "totalTracks": "{{count}} şarkı",
+    "totalTracks_plural": "{{count}} şarkı",
+    "totalArtists": "{{count}} sanatçı",
+    "totalArtists_plural": "{{count}} sanatçı",
+    "recentlyAdded": "Son Eklenenler",
+    "topRated": "En Çok Puanlananlar",
+    "averageRating": "Ortalama Puan"
+  },
+  "search": {
+    "placeholder": "Sanatçı veya şarkı ara...",
+    "artists": "Sanatçılar",
+    "tracks": "Şarkılar",
+    "albums": "Albümler",
+    "noResults": "Sonuç bulunamadı"
+  },
+  "track": {
+    "details": "Şarkı Detayları",
+    "rate": "Puanla",
+    "preview": "30sn Önizle",
+    "listenOn": "Dinle",
+    "spotify": "Spotify",
+    "youtube": "YouTube",
+    "appleMusic": "Apple Music"
+  },
+  "playlist": {
+    "create": "Liste Oluştur",
+    "name": "Liste Adı",
+    "created": "Liste oluşturuldu",
+    "deleted": "Liste silindi"
+  },
+  "settings": {
+    "title": "Ayarlar",
+    "theme": "Tema",
+    "themeDesc": "Koyu/Açık mod değiştir",
+    "language": "Dil"
+  }
+}
+
