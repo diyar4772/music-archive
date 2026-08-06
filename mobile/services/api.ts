@@ -14,7 +14,18 @@ export const setOnUnauthorized = (callback: AuthEventCallback) => {
 
 // API Base URL Configuration
 // Development: Automatically uses Expo's hostUri for dynamic IP
-// Production: Uses configured PROD_API_URL or Render.com URL
+// Production: Uses PROD_API_URL from app.json — there is no default. A hardcoded
+// fallback host would keep receiving auth tokens after that host changes hands.
+
+const getProdURL = () => {
+    const prodUrl = Constants.expoConfig?.extra?.PROD_API_URL;
+    if (!prodUrl) {
+        throw new Error(
+            'PROD_API_URL is not set in app.json (expo.extra). Point it at your own backend before building for production.'
+        );
+    }
+    return prodUrl;
+};
 
 const getBaseURL = () => {
     const extra = Constants.expoConfig?.extra;
@@ -25,7 +36,7 @@ const getBaseURL = () => {
             logger.debug('Web API Base URL (dev): http://localhost:3000/api', undefined, 'api');
             return 'http://localhost:3000/api';
         }
-        const prodUrl = extra?.PROD_API_URL || 'https://music-archive.onrender.com/api';
+        const prodUrl = getProdURL();
         logger.debug('Web API Base URL (prod)', { url: prodUrl }, 'api');
         return prodUrl;
     }
@@ -33,7 +44,7 @@ const getBaseURL = () => {
     // 📱 Mobile Platform
     if (__DEV__) {
         // 🎯 Dynamic IP from Expo Metro bundler
-        // hostUri format: "192.168.1.148:8081" (IP:MetroPort)
+        // hostUri format: "192.168.1.10:8081" (IP:MetroPort)
         const hostUri = Constants.expoConfig?.hostUri;
 
         if (hostUri) {
@@ -50,9 +61,8 @@ const getBaseURL = () => {
         return devUrl;
     }
 
-    // Production - Use configured URL or Render.com
-    const prodUrl = extra?.PROD_API_URL || 'https://music-archive.onrender.com/api';
-    return prodUrl;
+    // Production - Use configured URL
+    return getProdURL();
 };
 
 const api = axios.create({

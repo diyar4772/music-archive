@@ -6,6 +6,11 @@ artists, rate them, tag them by mood, and watch your discography coverage fill i
 
 Spotify supplies the metadata; the archive is yours.
 
+> **Archived.** This repository is published as a snapshot of the project and is
+> not actively maintained. There is no hosted instance — the code runs only if you
+> deploy it yourself, pointing it at your own backend and your own Spotify
+> credentials. Issues and pull requests are not being monitored.
+
 ## What's in here
 
 | Path          | What it is                                                    |
@@ -45,6 +50,10 @@ The web client is then at `http://localhost:3000`.
 ```bash
 cd mobile && npm install && npm start
 ```
+
+In development the app finds the backend from Expo's host IP automatically. For a
+production build, set `expo.extra.PROD_API_URL` in `mobile/app.json` to your own
+API origin — it is empty by default and the app throws if it is left unset.
 
 ## Notes
 

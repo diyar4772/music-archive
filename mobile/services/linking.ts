@@ -5,13 +5,14 @@ import * as Linking from 'expo-linking';
  * Handles URLs like:
  * - musicarchive://library/spotify:track:xxx
  * - musicarchive://dig?mood=energetic
- * - https://music-archive.onrender.com/library/spotify:track:xxx
+ *
+ * Add your own https:// origin to `prefixes` for universal links. Nothing is
+ * listed here on purpose: a stale domain in this list would hand deep links to
+ * whoever registers it next.
  */
 export const linking = {
     prefixes: [
         'musicarchive://',
-        'https://music-archive.onrender.com',
-        'https://music-archive.onrender.com/',
     ],
     config: {
         screens: {

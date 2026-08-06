@@ -88,11 +88,11 @@ const corsOptions = {
         // Allow all origins in development only
         if (IS_DEVELOPMENT) return callback(null, true);
 
-        // Production: explicit whitelist. Extra origins via CORS_ORIGINS (comma-separated).
-        const allowedOrigins = [
-            'https://music-archive.onrender.com',
-            ...(process.env.CORS_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean)
-        ];
+        // Production: explicit whitelist from CORS_ORIGINS (comma-separated).
+        // No host is hardcoded — a domain listed here that later changes hands
+        // would be granted credentialed access.
+        const allowedOrigins = (process.env.CORS_ORIGINS || '')
+            .split(',').map(o => o.trim()).filter(Boolean);
         if (allowedOrigins.includes(origin)) {
             return callback(null, true);
         }
