@@ -33,3 +33,16 @@ Untitled*.txt
 
 # 🔒 Additional Security
 .env.*
+!.env.example
+
+# Local working notes, AI assistant rules and generated reports.
+# Kept out of the public repository on purpose.
+_dev_journal/
+memory-bank/
+Eski raporlar vb/
+.cursor/
+.clinerules
+.claude/
+*_REPORT.md
+*_SUMMARY.md
+merge_files.py
