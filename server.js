@@ -14,15 +14,29 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🔒 SECURITY: Strong JWT Secret with fallback warning
-const JWT_SECRET = process.env.JWT_SECRET || (() => {
-    console.warn('⚠️ WARNING: Using default JWT_SECRET! Set a strong secret in .env for production!');
-    return 'super_secret_music_key_CHANGE_ME_IN_PRODUCTION_' + Date.now();
-})();
+// 🔒 SECURITY: Secrets come from the environment only. No baked-in fallbacks —
+// a hardcoded default would be a published credential once the repo is public.
+const requireSecret = (name) => {
+    const value = process.env[name];
+    if (!value) {
+        console.error(`❌ FATAL: ${name} is not set. Copy .env.example to .env and fill it in.`);
+        process.exit(1);
+    }
+    return value;
+};
 
-// 🔒 SECURITY: Admin credentials (change in production!)
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const JWT_SECRET = requireSecret('JWT_SECRET');
+const ADMIN_USERNAME = requireSecret('ADMIN_USERNAME');
+const ADMIN_PASSWORD = requireSecret('ADMIN_PASSWORD');
+
+// 🔒 SECURITY: Development conveniences are fail-closed — NODE_ENV is not set on
+// most hosts, so anything unset must behave as production.
+const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
+const MOCK_AUTH_ENABLED = IS_DEVELOPMENT && process.env.ENABLE_MOCK_AUTH === 'true';
+
+if (MOCK_AUTH_ENABLED) {
+    console.warn('⚠️ MOCK AUTH ENABLED: unauthenticated requests act as the first user. Development only!');
+}
 
 // 🔒 SECURITY: Trust proxy for Render.com (required for rate limiting behind proxy)
 app.set('trust proxy', 1);
@@ -71,19 +85,18 @@ const corsOptions = {
     origin: function (origin, callback) {
         // Allow requests with no origin (mobile apps, Postman, etc.)
         if (!origin) return callback(null, true);
-        // Allow all origins in development
-        if (process.env.NODE_ENV !== 'production') return callback(null, true);
-        // In production, you can whitelist specific origins
+        // Allow all origins in development only
+        if (IS_DEVELOPMENT) return callback(null, true);
+
+        // Production: explicit whitelist. Extra origins via CORS_ORIGINS (comma-separated).
         const allowedOrigins = [
-            'http://localhost:3000',
-            'https://your-app.onrender.com',
-            // Add your production URLs here
+            'https://music-archive.onrender.com',
+            ...(process.env.CORS_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean)
         ];
         if (allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(null, true); // Allow all for now, tighten in production
+            return callback(null, true);
         }
+        return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -364,7 +377,7 @@ const enrichTracksWithPreviews = async (tracks) => {
 };
 
 // --- Middleware ---
-// 📱 MOBILE-FRIENDLY: authenticateToken now falls back to first user for testing
+// Requires a valid JWT. Falls back to a mock user only when MOCK_AUTH_ENABLED.
 const authenticateToken = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -379,13 +392,9 @@ const authenticateToken = async (req, res, next) => {
         }
     }
 
-    // No token - check if we should use fallback for mobile testing
-    // Header "X-Mobile-Test: true" enables mock auth for development
-    const isMobileTest = req.headers['x-mobile-test'] === 'true' ||
-        process.env.ENABLE_MOCK_AUTH === 'true' ||
-        process.env.NODE_ENV !== 'production';
-
-    if (!isMobileTest) {
+    // No token. Mock auth is opt-in via the environment only — never via a request
+    // header, which any caller could send to impersonate the first user in the DB.
+    if (!MOCK_AUTH_ENABLED) {
         return res.sendStatus(401);
     }
 
@@ -2098,19 +2107,19 @@ const mobileAuth = async (req, res, next) => {
             req.user = user;
             return next();
         } catch (err) {
-            // Token invalid - in production, reject immediately
-            if (process.env.NODE_ENV === 'production') {
+            // Token invalid - reject unless mock auth is explicitly enabled
+            if (!MOCK_AUTH_ENABLED) {
                 return res.status(401).json({
                     success: false,
                     error: 'Invalid or expired token. Please login again.'
                 });
             }
-            // In development, continue to fallback
+            // Mock auth on: continue to fallback
         }
     }
 
-    // 2. In production, no token = unauthorized
-    if (process.env.NODE_ENV === 'production') {
+    // 2. No token and no mock auth = unauthorized
+    if (!MOCK_AUTH_ENABLED) {
         return res.status(401).json({
             success: false,
             error: 'Authentication required. Please login.'
