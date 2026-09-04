@@ -114,7 +114,11 @@ const corsOptions = {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 };
-app.use(cors(corsOptions));
+// 🔒 CORS is an API-only concern. Mounted globally it also gated the static
+// frontend, and `<script type="module">` is always fetched in CORS mode — so an
+// origin missing from the allowlist made /js/app.js return 403 and the entire
+// web app failed to boot. Static assets are same-origin; they need no allowlist.
+app.use('/api', cors(corsOptions));
 app.get(['/', '/index.html'], (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
@@ -177,7 +181,8 @@ const userSchema = new mongoose.Schema({
     isAdmin: { type: Boolean, default: false },
     lastLogin: { type: Date, default: null },
     loginCount: { type: Number, default: 0 },
-    refreshToken: { type: String, default: null } // For JWT refresh mechanism
+    refreshToken: { type: String, default: null }, // Stores only a SHA-256 hash
+    refreshTokenExpiresAt: { type: Date, default: null }
 }, { timestamps: true });
 
 // Indexes for User schema - CRITICAL for performance
@@ -256,7 +261,16 @@ const ratingSchema = new mongoose.Schema({
     itemName: { type: String },
     artistName: { type: String },
     image: { type: String },
-    rating: { type: Number, min: 0.5, max: 5, required: true } // 0.5-5 yıldız
+    rating: {
+        type: Number,
+        min: 0.5,
+        max: 5,
+        required: true,
+        validate: {
+            validator: value => Number.isInteger(value * 2),
+            message: 'Rating must use 0.5 increments'
+        }
+    } // 0.5-5 yıldız
 }, { timestamps: true });
 
 // Aynı kullanıcı aynı item'ı sadece bir kez puanlayabilir
@@ -283,16 +297,23 @@ const Rating = mongoose.model('Rating', ratingSchema);
 const LoginHistory = mongoose.model('LoginHistory', loginHistorySchema);
 
 const upsertLike = async (filter, values, LikeModel = Like) => {
-    return LikeModel.findOneAndUpdate(
-        filter,
-        { $setOnInsert: values },
-        {
-            upsert: true,
-            new: true,
-            setDefaultsOnInsert: true,
-            includeResultMetadata: true
-        }
-    );
+    try {
+        return await LikeModel.findOneAndUpdate(
+            filter,
+            { $setOnInsert: values },
+            {
+                upsert: true,
+                new: true,
+                setDefaultsOnInsert: true,
+                includeResultMetadata: true
+            }
+        );
+    } catch (error) {
+        if (error?.code !== 11000) throw error;
+        const value = await LikeModel.findOne(filter);
+        if (!value) throw error;
+        return { value, lastErrorObject: { updatedExisting: true } };
+    }
 };
 
 const toggleLike = async (filter, values, LikeModel = Like) => {
@@ -493,6 +514,8 @@ const validatePassword = body('password')
 
 const generateRefreshToken = () => crypto.randomBytes(64).toString('hex');
 const hashRefreshToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const generateRefreshTokenExpiry = () => new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
 const generateAccessToken = (user) => jwt.sign({
     id: user._id,
     username: user.username,
@@ -584,7 +607,8 @@ app.post('/api/register', authLimiter, [validateUsername, validatePassword], asy
                 password: hashedPassword,
                 createdAt: new Date(),
                 isAdmin: false,
-                refreshToken: hashRefreshToken(refreshToken)
+                refreshToken: hashRefreshToken(refreshToken),
+                refreshTokenExpiresAt: generateRefreshTokenExpiry()
             };
             inMemoryDB.users.push(user);
             const token = generateAccessToken(user);
@@ -601,7 +625,8 @@ app.post('/api/register', authLimiter, [validateUsername, validatePassword], asy
         const user = await User.create({
             username,
             password: hashedPassword,
-            refreshToken: hashRefreshToken(refreshToken)
+            refreshToken: hashRefreshToken(refreshToken),
+            refreshTokenExpiresAt: generateRefreshTokenExpiry()
         });
         const token = generateAccessToken(user);
         res.json({ token, refreshToken, username: user.username });
@@ -631,6 +656,7 @@ app.post('/api/login', authLimiter, async (req, res) => {
             // Generate new refresh token on login
             const refreshToken = generateRefreshToken();
             user.refreshToken = hashRefreshToken(refreshToken);
+            user.refreshTokenExpiresAt = generateRefreshTokenExpiry();
 
             // Record login history (in-memory)
             if (!inMemoryDB.loginHistory) inMemoryDB.loginHistory = [];
@@ -654,6 +680,7 @@ app.post('/api/login', authLimiter, async (req, res) => {
         // Generate new refresh token on login
         const refreshToken = generateRefreshToken();
         user.refreshToken = hashRefreshToken(refreshToken);
+        user.refreshTokenExpiresAt = generateRefreshTokenExpiry();
 
         // Update login stats
         user.lastLogin = new Date();
@@ -692,22 +719,28 @@ app.post('/api/auth/refresh', authLimiter, async (req, res) => {
         const refreshTokenHash = hashRefreshToken(refreshToken);
         const nextRefreshToken = generateRefreshToken();
         const nextRefreshTokenHash = hashRefreshToken(nextRefreshToken);
+        const nextRefreshTokenExpiresAt = generateRefreshTokenExpiry();
 
         if (useInMemory) {
             const user = inMemoryDB.users.find(u => u.refreshToken === refreshTokenHash);
-            if (!user) {
+            if (!user || !(user.refreshTokenExpiresAt instanceof Date) || user.refreshTokenExpiresAt <= new Date()) {
+                if (user) {
+                    user.refreshToken = null;
+                    user.refreshTokenExpiresAt = null;
+                }
                 return res.status(401).json({ error: 'Invalid refresh token' });
             }
 
             user.refreshToken = nextRefreshTokenHash;
+            user.refreshTokenExpiresAt = nextRefreshTokenExpiresAt;
             const token = generateAccessToken(user);
             return res.json({ token, refreshToken: nextRefreshToken });
         }
 
         // MongoDB: Find user by refresh token
         const user = await User.findOneAndUpdate(
-            { refreshToken: refreshTokenHash },
-            { $set: { refreshToken: nextRefreshTokenHash } },
+            { refreshToken: refreshTokenHash, refreshTokenExpiresAt: { $gt: new Date() } },
+            { $set: { refreshToken: nextRefreshTokenHash, refreshTokenExpiresAt: nextRefreshTokenExpiresAt } },
             { new: true }
         );
         if (!user) {
@@ -732,11 +765,14 @@ app.post('/api/logout', authLimiter, async (req, res) => {
         const refreshTokenHash = hashRefreshToken(refreshToken);
         if (useInMemory) {
             const user = inMemoryDB.users.find(u => u.refreshToken === refreshTokenHash);
-            if (user) user.refreshToken = null;
+            if (user) {
+                user.refreshToken = null;
+                user.refreshTokenExpiresAt = null;
+            }
         } else {
             await User.updateOne(
                 { refreshToken: refreshTokenHash },
-                { $set: { refreshToken: null } }
+                { $set: { refreshToken: null, refreshTokenExpiresAt: null } }
             );
         }
 
@@ -928,7 +964,7 @@ app.get('/api/me', authenticateToken, async (req, res) => {
             const ratings = inMemoryDB.ratings.filter(r => r.userId === req.user.id);
             return res.json({
                 follows: follows.map(f => ({ artistId: f.artistId, artistName: f.artistName, image: f.image })),
-                likes: likes.map(l => ({ trackId: l.trackId, trackName: l.trackName, artistName: l.artistName || 'Unknown Artist', image: l.image, previewUrl: l.previewUrl })),
+                likes: likes.map(l => ({ trackId: l.trackId, trackName: l.trackName, artistName: l.artistName || 'Unknown Artist', image: l.image, previewUrl: l.previewUrl, userNote: l.userNote, noteUpdatedAt: l.noteUpdatedAt })),
                 albumFollows: albumFollows.map(a => ({ albumId: a.albumId, albumName: a.albumName, image: a.image, artistName: a.artistName })),
                 ratings: ratings.map(r => ({ itemId: r.itemId, itemType: r.itemType, itemName: r.itemName, artistName: r.artistName, image: r.image, rating: r.rating }))
             });
@@ -941,7 +977,7 @@ app.get('/api/me', authenticateToken, async (req, res) => {
 
         res.json({
             follows: follows.map(f => ({ artistId: f.artistId, artistName: f.artistName, image: f.image })),
-            likes: likes.map(l => ({ trackId: l.trackId, trackName: l.trackName, artistName: l.artistName || 'Unknown Artist', image: l.image, previewUrl: l.previewUrl })),
+            likes: likes.map(l => ({ trackId: l.trackId, trackName: l.trackName, artistName: l.artistName || 'Unknown Artist', image: l.image, previewUrl: l.previewUrl, userNote: l.userNote, noteUpdatedAt: l.noteUpdatedAt })),
             albumFollows: albumFollows.map(a => ({ albumId: a.albumId, albumName: a.albumName, image: a.image, artistName: a.artistName })),
             ratings: ratings.map(r => ({ itemId: r.itemId, itemType: r.itemType, itemName: r.itemName, artistName: r.artistName, image: r.image, rating: r.rating }))
         });
@@ -981,6 +1017,9 @@ app.post('/api/follow', authenticateToken, async (req, res) => {
 app.post('/api/like', authenticateToken, async (req, res) => {
     try {
         const { trackId, trackName, image, previewUrl } = req.body;
+        if (typeof trackId !== 'string' || !trackId.trim()) {
+            return res.status(400).json({ error: 'trackId is required' });
+        }
 
         if (useInMemory) {
             const existsIdx = inMemoryDB.likes.findIndex(l => l.userId === req.user.id && l.trackId === trackId);
@@ -1039,13 +1078,13 @@ app.post('/api/rate', authenticateToken, async (req, res) => {
         const { itemId, itemType, itemName, artistName, image, rating } = req.body;
 
         // Validation
-        if (!itemId || !itemType || !rating) {
+        if (typeof itemId !== 'string' || !itemId.trim() || typeof itemType !== 'string' || !itemType || rating === undefined) {
             return res.status(400).json({ error: 'itemId, itemType, and rating are required' });
         }
         if (!['track', 'album'].includes(itemType)) {
             return res.status(400).json({ error: 'itemType must be "track" or "album"' });
         }
-        if (rating < 0.5 || rating > 5 || (rating * 2) % 1 !== 0) {
+        if (typeof rating !== 'number' || !Number.isFinite(rating) || rating < 0.5 || rating > 5 || !Number.isInteger(rating * 2)) {
             return res.status(400).json({ error: 'Rating must be between 0.5 and 5 in 0.5 increments' });
         }
 
@@ -2310,7 +2349,7 @@ app.post('/api/library/like', mobileAuth, async (req, res) => {
         const { spotifyId, title, artist, albumArt, previewUrl, artistId, source = 'manual', mood } = req.body;
 
         // Validation
-        if (!spotifyId || !title) {
+        if (typeof spotifyId !== 'string' || !spotifyId.trim() || typeof title !== 'string' || !title.trim()) {
             return res.status(400).json({
                 success: false,
                 error: 'spotifyId and title are required'
@@ -2348,6 +2387,7 @@ app.post('/api/library/like', mobileAuth, async (req, res) => {
                 source: source,
                 mood: mood || null,
                 userNote: null,
+                noteUpdatedAt: null,
                 createdAt: new Date()
             });
 
@@ -2398,10 +2438,9 @@ app.delete('/api/library/track/:spotifyId', mobileAuth, async (req, res) => {
     try {
         const { spotifyId } = req.params;
 
-        if (!spotifyId) {
+        if (typeof spotifyId !== 'string' || !spotifyId.trim()) {
             return res.status(400).json({ success: false, error: 'spotifyId is required' });
         }
-
         if (useInMemory) {
             const existsIdx = inMemoryDB.likes.findIndex(
                 l => l.userId === req.user.id && l.trackId === spotifyId
@@ -2522,8 +2561,11 @@ app.post('/api/library/note', mobileAuth, async (req, res) => {
     try {
         const { spotifyId, note } = req.body;
 
-        if (!spotifyId) {
+        if (typeof spotifyId !== 'string' || !spotifyId.trim()) {
             return res.status(400).json({ success: false, error: 'spotifyId is required' });
+        }
+        if (note !== undefined && note !== null && typeof note !== 'string') {
+            return res.status(400).json({ success: false, error: 'note must be a string or null' });
         }
 
         if (useInMemory) {
@@ -2541,7 +2583,8 @@ app.post('/api/library/note', mobileAuth, async (req, res) => {
             return res.json({
                 success: true,
                 message: note ? 'Memory tag added' : 'Memory tag removed',
-                note: track.userNote
+                note: track.userNote,
+                noteUpdatedAt: track.noteUpdatedAt
             });
         }
 
@@ -2561,7 +2604,8 @@ app.post('/api/library/note', mobileAuth, async (req, res) => {
         res.json({
             success: true,
             message: note ? 'Memory tag added' : 'Memory tag removed',
-            note: result.userNote
+            note: result.userNote,
+            noteUpdatedAt: result.noteUpdatedAt
         });
     } catch (e) {
         console.error('Library note error:', e.message);
@@ -2773,6 +2817,7 @@ app.get('/api/library/tracks', mobileAuth, async (req, res) => {
                     source: t.source || 'manual',
                     mood: t.mood,
                     note: t.userNote,
+                    noteUpdatedAt: t.noteUpdatedAt,
                     addedAt: t.createdAt
                 })),
                 pagination: {
@@ -2810,6 +2855,7 @@ app.get('/api/library/tracks', mobileAuth, async (req, res) => {
                 source: t.source || 'manual',
                 mood: t.mood,
                 note: t.userNote,
+                noteUpdatedAt: t.noteUpdatedAt,
                 addedAt: t.createdAt
             })),
             pagination: {

@@ -9,6 +9,7 @@ import { getRatings, getAverageRating, getTopRatedTracks } from '../services/rat
 import { renderStatCards, renderRecentlyAdded, renderTopRated } from '../components/Dashboard.js';
 import { exportToCSV, exportStats } from '../components/Export.js';
 import { t } from '../services/i18n.js';
+import { isAuthenticated } from '../services/auth.js';
 
 export class DashboardView extends Component {
     constructor(container, props = {}) {
@@ -19,6 +20,22 @@ export class DashboardView extends Component {
     }
 
     render() {
+        if (!isAuthenticated()) {
+            this.setHTML(`
+                <section class="w-full max-w-4xl mx-auto text-center py-12 sm:py-20 px-4 animate-fade-in">
+                    <i class="fa-solid fa-record-vinyl text-5xl text-green-500 mb-6"></i>
+                    <h2 class="text-3xl sm:text-5xl font-extrabold mb-4">Müziğini tek yerde arşivle</h2>
+                    <p class="text-base sm:text-lg text-text-secondary-light dark:text-text-secondary-dark max-w-2xl mx-auto mb-8">Music Archive; sevdiğin şarkıları, sanatçıları, puanlarını ve kişisel notlarını düzenli bir koleksiyonda tutar.</p>
+                    <div class="flex flex-col sm:flex-row justify-center gap-3">
+                        <button data-action="login" class="btn-spotify text-black font-bold px-7 py-3 rounded-full">Giriş Yap</button>
+                        <button data-action="register" class="border border-gray-400 dark:border-gray-600 font-bold px-7 py-3 rounded-full hover:border-green-500">Kayıt Ol</button>
+                    </div>
+                </section>
+            `);
+            this.attachEventListeners();
+            return;
+        }
+
         const stats = this.getCollectionStats();
 
         this.setHTML(`
@@ -26,10 +43,10 @@ export class DashboardView extends Component {
                 <h2 class="text-2xl font-bold mb-6" data-lang="library.title">Kütüphanem</h2>
 
                 <!-- Bento Grid Layout -->
-                <div class="grid grid-cols-4 md:grid-cols-4 gap-4 mb-8">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                     <!-- Liked Songs Card - Hero 2x2 -->
                     <div data-action="likes"
-                        class="col-span-2 row-span-2 bg-white dark:bg-card-dark p-6 rounded-2xl cursor-pointer hover:scale-[1.02] transition-all shadow-sm dark:shadow-glow-coral border border-gray-100 dark:border-accent-coral/20 flex flex-col justify-between group relative overflow-hidden">
+                        class="col-span-1 sm:col-span-2 row-span-2 bg-white dark:bg-card-dark p-6 rounded-2xl cursor-pointer hover:scale-[1.02] transition-all shadow-sm dark:shadow-glow-coral border border-gray-100 dark:border-accent-coral/20 flex flex-col justify-between group relative overflow-hidden">
                         <div class="absolute top-0 right-0 w-32 h-32 bg-accent-coral/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
                         <div>
                             <div class="w-14 h-14 bg-accent-coral/20 rounded-2xl flex items-center justify-center mb-4">
@@ -46,7 +63,7 @@ export class DashboardView extends Component {
 
                     <!-- Following Card - 2x1 -->
                     <div data-action="follows"
-                        class="col-span-2 bg-white dark:bg-card-dark p-5 rounded-2xl cursor-pointer hover:scale-[1.02] transition-all shadow-sm dark:shadow-glow-purple border border-gray-100 dark:border-accent-purple/20 flex items-center gap-4 group relative overflow-hidden">
+                        class="col-span-1 sm:col-span-2 bg-white dark:bg-card-dark p-5 rounded-2xl cursor-pointer hover:scale-[1.02] transition-all shadow-sm dark:shadow-glow-purple border border-gray-100 dark:border-accent-purple/20 flex items-center gap-4 group relative overflow-hidden">
                         <div class="absolute top-0 right-0 w-24 h-24 bg-accent-purple/10 rounded-full blur-2xl -mr-6 -mt-6"></div>
                         <div class="w-12 h-12 bg-accent-purple/20 rounded-xl flex items-center justify-center flex-shrink-0">
                             <i class="fa-solid fa-user-group text-xl text-accent-purple"></i>
@@ -86,7 +103,7 @@ export class DashboardView extends Component {
 
                 <!-- Quick Stats Row -->
                 <div id="statCardsContainer" class="mb-8">
-                    <div class="grid grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div class="stat-card bg-white dark:bg-card-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/5 flex items-center gap-3">
                             <div class="w-10 h-10 bg-green-100 dark:bg-green-500/20 rounded-lg flex items-center justify-center">
                                 <i class="fa-solid fa-music text-green-600 dark:text-green-400"></i>
@@ -190,7 +207,9 @@ export class DashboardView extends Component {
         bentoCards.forEach(card => {
             const action = card.getAttribute('data-action');
             this.addEventListener(card, 'click', () => {
-                if (action === 'likes' || action === 'follows' || action === 'playlists') {
+                if (action === 'login' || action === 'register') {
+                    window.openAuthModal?.(action);
+                } else if (action === 'likes' || action === 'follows' || action === 'playlists') {
                     this.onOpenProfileModal(action);
                 } else if (action === 'create-playlist') {
                     this.onCreatePlaylist();
@@ -245,6 +264,12 @@ export class DashboardView extends Component {
     }
 
     async loadData() {
+        if (!isAuthenticated()) return;
+        const recent = this.querySelector('#recentlyAddedContainer');
+        const topRated = this.querySelector('#topRatedContainer');
+        const loading = '<div class="text-center py-8 text-text-secondary-light dark:text-text-secondary-dark"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Yükleniyor...</div>';
+        if (recent) recent.innerHTML = loading;
+        if (topRated) topRated.innerHTML = loading;
         try {
             await Promise.all([
                 getLikedTracks(),
@@ -258,6 +283,9 @@ export class DashboardView extends Component {
             renderTopRated();
         } catch (error) {
             console.error('Failed to load dashboard data:', error);
+            const errorState = '<div class="text-center py-8 text-red-500">Veriler yüklenemedi. Lütfen yeniden deneyin.</div>';
+            if (recent) recent.innerHTML = errorState;
+            if (topRated) topRated.innerHTML = errorState;
         }
     }
 
@@ -282,6 +310,7 @@ export class DashboardView extends Component {
         });
 
         // Load data if not already loaded
+        if (!isAuthenticated()) return;
         if (store.likedTracks.length === 0) {
             this.loadData();
         } else {

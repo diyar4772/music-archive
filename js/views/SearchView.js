@@ -75,11 +75,17 @@ export class SearchView extends Component {
     async performSearch() {
         if (!this.query) return;
 
+        const target = this.querySelector('#trackResults');
+        if (target) {
+            target.classList.remove('hidden');
+            target.innerHTML = '<div class="text-center py-12 text-text-secondary-light dark:text-text-secondary-dark"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Aranıyor...</div>';
+        }
         try {
             this.results = await performSearch(this.query);
             this.displayResults();
         } catch (error) {
             console.error('Search error:', error);
+            if (target) target.innerHTML = '<div class="text-center py-12 text-red-500">Arama tamamlanamadı. Lütfen yeniden deneyin.</div>';
             if (window.showToast) {
                 window.showToast('❌ Arama başarısız', 'error');
             }

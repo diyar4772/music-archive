@@ -108,22 +108,86 @@ test('static serving exposes only required frontend assets', async () => {
         '/CLAUDE_BACKEND_AUDIT.md',
         '/docs/reports/CODEX_BACKEND_RUNTIME_SECURITY_FIXES_2026-09-04.md',
         '/.env',
-        '/.git/config'
+        '/.git/config',
+        '/database.sqlite'
     ]) {
         const result = await request(sourcePath);
         assert.equal(result.response.status, 404, sourcePath);
     }
 });
 
+test('static frontend assets are not gated by the API CORS allowlist', async () => {
+    // `<script type="module">` is always fetched in CORS mode, so the browser sends
+    // an Origin header even same-origin. While CORS was mounted globally this made
+    // /js/app.js return 403 whenever CORS_ORIGINS did not list the deployed origin,
+    // and the whole web app failed to boot. Static assets must ignore the allowlist.
+    const deployedOrigin = 'https://music-archive-v-2.onrender.com';
+    assert.ok(
+        !process.env.CORS_ORIGINS.split(',').includes(deployedOrigin),
+        'test needs an origin that is absent from CORS_ORIGINS'
+    );
+
+    for (const assetPath of ['/', '/index.html', '/js/app.js', '/js/services/api.js']) {
+        const asset = await request(assetPath, { headers: { origin: deployedOrigin } });
+        assert.equal(asset.response.status, 200, assetPath);
+    }
+
+    // Source disclosure must stay closed even when an Origin header is present.
+    for (const sourcePath of ['/server.js', '/package.json', '/.env', '/database.sqlite']) {
+        const blocked = await request(sourcePath, { headers: { origin: deployedOrigin } });
+        assert.equal(blocked.response.status, 404, sourcePath);
+    }
+});
+
+test('legacy bridge helpers read live auth state instead of a parse-time token', async () => {
+    const index = await request('/');
+    // The stale `let token = localStorage.getItem(...)` snapshot must be gone: a
+    // login performed after this script parsed used to leave legacy handlers
+    // sending `Bearer null`.
+    assert.doesNotMatch(index.body, /let\s+token\s*=\s*localStorage\.getItem/);
+    assert.match(index.body, /Object\.defineProperty\(window,\s*'token'/);
+    // The single refresh authority stays in js/services/api.js — no global override.
+    assert.doesNotMatch(index.body, /window\.fetch\s*=/);
+
+    const appModule = await request('/js/app.js');
+    assert.match(appModule.body, /window\.confirmCreatePlaylist\s*=/);
+    assert.match(appModule.body, /createPlaylistRequest\(name\)/);
+});
+
+test('API keeps its CORS allowlist and answers preflight for allowed origins', async () => {
+    const allowed = await request('/api/health', { headers: { origin: 'https://allowed.example' } });
+    assert.equal(allowed.response.status, 200);
+    assert.equal(allowed.response.headers.get('access-control-allow-origin'), 'https://allowed.example');
+
+    const preflight = await request('/api/login', {
+        method: 'OPTIONS',
+        headers: {
+            origin: 'https://allowed.example',
+            'access-control-request-method': 'POST',
+            'access-control-request-headers': 'content-type'
+        }
+    });
+    assert.ok(preflight.response.status === 200 || preflight.response.status === 204);
+    assert.equal(preflight.response.headers.get('access-control-allow-origin'), 'https://allowed.example');
+
+    const rejected = await request('/api/health', { headers: { origin: 'https://evil.example' } });
+    assert.equal(rejected.response.status, 403);
+    assert.deepEqual(rejected.body, { error: 'Origin not allowed' });
+});
+
 test('web and mobile clients retain refresh and server logout support', async () => {
     const index = await request('/');
-    assert.match(index.body, /fetchWithRefresh/);
-    assert.match(index.body, /userRefreshToken/);
-    assert.match(index.body, /\/logout/);
+    assert.match(index.body, /<script type="module" src="js\/app\.js"><\/script>/);
+    assert.doesNotMatch(index.body, /addEventListener\('DOMContentLoaded', \(\) => \{\s*updateAuthUI/);
 
     const webAuth = await request('/js/services/auth.js');
     assert.match(webAuth.body, /REFRESH_TOKEN/);
     assert.match(webAuth.body, /post\('\/logout'/);
+
+    const webApi = await request('/js/services/api.js');
+    assert.match(webApi.body, /refreshRequest/);
+    assert.match(webApi.body, /_retried/);
+    assert.match(webApi.body, /auth:session-expired/);
 
     const mobileAuth = fs.readFileSync(
         path.resolve(__dirname, '../mobile/services/auth.ts'),
@@ -154,6 +218,9 @@ test('protected endpoints return 401 for missing, invalid, and expired access to
 });
 
 test('Mongo schemas persist notes and accept half-star ratings', () => {
+    const userPaths = _test.models.User.schema.paths;
+    assert.ok(userPaths.refreshTokenExpiresAt);
+
     const likePaths = _test.models.Like.schema.paths;
     assert.ok(likePaths.userNote);
     assert.ok(likePaths.noteUpdatedAt);
@@ -165,6 +232,14 @@ test('Mongo schemas persist notes and accept half-star ratings', () => {
         rating: 0.5
     });
     assert.equal(rating.validateSync(), undefined);
+
+    const invalidStep = new _test.models.Rating({
+        userId: '507f1f77bcf86cd799439011',
+        itemId: 'track-invalid-step',
+        itemType: 'track',
+        rating: 0.6
+    });
+    assert.match(invalidStep.validateSync().errors.rating.message, /0\.5 increments/);
 });
 
 test('register returns refresh credentials and a 30-minute access token', async () => {
@@ -178,6 +253,7 @@ test('register returns refresh credentials and a 30-minute access token', async 
     const storedUser = _test.inMemoryDB.users.find(user => user.username === 'register_refresh_user');
     assert.notEqual(storedUser.refreshToken, register.body.refreshToken);
     assert.match(storedUser.refreshToken, /^[a-f0-9]{64}$/);
+    assert.ok(storedUser.refreshTokenExpiresAt > new Date());
     const decoded = jwt.decode(register.body.token);
     assert.equal(decoded.exp - decoded.iat, 30 * 60);
 });
@@ -224,6 +300,35 @@ test('login issues a refresh token and refresh rotates it', async () => {
     assert.equal(reused.response.status, 401);
 });
 
+test('expired refresh tokens are rejected and cleared without disclosure', async () => {
+    const register = await postJson('/api/register', {
+        username: 'expired_refresh_user',
+        password: 'password123'
+    }, { 'x-forwarded-for': '203.0.113.48' });
+    assert.equal(register.response.status, 200);
+
+    const storedUser = _test.inMemoryDB.users.find(user => user.username === 'expired_refresh_user');
+    storedUser.refreshTokenExpiresAt = new Date(Date.now() - 1000);
+
+    const capturedLogs = [];
+    const originalError = console.error;
+    console.error = (...args) => capturedLogs.push(args.join(' '));
+    try {
+        const expired = await postJson('/api/auth/refresh', {
+            refreshToken: register.body.refreshToken
+        }, { 'x-forwarded-for': '203.0.113.48' });
+        assert.equal(expired.response.status, 401);
+        assert.deepEqual(expired.body, { error: 'Invalid refresh token' });
+        assert.doesNotMatch(JSON.stringify(expired.body), new RegExp(register.body.refreshToken));
+    } finally {
+        console.error = originalError;
+    }
+
+    assert.equal(storedUser.refreshToken, null);
+    assert.equal(storedUser.refreshTokenExpiresAt, null);
+    assert.equal(capturedLogs.some(line => line.includes(register.body.refreshToken)), false);
+});
+
 test('logout invalidates the stored refresh token', async () => {
     const register = await postJson('/api/register', {
         username: 'logout_test_user',
@@ -243,7 +348,78 @@ test('logout invalidates the stored refresh token', async () => {
     assert.equal(refresh.response.status, 401);
 });
 
-test('admin deletion cascades ratings and login history', async () => {
+test('rating endpoint accepts half-stars and rejects invalid types and steps', async () => {
+    const register = await postJson('/api/register', {
+        username: 'rating_validation_user',
+        password: 'password123'
+    }, { 'x-forwarded-for': '203.0.113.49' });
+    assert.equal(register.response.status, 200);
+
+    const valid = await postJson('/api/rate', {
+        itemId: 'half-star-track', itemType: 'track', rating: 0.5
+    }, bearerHeaders(register.body.token, '203.0.113.49'));
+    assert.equal(valid.response.status, 200);
+    assert.equal(valid.body.rating, 0.5);
+
+    const invalidStep = await postJson('/api/rate', {
+        itemId: 'invalid-step-track', itemType: 'track', rating: 0.6
+    }, bearerHeaders(register.body.token, '203.0.113.49'));
+    assert.equal(invalidStep.response.status, 400);
+
+    const invalidType = await postJson('/api/rate', {
+        itemId: 'string-rating-track', itemType: 'track', rating: '0.5'
+    }, bearerHeaders(register.body.token, '203.0.113.49'));
+    assert.equal(invalidType.response.status, 400);
+
+    const injectedId = await postJson('/api/rate', {
+        itemId: { $ne: null }, itemType: 'track', rating: 0.5
+    }, bearerHeaders(register.body.token, '203.0.113.49'));
+    assert.equal(injectedId.response.status, 400);
+});
+
+test('library notes persist and return their update timestamp', async () => {
+    const register = await postJson('/api/register', {
+        username: 'note_persistence_user',
+        password: 'password123'
+    }, { 'x-forwarded-for': '203.0.113.50' });
+    assert.equal(register.response.status, 200);
+    const headers = bearerHeaders(register.body.token, '203.0.113.50');
+
+    const injectedLike = await postJson('/api/library/like', {
+        spotifyId: { $ne: null }, title: 'Invalid Track'
+    }, headers);
+    assert.equal(injectedLike.response.status, 400);
+
+    const liked = await postJson('/api/library/like', {
+        spotifyId: 'note-track', title: 'Note Track', artist: 'Test Artist'
+    }, headers);
+    assert.equal(liked.response.status, 200);
+
+    const note = await postJson('/api/library/note', {
+        spotifyId: 'note-track', note: 'A lasting memory'
+    }, headers);
+    assert.equal(note.response.status, 200);
+    assert.equal(note.body.note, 'A lasting memory');
+    assert.equal(typeof note.body.noteUpdatedAt, 'string');
+
+    const tracks = await request('/api/library/tracks', { headers });
+    assert.equal(tracks.response.status, 200);
+    const saved = tracks.body.tracks.find(track => track.trackId === 'note-track');
+    assert.equal(saved.userNote, 'A lasting memory');
+    assert.equal(new Date(saved.noteUpdatedAt).toISOString(), note.body.noteUpdatedAt);
+
+    const invalid = await postJson('/api/library/note', {
+        spotifyId: 'note-track', note: { $ne: null }
+    }, headers);
+    assert.equal(invalid.response.status, 400);
+
+    const injectedId = await postJson('/api/library/note', {
+        spotifyId: { $ne: null }, note: 'Invalid identifier'
+    }, headers);
+    assert.equal(injectedId.response.status, 400);
+});
+
+test('admin deletion cascades all user-owned records', async () => {
     const register = await postJson('/api/register', {
         username: 'cascade_test_user',
         password: 'password123'
@@ -267,6 +443,13 @@ test('admin deletion cascades ratings and login history', async () => {
     assert.ok(_test.inMemoryDB.ratings.some(item => item.userId === decoded.id));
     assert.ok(_test.inMemoryDB.loginHistory.some(item => item.userId === decoded.id));
 
+    const playlistId = 'cascade-playlist';
+    _test.inMemoryDB.likes.push({ _id: 'cascade-like', userId: decoded.id, trackId: 'cascade-like-track' });
+    _test.inMemoryDB.follows.push({ _id: 'cascade-follow', userId: decoded.id, artistId: 'cascade-artist' });
+    _test.inMemoryDB.albumFollows.push({ _id: 'cascade-album', userId: decoded.id, albumId: 'cascade-album' });
+    _test.inMemoryDB.playlists.push({ _id: playlistId, userId: decoded.id, name: 'Cascade' });
+    _test.inMemoryDB.playlistTracks.push({ _id: 'cascade-playlist-track', playlistId, trackId: 'cascade-track' });
+
     const deleted = await request(`/api/admin/users/${decoded.id}`, {
         method: 'DELETE',
         headers: adminHeaders('test-admin', 'test-only-admin-password', '203.0.113.43')
@@ -274,6 +457,11 @@ test('admin deletion cascades ratings and login history', async () => {
     assert.equal(deleted.response.status, 200);
     assert.equal(_test.inMemoryDB.ratings.some(item => item.userId === decoded.id), false);
     assert.equal(_test.inMemoryDB.loginHistory.some(item => item.userId === decoded.id), false);
+    assert.equal(_test.inMemoryDB.likes.some(item => item.userId === decoded.id), false);
+    assert.equal(_test.inMemoryDB.follows.some(item => item.userId === decoded.id), false);
+    assert.equal(_test.inMemoryDB.albumFollows.some(item => item.userId === decoded.id), false);
+    assert.equal(_test.inMemoryDB.playlists.some(item => item.userId === decoded.id), false);
+    assert.equal(_test.inMemoryDB.playlistTracks.some(item => item.playlistId === playlistId), false);
 });
 
 test('admin authentication safely rejects mismatches and is rate limited', async () => {
@@ -339,6 +527,52 @@ test('like helpers use atomic upsert while preserving toggle status', async () =
     );
     assert.equal(unliked, 'unliked');
     assert.equal(deletedId, 'like-2');
+});
+
+test('parallel idempotent like upserts produce one logical record', async () => {
+    const records = new Map();
+    const atomicModel = {
+        findOneAndUpdate: async (filter, update) => {
+            await Promise.resolve();
+            const key = `${filter.userId}:${filter.trackId}`;
+            const updatedExisting = records.has(key);
+            if (!updatedExisting) records.set(key, { _id: 'only-like', ...update.$setOnInsert });
+            return { value: records.get(key), lastErrorObject: { updatedExisting } };
+        }
+    };
+
+    const results = await Promise.all(Array.from({ length: 20 }, () => _test.upsertLike(
+        { userId: 'parallel-user', trackId: 'parallel-track' },
+        { userId: 'parallel-user', trackId: 'parallel-track', trackName: 'Parallel Track' },
+        atomicModel
+    )));
+
+    assert.equal(records.size, 1);
+    assert.equal(results.filter(result => !result.lastErrorObject.updatedExisting).length, 1);
+    assert.equal(results.filter(result => result.lastErrorObject.updatedExisting).length, 19);
+});
+
+test('like upsert handles a duplicate-key race as an existing record', async () => {
+    const existingLike = { _id: 'race-winner', userId: 'race-user', trackId: 'race-track' };
+    const racingModel = {
+        findOneAndUpdate: async () => {
+            const error = new Error('duplicate key');
+            error.code = 11000;
+            throw error;
+        },
+        findOne: async filter => {
+            assert.deepEqual(filter, { userId: 'race-user', trackId: 'race-track' });
+            return existingLike;
+        }
+    };
+
+    const result = await _test.upsertLike(
+        { userId: 'race-user', trackId: 'race-track' },
+        existingLike,
+        racingModel
+    );
+    assert.equal(result.value, existingLike);
+    assert.equal(result.lastErrorObject.updatedExisting, true);
 });
 
 test('search caches successful Spotify results without undefined helpers', async () => {

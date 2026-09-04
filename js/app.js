@@ -6,9 +6,12 @@
  */
 
 import { store } from './state/store.js';
-import { initAuth, isAuthenticated, getCurrentUser, logout as authLogout } from './services/auth.js';
+import { initAuth, isAuthenticated, getCurrentUser, login, register, logout as authLogout } from './services/auth.js';
 import { initSearch, setSearchType, performSearch } from './services/search.js';
-import { getLikedTracks, getFollowedArtists, getPlaylists } from './services/library.js';
+// Aliased so the bare `createPlaylist` identifier keeps resolving to the global
+// modal opener defined below — importing it unaliased would silently change what
+// Navbar's onCreatePlaylist callback points at.
+import { getLikedTracks, getFollowedArtists, getPlaylists, createPlaylist as createPlaylistRequest } from './services/library.js';
 import { getRatings } from './services/rating.js';
 import { initMiniPlayer } from './components/MiniPlayer.js';
 import { initModals } from './components/Modal.js';
@@ -16,7 +19,7 @@ import { initDashboard, showDashboard, renderStatCards, renderRecentlyAdded, ren
 import { exportToCSV, exportStats } from './components/Export.js';
 import { debounce, showToast } from './utils.js';
 import { API_URL } from './config.js';
-import i18n, { t, changeLanguage } from './services/i18n.js';
+import i18n, { t, changeLanguage, i18nReady } from './services/i18n.js';
 
 // Router and Views
 import { Router } from './core/Router.js';
@@ -125,6 +128,19 @@ async function initApp() {
     console.log('✅ Music Archive Web - Ready!');
 }
 
+function renderStartupError() {
+    const appContainer = document.getElementById('app');
+    if (!appContainer) return;
+    appContainer.innerHTML = `
+        <section class="w-full max-w-2xl mx-auto bg-white dark:bg-card-dark rounded-2xl p-8 text-center shadow-sm">
+            <i class="fa-solid fa-triangle-exclamation text-3xl text-amber-500 mb-4"></i>
+            <h2 class="text-2xl font-bold mb-2">Music Archive yüklenemedi</h2>
+            <p class="text-text-secondary-light dark:text-text-secondary-dark mb-5">Geçici bir sorun oluştu. Lütfen yeniden deneyin.</p>
+            <button id="retryBootstrap" class="btn-spotify text-black font-bold px-6 py-3 rounded-full">Yeniden Dene</button>
+        </section>`;
+    document.getElementById('retryBootstrap')?.addEventListener('click', () => window.location.reload());
+}
+
 /**
  * Handle logout
  */
@@ -200,6 +216,12 @@ function updateAuthUI() {
  * Setup global event listeners
  */
 function setupEventListeners() {
+    window.addEventListener('auth:session-expired', () => {
+        navbar?.render();
+        router?.navigate('dashboard');
+        showToast('Oturum süresi doldu. Lütfen yeniden giriş yapın.');
+    });
+
     // Close dropdowns on outside click
     document.addEventListener('click', (e) => {
         if (!e.target.closest('#authSection')) {
@@ -286,6 +308,48 @@ window.exportStats = exportStats;
 window.store = store;
 window.API_URL = API_URL;
 
+let authMode = 'login';
+const updateAuthModal = () => {
+    const isLogin = authMode === 'login';
+    const title = document.getElementById('authTitle');
+    const switcher = document.getElementById('authSwitch');
+    if (title) title.textContent = isLogin ? 'Giriş Yap' : 'Kayıt Ol';
+    if (switcher) switcher.textContent = isLogin ? 'Hesabın yok mu? Kayıt ol' : 'Hesabın var mı? Giriş yap';
+};
+
+window.openAuthModal = (mode = 'login') => {
+    authMode = mode === 'register' ? 'register' : 'login';
+    updateAuthModal();
+    const modal = document.getElementById('authModal');
+    modal?.classList.remove('hidden');
+    requestAnimationFrame(() => modal?.classList.add('visible'));
+};
+
+window.closeAuthModal = () => {
+    const modal = document.getElementById('authModal');
+    modal?.classList.remove('visible');
+    setTimeout(() => modal?.classList.add('hidden'), 300);
+};
+
+window.toggleAuthMode = () => {
+    authMode = authMode === 'login' ? 'register' : 'login';
+    updateAuthModal();
+};
+
+window.handleAuth = async () => {
+    const username = document.getElementById('authUsername')?.value.trim() || '';
+    const passwordInput = document.getElementById('authPassword');
+    const password = passwordInput?.value || '';
+    const succeeded = authMode === 'login'
+        ? await login(username, password)
+        : await register(username, password);
+    if (!succeeded) return;
+    if (passwordInput) passwordInput.value = '';
+    window.closeAuthModal();
+    navbar?.render();
+    router?.navigate('dashboard');
+};
+
 // Theme toggle (needs to be defined)
 window.toggleTheme = toggleTheme;
 function toggleTheme() {
@@ -316,6 +380,26 @@ window.createPlaylist = () => {
     }
 };
 
+// The create-playlist modal still lives in index.html and its confirm button is
+// wired to the legacy handler. Route it through the modular library service so it
+// uses the current access token and the single refresh authority in api.js.
+window.confirmCreatePlaylist = async () => {
+    const nameInput = document.getElementById('newPlaylistName');
+    const name = nameInput?.value.trim() || '';
+    if (!name) {
+        nameInput?.classList.add('ring-2', 'ring-red-500');
+        setTimeout(() => nameInput?.classList.remove('ring-2', 'ring-red-500'), 2000);
+        return;
+    }
+
+    const created = await createPlaylistRequest(name);
+    if (!created) return;
+
+    if (nameInput) nameInput.value = '';
+    document.getElementById('createPlaylistModal')?.classList.add('hidden');
+    router?.navigate('dashboard');
+};
+
 window.openSettingsModal = () => {
     const modal = document.getElementById('settingsModal');
     if (modal) {
@@ -323,5 +407,19 @@ window.openSettingsModal = () => {
     }
 };
 
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', initApp);
+async function bootstrap() {
+    try {
+        await i18nReady;
+        await initApp();
+    } catch (error) {
+        console.error('Music Archive bootstrap failed:', error);
+        renderStartupError();
+    }
+}
+
+// The modular application is the only automatic bootstrap owner.
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrap, { once: true });
+} else {
+    bootstrap();
+}

@@ -1,6 +1,43 @@
 // API Service - Centralized fetch wrapper
 import { API_URL } from '../config.js';
 import { store } from '../state/store.js';
+import { STORAGE_KEYS } from '../config.js';
+
+let refreshRequest = null;
+
+function clearSession() {
+    store.setToken(null);
+    store.setUser(null);
+    localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+    localStorage.removeItem(STORAGE_KEYS.USERNAME);
+    window.dispatchEvent(new CustomEvent('auth:session-expired'));
+}
+
+async function refreshAccessToken() {
+    const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+    if (!refreshToken) return false;
+
+    if (!refreshRequest) {
+        refreshRequest = fetch(`${API_URL}/auth/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken })
+        }).then(async response => {
+            if (!response.ok) return false;
+            const data = await response.json();
+            if (typeof data.token !== 'string' || typeof data.refreshToken !== 'string') return false;
+            store.setToken(data.token);
+            localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, data.refreshToken);
+            return true;
+        }).catch(() => false).finally(() => {
+            refreshRequest = null;
+        });
+    }
+
+    const refreshed = await refreshRequest;
+    if (!refreshed) clearSession();
+    return refreshed;
+}
 
 /**
  * Generic API fetch wrapper with auth headers
@@ -22,15 +59,19 @@ export async function fetchAPI(endpoint, options = {}) {
         headers
     });
 
+    const isAuthEndpoint = ['/login', '/register', '/auth/refresh', '/logout'].includes(endpoint);
+    if (response.status === 401 && !options._retried && !isAuthEndpoint && await refreshAccessToken()) {
+        return fetchAPI(endpoint, { ...options, _retried: true });
+    }
+
     if (!response.ok) {
         const errorText = await response.text();
+        let message = `Server Error (${response.status}): ${response.statusText}`;
         try {
             const errorJson = JSON.parse(errorText);
-            throw new Error(errorJson.error || `API Error: ${response.status}`);
-        } catch (parseError) {
-            if (parseError.message.includes('API Error')) throw parseError;
-            throw new Error(`Server Error (${response.status}): ${response.statusText}`);
-        }
+            message = errorJson.error || message;
+        } catch {}
+        throw new Error(message);
     }
 
     return response.json();

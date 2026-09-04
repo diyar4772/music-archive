@@ -64,16 +64,6 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- i18next CDN via importmap -->
-    <script type="importmap">
-    {
-        "imports": {
-            "i18next": "https://cdn.jsdelivr.net/npm/i18next@23.7.16/dist/esm/index.js",
-            "i18next-browser-languagedetector": "https://cdn.jsdelivr.net/npm/i18next-browser-languagedetector@7.2.0/dist/esm/index.js"
-        }
-    }
-    </script>
-
     <style>
         /* Base font family */
         body {
@@ -826,8 +816,27 @@
 
     <script>
         const API_URL = '/api';
-        let currentUser = localStorage.getItem('userUsername');
-        let token = localStorage.getItem('userToken');
+        // Legacy bridge helpers must never cache auth state. These accessors read
+        // the value the modular auth layer (js/services/auth.js) last persisted, so
+        // a login that happens after this script parsed is picked up immediately.
+        // The modular API client stays the single refresh authority; no global
+        // fetch override is installed here.
+        Object.defineProperty(window, 'token', {
+            configurable: true,
+            get() { return localStorage.getItem('userToken'); },
+            set(value) {
+                if (value) localStorage.setItem('userToken', value);
+                else localStorage.removeItem('userToken');
+            }
+        });
+        Object.defineProperty(window, 'currentUser', {
+            configurable: true,
+            get() { return localStorage.getItem('userUsername'); },
+            set(value) {
+                if (value) localStorage.setItem('userUsername', value);
+                else localStorage.removeItem('userUsername');
+            }
+        });
         const nativeFetch = window.fetch.bind(window);
         let refreshRequest = null;
 
@@ -855,7 +864,7 @@
             return refreshRequest;
         }
 
-        window.fetch = async function fetchWithRefresh(input, options = {}) {
+        async function legacyFetchWithRefresh(input, options = {}) {
             const response = await nativeFetch(input, options);
             const url = typeof input === 'string' ? input : input.url;
             const isRefreshableApiRequest = url.startsWith(API_URL) &&
@@ -1009,7 +1018,7 @@
         let currentLang = localStorage.getItem('lang') || 'tr';
         let currentTheme = localStorage.getItem('theme') || 'dark';
 
-        document.addEventListener('DOMContentLoaded', () => {
+        function initializeLegacyApp() {
             updateAuthUI();
             if (token) fetchUserData();
 
@@ -1030,7 +1039,7 @@
                     setTimeout(() => e.target.classList.add('hidden'), 300);
                 }
             });
-        });
+        }
 
         // --- Settings Functions ---
         function openSettingsModal() {

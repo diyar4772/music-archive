@@ -1,127 +1,67 @@
 /**
- * i18next configuration for web frontend
- * Replaces the manual translation system in index.html
- * 
- * Note: Using CDN via importmap for i18next
+ * Lightweight local translation service.
+ * Locale files are served by the existing /js allowlist; no CDN runtime is required.
  */
 
-let i18n;
-let LanguageDetector;
+const resources = {};
+const supportedLanguages = ['tr', 'en', 'ku'];
+const fallbackText = {
+    'auth.login': 'Giriş Yap',
+    'auth.register': 'Kayıt Ol',
+    'common.loading': 'Yükleniyor...',
+    'common.error': 'Bir hata oluştu',
+    'common.retry': 'Tekrar Dene',
+    'library.title': 'Kütüphanen',
+    'library.likedSongs': 'Beğenilen Şarkılar',
+    'library.following': 'Takip Edilenler',
+    'library.playlists': 'Listelerim',
+    'library.createPlaylist': 'Liste Oluştur',
+    'search.placeholder': 'Sanatçı veya şarkı ara...'
+};
 
-// Dynamic import for i18next (works with importmap)
-async function loadI18n() {
-    try {
-        const i18nextModule = await import('i18next');
-        const detectorModule = await import('i18next-browser-languagedetector');
-        i18n = i18nextModule.default || i18nextModule;
-        LanguageDetector = detectorModule.default || detectorModule;
-        return true;
-    } catch (error) {
-        console.error('Failed to load i18next:', error);
-        // Create a simple fallback
-        i18n = {
-            isInitialized: false,
-            t: (key) => key,
-            language: 'tr',
-            changeLanguage: () => Promise.resolve(),
-            on: () => {}
-        };
-        return false;
-    }
-}
+let currentLanguage = supportedLanguages.includes(localStorage.getItem('lang'))
+    ? localStorage.getItem('lang')
+    : 'tr';
 
-// Import translation resources (using fetch for JSON in ES modules)
-let en, tr, ku;
+const lookup = (source, key) => key.split('.').reduce((value, part) => value?.[part], source);
+const interpolate = (text, options) => String(text).replace(/{{(\w+)}}/g, (_, key) => options[key] ?? '');
 
-// Load translations asynchronously
 async function loadTranslations() {
-    try {
-        // First load i18next
-        const i18nLoaded = await loadI18n();
-        if (!i18nLoaded) {
-            console.warn('i18next not available, using fallback');
-            return;
-        }
+    const results = await Promise.allSettled(supportedLanguages.map(async language => {
+        const response = await fetch(`/js/locales/${language}.json`);
+        if (!response.ok) throw new Error(`Locale ${language} returned HTTP ${response.status}`);
+        resources[language] = await response.json();
+    }));
 
-        // Then load translation files
-        const [enRes, trRes, kuRes] = await Promise.all([
-            fetch('./js/locales/en.json').then(r => r.json()),
-            fetch('./js/locales/tr.json').then(r => r.json()),
-            fetch('./js/locales/ku.json').then(r => r.json())
-        ]);
-        en = enRes;
-        tr = trRes;
-        ku = kuRes;
-        initI18n();
-    } catch (error) {
-        console.error('Failed to load translations:', error);
-        // Fallback to empty translations
-        en = tr = ku = {};
-        if (i18n && i18n.init) {
-            initI18n();
+    results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+            console.warn(`Translation locale unavailable: ${supportedLanguages[index]}`, result.reason);
         }
-    }
+    });
 }
 
-function initI18n() {
-    if (!i18n || !i18n.use || !i18n.init) {
-        console.warn('i18next not available, using fallback translation system');
-        return;
-    }
+export const i18nReady = loadTranslations();
 
-    i18n
-        .use(LanguageDetector)
-        .init({
-            resources: {
-                en: { translation: en },
-                tr: { translation: tr },
-                ku: { translation: ku },
-            },
-            fallbackLng: 'tr',
-            interpolation: {
-                escapeValue: false, // React escapes by default, but we're using vanilla JS
-            },
-            detection: {
-                // Check localStorage first, then browser language
-                order: ['localStorage', 'navigator'],
-                lookupLocalStorage: 'lang',
-                caches: ['localStorage'],
-            },
-        });
-}
-
-// Start loading translations
-loadTranslations();
-
-// Export helper function for use in vanilla JS
 export function t(key, options = {}) {
-    // Wait for i18n to be initialized
-    if (!i18n || !i18n.isInitialized) {
-        // Return key as fallback
-        return key;
-    }
-    try {
-        return i18n.t(key, options);
-    } catch (error) {
-        console.warn('Translation error for key:', key, error);
-        return key;
-    }
+    const translated = lookup(resources[currentLanguage], key)
+        ?? lookup(resources.tr, key)
+        ?? fallbackText[key];
+    if (translated) return interpolate(translated, options);
+
+    const readable = key.split('.').pop().replace(/([a-z])([A-Z])/g, '$1 $2');
+    return readable.charAt(0).toUpperCase() + readable.slice(1);
 }
 
-// Export changeLanguage function
-export function changeLanguage(lng) {
-    if (!i18n || !i18n.changeLanguage) {
-        console.warn('i18next not available');
-        return Promise.resolve();
-    }
-    return i18n.changeLanguage(lng);
+export async function changeLanguage(language) {
+    if (!supportedLanguages.includes(language)) return;
+    await i18nReady;
+    currentLanguage = language;
+    localStorage.setItem('lang', language);
+    document.dispatchEvent(new CustomEvent('languagechange', { detail: { language } }));
 }
 
-// Export current language getter
 export function getCurrentLanguage() {
-    if (!i18n) return 'tr';
-    return i18n.language || 'tr';
+    return currentLanguage;
 }
 
-// Export i18n instance (may be undefined until loaded)
-export default i18n;
+export default { t, changeLanguage, get language() { return currentLanguage; } };
