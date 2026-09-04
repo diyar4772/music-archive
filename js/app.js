@@ -137,7 +137,7 @@ function renderStartupError() {
             <i class="fa-solid fa-triangle-exclamation text-3xl text-amber-500 mb-4"></i>
             <h2 class="text-2xl font-bold mb-2">Music Archive yüklenemedi</h2>
             <p class="text-text-secondary-light dark:text-text-secondary-dark mb-5">Geçici bir sorun oluştu. Lütfen yeniden deneyin.</p>
-            <button id="retryBootstrap" class="btn-spotify text-black font-bold px-6 py-3 rounded-full">Yeniden Dene</button>
+            <button id="retryBootstrap" class="btn-spotify text-white font-bold px-6 py-3 rounded-full">Yeniden Dene</button>
         </section>`;
     document.getElementById('retryBootstrap')?.addEventListener('click', () => window.location.reload());
 }
@@ -205,7 +205,7 @@ function updateAuthUI() {
         } else {
             authSection.innerHTML = `
                 <button onclick="window.openAuthModal?.()" 
-                        class="btn-spotify text-black font-bold px-6 py-2 rounded-full">
+                        class="btn-spotify text-white font-bold px-6 py-2 rounded-full">
                     Giriş Yap
                 </button>
             `;
@@ -257,8 +257,10 @@ function setupEventListeners() {
  */
 function applySettings() {
     const theme = localStorage.getItem('theme') || 'dark';
-    const lang = localStorage.getItem('lang') || 'tr';
 
+    // Seed the store too, otherwise the first toggle after a reload computes the next
+    // theme from an undefined value and re-applies the one already showing.
+    store.currentTheme = theme;
     applyTheme(theme);
     // Language could be applied here too
 }
@@ -267,17 +269,19 @@ function applySettings() {
  * Apply theme
  */
 function applyTheme(theme) {
-    const body = document.body;
+    const isDark = theme !== 'light';
 
-    if (theme === 'light') {
-        body.style.backgroundColor = '#f3f4f6';
-        body.style.color = '#1f2937';
-        body.classList.add('light-mode');
-    } else {
-        body.style.backgroundColor = '#121212';
-        body.style.color = 'white';
-        body.classList.remove('light-mode');
-    }
+    // Tailwind runs in darkMode:"class", so the `dark` class on <html> is what every
+    // `dark:` utility keys off. The previous implementation only wrote inline colours
+    // on <body> and left that class alone, which left light mode with dark cards on a
+    // light page. Clear those inline overrides so the utilities decide.
+    document.documentElement.classList.toggle('dark', isDark);
+    document.body.style.backgroundColor = '';
+    document.body.style.color = '';
+    document.body.classList.toggle('light-mode', !isDark);
+
+    const icon = document.getElementById('themeIconMaterial');
+    if (icon) icon.textContent = isDark ? 'dark_mode' : 'light_mode';
 }
 
 // ============ GLOBAL FUNCTIONS FOR BACKWARD COMPATIBILITY ============

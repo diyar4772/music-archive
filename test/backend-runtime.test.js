@@ -154,6 +154,45 @@ test('legacy bridge helpers read live auth state instead of a parse-time token',
     assert.match(appModule.body, /createPlaylistRequest\(name\)/);
 });
 
+test('frontend services only call endpoints the server exposes', async () => {
+    // /likes, /follows and /ratings never existed; the library and rating services
+    // asked for them anyway, so every read 404'd and the library looked empty.
+    const serverSource = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+    const declaredRoutes = new Set(
+        [...serverSource.matchAll(/^app\.(?:get|post|put|delete)\('(\/api\/[^']+)'/gm)].map(m => m[1])
+    );
+
+    for (const file of ['library.js', 'rating.js', 'auth.js', 'me.js']) {
+        const source = await request(`/js/services/${file}`);
+        assert.equal(source.response.status, 200, file);
+
+        const calls = [...source.body.matchAll(/\b(?:get|post|put|del)\(\s*[`'"](\/[^`'"$]*)/g)]
+            .map(m => m[1].replace(/\/$/, ''));
+
+        for (const call of calls) {
+            const full = `/api${call}`;
+            const matched = [...declaredRoutes].some(route => {
+                const pattern = new RegExp('^' + route.replace(/:[^/]+/g, '[^/]+') + '$');
+                return pattern.test(full);
+            });
+            assert.ok(matched, `${file} calls ${full}, which server.js does not declare`);
+        }
+    }
+});
+
+test('the phantom /likes, /follows and /ratings reads are gone', async () => {
+    for (const file of ['library.js', 'rating.js']) {
+        const source = await request(`/js/services/${file}`);
+        assert.doesNotMatch(source.body, /get\('\/(likes|follows|ratings)'\)/, file);
+    }
+    // They are served by the one aggregate endpoint instead, de-duplicated so the
+    // parallel loaders cost a single round trip.
+    const me = await request('/js/services/me.js');
+    assert.equal(me.response.status, 200);
+    assert.match(me.body, /get\('\/me'\)/);
+    assert.match(me.body, /inFlight/);
+});
+
 test('auth modal is a real form owned by the modular app', async () => {
     const index = await request('/');
     // A real form makes Enter submit and puts the password field inside a form.

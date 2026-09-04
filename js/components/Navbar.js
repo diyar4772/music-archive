@@ -23,17 +23,25 @@ export class Navbar extends Component {
         const isAuth = isAuthenticated();
 
         this.setHTML(`
-            <div class="w-full max-w-6xl flex justify-between items-center mb-6 relative z-50">
-                <h1 class="text-3xl font-bold cursor-pointer" onclick="window.router?.navigate('dashboard')">
-                    Music <span class="spotify-green">Library</span>
-                </h1>
+            <div class="w-full max-w-6xl flex justify-between items-center gap-4 mb-8 relative z-50">
+                <button type="button" aria-label="Ana sayfaya dön"
+                    class="group flex items-center gap-3 cursor-pointer"
+                    onclick="window.router?.navigate('dashboard')">
+                    <span aria-hidden="true"
+                        class="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br from-green-500 to-emerald-400 flex items-center justify-center shadow-glow-purple transition-transform group-hover:scale-105">
+                        <i class="fa-solid fa-compact-disc text-white text-lg"></i>
+                    </span>
+                    <h1 class="text-lg sm:text-2xl md:text-3xl font-extrabold tracking-tight whitespace-nowrap">
+                        Music <span class="spotify-green">Archive</span>
+                    </h1>
+                </button>
 
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2 sm:gap-3">
                     <!-- Theme Toggle Button -->
-                    <button id="themeToggle" 
-                        class="w-10 h-10 rounded-full bg-gray-200 dark:bg-[#2A2A2A] hover:bg-gray-300 dark:hover:bg-[#3E3E3E] flex items-center justify-center text-text-light dark:text-white transition-colors"
-                        title="Toggle Theme">
-                        <span id="themeIconMaterial" class="material-icons">brightness_6</span>
+                    <button id="themeToggle" type="button"
+                        class="w-10 h-10 rounded-full bg-gray-100 dark:bg-surface-elevated hover:bg-gray-200 dark:hover:bg-surface-hover border border-gray-200 dark:border-white/5 flex items-center justify-center text-text-light dark:text-white transition-colors"
+                        title="Temayı değiştir" aria-label="Temayı değiştir">
+                        <span id="themeIconMaterial" class="material-icons" aria-hidden="true">brightness_6</span>
                     </button>
 
                     <div id="authSection" class="relative"></div>
@@ -84,19 +92,22 @@ export class Navbar extends Component {
 
         if (isAuth && user) {
             authSection.innerHTML = `
-                <button id="profileButton" 
-                    class="flex items-center gap-2 bg-gray-800 px-3 py-1 rounded-full">
-                    <div class="bg-purple-600 w-8 h-8 rounded-full flex items-center justify-center font-bold">
+                <button id="profileButton" type="button"
+                    aria-label="${user} — hesap menüsü" aria-haspopup="true"
+                    class="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-gray-100 dark:bg-surface-elevated border border-gray-200 dark:border-white/5 hover:bg-gray-200 dark:hover:bg-surface-hover transition-colors">
+                    <span aria-hidden="true"
+                        class="bg-gradient-to-br from-green-500 to-emerald-400 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold">
                         ${user[0].toUpperCase()}
-                    </div>
+                    </span>
+                    <span class="hidden sm:inline text-sm font-semibold max-w-[10rem] truncate">${user}</span>
                 </button>
             `;
         } else {
             // Use fallback text if i18n not ready
             const loginText = typeof t === 'function' ? t('auth.login') : 'Giriş Yap';
             authSection.innerHTML = `
-                <button id="loginButton" 
-                    class="btn-spotify text-black font-bold px-6 py-2 rounded-full">
+                <button id="loginButton" type="button"
+                    class="btn-spotify text-white font-bold text-sm sm:text-base px-4 sm:px-6 py-2 rounded-full whitespace-nowrap">
                     ${loginText}
                 </button>
             `;

@@ -1,5 +1,12 @@
 // Rating Service
-import { get, post } from './api.js';
+//
+// The backend stores ratings against a generic item:
+//   POST   /api/rate            { itemId, itemType, itemName, artistName, image, rating }
+//   DELETE /api/rate/:itemId?itemType=track
+//   GET    /api/me              -> { ratings: [{ itemId, itemType, rating, ... }] }
+// Ratings are half-star capable: 0.5 to 5 in 0.5 steps.
+import { post, del } from './api.js';
+import { fetchMe } from './me.js';
 import { store } from '../state/store.js';
 import { showToast } from '../utils.js';
 
@@ -9,37 +16,50 @@ import { showToast } from '../utils.js';
  */
 export async function getRatings() {
     try {
-        const data = await get('/ratings');
-        store.setRatings(data);
-        return data;
+        const { ratings } = await fetchMe();
+        store.setRatings(ratings);
+        return ratings;
     } catch (error) {
-        console.error('Failed to fetch ratings:', error);
+        console.error('Failed to fetch ratings:', error.message);
         return [];
     }
 }
 
 /**
- * Rate a track
- * @param {string} trackId - Track ID
- * @param {number} rating - Rating value (1-5)
+ * Rate a track or album.
+ * @param {string} itemId - Track or album ID
+ * @param {number} rating - 0.5 to 5, in 0.5 steps
+ * @param {{itemType?: 'track'|'album', itemName?: string, artistName?: string, image?: string}} [meta]
  * @returns {Promise<boolean>}
  */
-export async function rateTrack(trackId, rating) {
+export async function rateTrack(itemId, rating, meta = {}) {
+    const itemType = meta.itemType || 'track';
+
+    if (typeof rating !== 'number' || !Number.isInteger(rating * 2) || rating < 0.5 || rating > 5) {
+        showToast('❌ Puan 0.5 ile 5 arasında ve 0.5 adımlarla olmalı');
+        return false;
+    }
+
     try {
-        await post('/ratings', { trackId, rating });
+        await post('/rate', {
+            itemId,
+            itemType,
+            itemName: meta.itemName,
+            artistName: meta.artistName,
+            image: meta.image,
+            rating
+        });
 
-        // Update local state
-        const existingIndex = store.userRatings.findIndex(r => r.trackId === trackId);
-        const newRatings = [...store.userRatings];
-
-        if (existingIndex >= 0) {
-            newRatings[existingIndex] = { ...newRatings[existingIndex], rating };
+        const next = [...store.userRatings];
+        const index = next.findIndex(r => r.itemId === itemId && r.itemType === itemType);
+        if (index >= 0) {
+            next[index] = { ...next[index], rating };
         } else {
-            newRatings.push({ trackId, rating });
+            next.push({ itemId, itemType, rating, ...meta });
         }
+        store.setRatings(next);
 
-        store.setRatings(newRatings);
-        showToast(`⭐ ${rating} yıldız verildi`);
+        showToast(`⭐ ${rating} puan verildi`);
         return true;
     } catch (error) {
         showToast('❌ ' + error.message);
@@ -48,42 +68,57 @@ export async function rateTrack(trackId, rating) {
 }
 
 /**
- * Get rating for a specific track
- * @param {string} trackId - Track ID
- * @returns {number|null}
+ * Remove a rating.
+ * @param {string} itemId - Track or album ID
+ * @param {'track'|'album'} [itemType]
+ * @returns {Promise<boolean>}
  */
-export function getTrackRating(trackId) {
-    const rating = store.userRatings.find(r => r.trackId === trackId);
-    return rating ? rating.rating : null;
+export async function removeRating(itemId, itemType = 'track') {
+    try {
+        await del(`/rate/${encodeURIComponent(itemId)}?itemType=${itemType}`);
+        store.setRatings(store.userRatings.filter(
+            r => !(r.itemId === itemId && r.itemType === itemType)
+        ));
+        showToast('🗑️ Puan kaldırıldı');
+        return true;
+    } catch (error) {
+        showToast('❌ ' + error.message);
+        return false;
+    }
 }
 
 /**
- * Get top rated tracks
+ * Get the user's rating for an item
+ * @param {string} itemId - Track or album ID
+ * @param {'track'|'album'} [itemType]
+ * @returns {number|null}
+ */
+export function getTrackRating(itemId, itemType = 'track') {
+    const entry = store.userRatings.find(r => r.itemId === itemId && r.itemType === itemType);
+    return entry ? entry.rating : null;
+}
+
+/**
+ * Get top rated tracks.
  * @param {number} limit - Number of tracks to return
  * @returns {Array}
  */
 export function getTopRatedTracks(limit = 10) {
-    const likedWithRatings = store.likedTracks
-        .map(track => {
-            const rating = getTrackRating(track.trackId);
-            return { ...track, rating: rating || 0 };
-        })
+    return store.likedTracks
+        .map(track => ({ ...track, rating: getTrackRating(track.trackId) || 0 }))
         .filter(track => track.rating > 0)
         .sort((a, b) => b.rating - a.rating)
         .slice(0, limit);
-
-    return likedWithRatings;
 }
 
 /**
- * Get average rating across all rated tracks
- * @returns {number}
+ * Average rating across every rated item.
+ * @returns {string} one decimal, '0.0' when nothing is rated
  */
 export function getAverageRating() {
-    const ratings = store.userRatings.filter(r => r.rating > 0);
-    if (ratings.length === 0) return 0;
+    const rated = store.userRatings.filter(r => r.rating > 0);
+    if (rated.length === 0) return '0.0';
 
-    const sum = ratings.reduce((acc, r) => acc + r.rating, 0);
-    return (sum / ratings.length).toFixed(1);
+    const sum = rated.reduce((acc, r) => acc + r.rating, 0);
+    return (sum / rated.length).toFixed(1);
 }
-

@@ -251,7 +251,8 @@ export const store = {
      * Get track rating
      */
     getTrackRating(trackId) {
-        const rating = this.userRatings.find(r => r.trackId === trackId);
+        // /api/me keys ratings by itemId + itemType, not trackId.
+        const rating = this.userRatings.find(r => r.itemId === trackId && r.itemType === 'track');
         return rating ? rating.rating : null;
     },
 
@@ -291,7 +292,9 @@ export const store = {
     getTopRated(limit = 5) {
         const tracksWithRatings = this.likedTracks
             .map(track => {
-                const rating = this.userRatings.find(r => r.trackId === track.trackId);
+                const rating = this.userRatings.find(
+                    r => r.itemId === track.trackId && r.itemType === 'track'
+                );
                 return { ...track, rating: rating ? rating.rating : 0 };
             })
             .filter(track => track.rating > 0)

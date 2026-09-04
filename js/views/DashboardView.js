@@ -22,13 +22,61 @@ export class DashboardView extends Component {
     render() {
         if (!isAuthenticated()) {
             this.setHTML(`
-                <section class="w-full max-w-4xl mx-auto text-center py-12 sm:py-20 px-4 animate-fade-in">
-                    <i class="fa-solid fa-record-vinyl text-5xl text-green-500 mb-6"></i>
-                    <h2 class="text-3xl sm:text-5xl font-extrabold mb-4">Müziğini tek yerde arşivle</h2>
-                    <p class="text-base sm:text-lg text-text-secondary-light dark:text-text-secondary-dark max-w-2xl mx-auto mb-8">Music Archive; sevdiğin şarkıları, sanatçıları, puanlarını ve kişisel notlarını düzenli bir koleksiyonda tutar.</p>
-                    <div class="flex flex-col sm:flex-row justify-center gap-3">
-                        <button data-action="login" class="btn-spotify text-black font-bold px-7 py-3 rounded-full">Giriş Yap</button>
-                        <button data-action="register" class="border border-gray-400 dark:border-gray-600 font-bold px-7 py-3 rounded-full hover:border-green-500">Kayıt Ol</button>
+                <section class="w-full max-w-5xl mx-auto px-4 animate-fade-in">
+                    <div class="text-center pt-6 pb-14 sm:pt-10 sm:pb-20">
+                        <span class="inline-flex items-center gap-2 px-3.5 py-1.5 mb-7 rounded-full text-xs sm:text-sm font-semibold
+                                     bg-green-500/10 text-green-400 border border-green-500/25">
+                            <i class="fa-solid fa-record-vinyl" aria-hidden="true"></i>
+                            Dinleme değil, biriktirme
+                        </span>
+
+                        <h2 class="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.08] mb-5">
+                            Müziğini<br class="hidden sm:block">
+                            <span class="spotify-green">tek yerde arşivle</span>
+                        </h2>
+
+                        <p class="text-base sm:text-lg text-text-secondary-light dark:text-text-secondary-dark max-w-xl mx-auto mb-9">
+                            Sevdiğin şarkıları, sanatçıları, puanlarını ve kişisel notlarını
+                            düzenli bir koleksiyonda tutan kişisel müzik arşivin.
+                        </p>
+
+                        <div class="flex flex-col sm:flex-row justify-center gap-3">
+                            <button data-action="register" class="btn-spotify text-white font-bold px-8 py-3.5 rounded-full">
+                                Ücretsiz başla
+                            </button>
+                            <button data-action="login"
+                                class="font-bold px-8 py-3.5 rounded-full border border-gray-300 dark:border-white/15
+                                       hover:border-green-500 hover:text-green-400 transition-colors">
+                                Giriş Yap
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-3 text-left">
+                        ${[
+                    {
+                        icon: 'fa-heart', accent: 'coral', title: 'Arşivle',
+                        body: 'Beğendiğin şarkıları ve takip ettiğin sanatçıları tek koleksiyonda topla.'
+                    },
+                    {
+                        icon: 'fa-star', accent: 'orange', title: 'Puanla',
+                        body: 'Yarım yıldız hassasiyetiyle puan ver, zamanla neyi ne kadar sevdiğini gör.'
+                    },
+                    {
+                        icon: 'fa-pen-nib', accent: 'teal', title: 'Not düş',
+                        body: 'Bir şarkının sana ne hatırlattığını yaz; koleksiyonun bir günlüğe dönüşsün.'
+                    }
+                ].map(card => `
+                            <article class="relative overflow-hidden p-6 rounded-2xl bg-white dark:bg-card-dark
+                                            border border-gray-100 dark:border-white/5 shadow-card dark:shadow-card-dark">
+                                <div class="absolute -top-8 -right-8 w-24 h-24 rounded-full blur-2xl bg-accent-${card.accent}/10"></div>
+                                <div class="w-11 h-11 rounded-xl bg-accent-${card.accent}/15 flex items-center justify-center mb-4">
+                                    <i class="fa-solid ${card.icon} text-accent-${card.accent}" aria-hidden="true"></i>
+                                </div>
+                                <h3 class="font-bold text-lg mb-1.5">${card.title}</h3>
+                                <p class="text-sm leading-relaxed text-text-secondary-light dark:text-text-secondary-dark">${card.body}</p>
+                            </article>
+                        `).join('')}
                     </div>
                 </section>
             `);
@@ -39,8 +87,8 @@ export class DashboardView extends Component {
         const stats = this.getCollectionStats();
 
         this.setHTML(`
-            <div class="w-full max-w-6xl animate-fade-in">
-                <h2 class="text-2xl font-bold mb-6" data-lang="library.title">Kütüphanem</h2>
+            <div class="w-full max-w-6xl mx-auto animate-fade-in">
+                <h2 class="text-2xl sm:text-3xl font-bold mb-6" data-lang="library.title">Kütüphanem</h2>
 
                 <!-- Bento Grid Layout -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -102,38 +150,6 @@ export class DashboardView extends Component {
                 </div>
 
                 <!-- Quick Stats Row -->
-                <div id="statCardsContainer" class="mb-8">
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div class="stat-card bg-white dark:bg-card-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/5 flex items-center gap-3">
-                            <div class="w-10 h-10 bg-green-100 dark:bg-green-500/20 rounded-lg flex items-center justify-center">
-                                <i class="fa-solid fa-music text-green-600 dark:text-green-400"></i>
-                            </div>
-                            <div>
-                                <div class="text-2xl font-bold" id="statTracks">${stats.totalTracks}</div>
-                                <div class="text-xs text-text-secondary-light dark:text-text-secondary-dark">Şarkı</div>
-                            </div>
-                        </div>
-                        <div class="stat-card bg-white dark:bg-card-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/5 flex items-center gap-3">
-                            <div class="w-10 h-10 bg-purple-100 dark:bg-purple-500/20 rounded-lg flex items-center justify-center">
-                                <i class="fa-solid fa-microphone text-purple-600 dark:text-purple-400"></i>
-                            </div>
-                            <div>
-                                <div class="text-2xl font-bold" id="statArtists">${stats.totalArtists}</div>
-                                <div class="text-xs text-text-secondary-light dark:text-text-secondary-dark">Sanatçı</div>
-                            </div>
-                        </div>
-                        <div class="stat-card bg-white dark:bg-card-dark p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/5 flex items-center gap-3">
-                            <div class="w-10 h-10 bg-blue-100 dark:bg-blue-500/20 rounded-lg flex items-center justify-center">
-                                <i class="fa-solid fa-layer-group text-blue-600 dark:text-blue-400"></i>
-                            </div>
-                            <div>
-                                <div class="text-2xl font-bold" id="statPlaylists">${stats.totalPlaylists}</div>
-                                <div class="text-xs text-text-secondary-light dark:text-text-secondary-dark">Liste</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Create Playlist Button -->
                 <div data-action="create-playlist"
                     class="mb-8 bg-white dark:bg-card-dark hover:bg-gray-50 dark:hover:bg-white/5 p-4 rounded-xl cursor-pointer transition-all shadow-sm border-2 border-dashed border-gray-200 dark:border-white/10 flex items-center gap-4 group">

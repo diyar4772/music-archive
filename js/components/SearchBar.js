@@ -18,39 +18,44 @@ export class SearchBar extends Component {
         const currentType = store.searchType || 'artist';
 
         this.setHTML(`
-            <div class="w-full max-w-xl mb-8 relative z-40">
-                <div class="flex gap-3 relative">
-                    <input type="text" 
-                           id="searchInput" 
-                           name="search" 
-                           placeholder="Search for artists or tracks..."
-                           class="flex-1 px-5 py-3 rounded-full bg-white dark:bg-card-dark border border-gray-200 dark:border-white/5 focus:ring-2 focus:ring-[#1DB954] text-text-light dark:text-white outline-none shadow-sm transition-colors"
-                           autocomplete="off" 
-                           data-form-type="other" 
-                           data-lpignore="true">
-                    <button id="searchButton" 
-                            class="btn-spotify text-black font-bold px-6 py-3 rounded-full">
-                        <i class="fa-solid fa-magnifying-glass"></i>
+            <div class="w-full max-w-2xl mb-10 relative z-40">
+                <div class="flex gap-2 relative">
+                    <div class="relative flex-1">
+                        <i aria-hidden="true"
+                           class="fa-solid fa-magnifying-glass absolute left-5 top-1/2 -translate-y-1/2 text-text-secondary-light dark:text-text-secondary-dark pointer-events-none"></i>
+                        <input type="text"
+                               id="searchInput"
+                               name="search"
+                               aria-label="Sanatçı, şarkı veya albüm ara"
+                               placeholder="Sanatçı, şarkı veya albüm ara…"
+                               class="w-full pl-12 pr-5 py-3.5 rounded-full bg-white dark:bg-card-dark border border-gray-200 dark:border-white/10 focus:border-green-500 focus:ring-2 focus:ring-green-500/40 text-text-light dark:text-white outline-none shadow-card dark:shadow-card-dark transition"
+                               autocomplete="off"
+                               data-form-type="other"
+                               data-lpignore="true">
+                    </div>
+                    <button id="searchButton" type="button" aria-label="Ara"
+                            class="btn-spotify text-white font-bold px-6 py-3.5 rounded-full shrink-0">
+                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
                     </button>
                 </div>
                 <div id="autocompleteList" class="autocomplete-list hidden"></div>
 
                 <!-- Filter Chips -->
-                <div class="flex gap-2 mt-4 justify-center flex-wrap">
-                    <button data-type="artist" 
+                <div class="flex gap-2 mt-4 justify-center flex-wrap" role="group" aria-label="Arama türü">
+                    <button data-type="artist" type="button"
                             id="type-artist"
-                            class="px-3 py-1 bg-white dark:bg-card-dark border border-gray-200 dark:border-white/5 rounded-full text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ring-1 ring-transparent focus:ring-green-500 transition-colors ${currentType === 'artist' ? 'text-green-500' : ''}">
-                        Musicians
+                            class="px-4 py-1.5 bg-white dark:bg-card-dark border border-gray-200 dark:border-white/10 rounded-full text-sm font-semibold hover:border-green-500/50 transition ${currentType === 'artist' ? 'text-green-500 border-green-500/60' : ''}">
+                        Sanatçılar
                     </button>
-                    <button data-type="track" 
+                    <button data-type="track" type="button"
                             id="type-track"
-                            class="px-3 py-1 bg-white dark:bg-card-dark border border-gray-200 dark:border-white/5 rounded-full text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ring-1 ring-transparent focus:ring-green-500 transition-colors ${currentType === 'track' ? 'text-green-500' : ''}">
-                        Songs
+                            class="px-4 py-1.5 bg-white dark:bg-card-dark border border-gray-200 dark:border-white/10 rounded-full text-sm font-semibold hover:border-green-500/50 transition ${currentType === 'track' ? 'text-green-500 border-green-500/60' : ''}">
+                        Şarkılar
                     </button>
-                    <button data-type="album" 
+                    <button data-type="album" type="button"
                             id="type-album"
-                            class="px-3 py-1 bg-white dark:bg-card-dark border border-gray-200 dark:border-white/5 rounded-full text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ring-1 ring-transparent focus:ring-green-500 transition-colors ${currentType === 'album' ? 'text-green-500' : ''}">
-                        Albums
+                            class="px-4 py-1.5 bg-white dark:bg-card-dark border border-gray-200 dark:border-white/10 rounded-full text-sm font-semibold hover:border-green-500/50 transition ${currentType === 'album' ? 'text-green-500 border-green-500/60' : ''}">
+                        Albümler
                     </button>
                 </div>
             </div>
