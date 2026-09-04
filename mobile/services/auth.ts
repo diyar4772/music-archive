@@ -1,4 +1,4 @@
-import api, { setToken, setRefreshToken, setStoredUser, removeToken, getToken } from './api';
+import api, { setToken, setRefreshToken, setStoredUser, removeToken, getToken, getRefreshToken } from './api';
 import { LoginResponse, UserData } from '../types';
 
 export const authService = {
@@ -26,7 +26,14 @@ export const authService = {
 
     // Logout
     logout: async (): Promise<void> => {
-        await removeToken();
+        const refreshToken = await getRefreshToken();
+        try {
+            if (refreshToken) {
+                await api.post('/logout', { refreshToken });
+            }
+        } finally {
+            await removeToken();
+        }
     },
 
     // Get current user data

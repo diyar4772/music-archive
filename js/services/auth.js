@@ -16,6 +16,9 @@ export async function login(username, password) {
 
         store.setToken(data.token);
         store.setUser(data.username);
+        if (data.refreshToken) {
+            localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, data.refreshToken);
+        }
         localStorage.setItem(STORAGE_KEYS.USERNAME, data.username);
 
         showToast('✅ Giriş başarılı!');
@@ -38,6 +41,9 @@ export async function register(username, password) {
 
         store.setToken(data.token);
         store.setUser(data.username);
+        if (data.refreshToken) {
+            localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, data.refreshToken);
+        }
         localStorage.setItem(STORAGE_KEYS.USERNAME, data.username);
 
         showToast('✅ Kayıt başarılı!');
@@ -51,10 +57,19 @@ export async function register(username, password) {
 /**
  * Logout current user
  */
-export function logout() {
+export async function logout() {
+    const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+    if (refreshToken) {
+        try {
+            await post('/logout', { refreshToken });
+        } catch (error) {
+            console.warn('Server logout failed; clearing the local session.');
+        }
+    }
     store.setToken(null);
     store.setUser(null);
     localStorage.removeItem(STORAGE_KEYS.TOKEN);
+    localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.USERNAME);
 
     // Clear user data

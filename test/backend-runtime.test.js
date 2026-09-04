@@ -1,6 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
+const fs = require('node:fs');
+const path = require('node:path');
 const jwt = require('jsonwebtoken');
 
 process.env.NODE_ENV = 'test';
@@ -34,7 +36,7 @@ axios.get = async (url) => {
     throw new Error(`Unexpected GET ${url}`);
 };
 
-const { app, connectDatabase } = require('../server');
+const { app, connectDatabase, _test } = require('../server');
 
 let server;
 let baseUrl;
@@ -66,6 +68,16 @@ const postJson = (path, body, headers = {}) => request(path, {
     method: 'POST',
     headers: { 'content-type': 'application/json', ...headers },
     body: JSON.stringify(body)
+});
+
+const bearerHeaders = (token, clientIp) => ({
+    authorization: `Bearer ${token}`,
+    ...(clientIp && { 'x-forwarded-for': clientIp })
+});
+
+const adminHeaders = (username, password, clientIp) => ({
+    authorization: `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`,
+    ...(clientIp && { 'x-forwarded-for': clientIp })
 });
 
 test('health reports 503 before database readiness and 200 for controlled in-memory mode', async () => {
@@ -103,6 +115,24 @@ test('static serving exposes only required frontend assets', async () => {
     }
 });
 
+test('web and mobile clients retain refresh and server logout support', async () => {
+    const index = await request('/');
+    assert.match(index.body, /fetchWithRefresh/);
+    assert.match(index.body, /userRefreshToken/);
+    assert.match(index.body, /\/logout/);
+
+    const webAuth = await request('/js/services/auth.js');
+    assert.match(webAuth.body, /REFRESH_TOKEN/);
+    assert.match(webAuth.body, /post\('\/logout'/);
+
+    const mobileAuth = fs.readFileSync(
+        path.resolve(__dirname, '../mobile/services/auth.ts'),
+        'utf8'
+    );
+    assert.match(mobileAuth, /getRefreshToken/);
+    assert.match(mobileAuth, /api\.post\('\/logout'/);
+});
+
 test('protected endpoints return 401 for missing, invalid, and expired access tokens', async () => {
     const missing = await request('/api/me');
     assert.equal(missing.response.status, 401);
@@ -121,6 +151,35 @@ test('protected endpoints return 401 for missing, invalid, and expired access to
         headers: { authorization: `Bearer ${expiredToken}` }
     });
     assert.equal(expired.response.status, 401);
+});
+
+test('Mongo schemas persist notes and accept half-star ratings', () => {
+    const likePaths = _test.models.Like.schema.paths;
+    assert.ok(likePaths.userNote);
+    assert.ok(likePaths.noteUpdatedAt);
+
+    const rating = new _test.models.Rating({
+        userId: '507f1f77bcf86cd799439011',
+        itemId: 'track-half-star',
+        itemType: 'track',
+        rating: 0.5
+    });
+    assert.equal(rating.validateSync(), undefined);
+});
+
+test('register returns refresh credentials and a 30-minute access token', async () => {
+    const register = await postJson('/api/register', {
+        username: 'register_refresh_user',
+        password: 'password123'
+    }, { 'x-forwarded-for': '203.0.113.40' });
+
+    assert.equal(register.response.status, 200);
+    assert.equal(typeof register.body.refreshToken, 'string');
+    const storedUser = _test.inMemoryDB.users.find(user => user.username === 'register_refresh_user');
+    assert.notEqual(storedUser.refreshToken, register.body.refreshToken);
+    assert.match(storedUser.refreshToken, /^[a-f0-9]{64}$/);
+    const decoded = jwt.decode(register.body.token);
+    assert.equal(decoded.exp - decoded.iat, 30 * 60);
 });
 
 test('register and login reject non-string credentials', async () => {
@@ -165,6 +224,123 @@ test('login issues a refresh token and refresh rotates it', async () => {
     assert.equal(reused.response.status, 401);
 });
 
+test('logout invalidates the stored refresh token', async () => {
+    const register = await postJson('/api/register', {
+        username: 'logout_test_user',
+        password: 'password123'
+    }, { 'x-forwarded-for': '203.0.113.41' });
+    assert.equal(register.response.status, 200);
+
+    const logout = await postJson('/api/logout', {
+        refreshToken: register.body.refreshToken
+    }, { 'x-forwarded-for': '203.0.113.41' });
+    assert.equal(logout.response.status, 200);
+    assert.deepEqual(logout.body, { status: 'logged_out' });
+
+    const refresh = await postJson('/api/auth/refresh', {
+        refreshToken: register.body.refreshToken
+    }, { 'x-forwarded-for': '203.0.113.41' });
+    assert.equal(refresh.response.status, 401);
+});
+
+test('admin deletion cascades ratings and login history', async () => {
+    const register = await postJson('/api/register', {
+        username: 'cascade_test_user',
+        password: 'password123'
+    }, { 'x-forwarded-for': '203.0.113.42' });
+    assert.equal(register.response.status, 200);
+
+    const login = await postJson('/api/login', {
+        username: 'cascade_test_user',
+        password: 'password123'
+    }, { 'x-forwarded-for': '203.0.113.42' });
+    assert.equal(login.response.status, 200);
+    const decoded = jwt.decode(login.body.token);
+
+    const rating = await postJson('/api/rate', {
+        itemId: 'cascade-track',
+        itemType: 'track',
+        itemName: 'Cascade Track',
+        rating: 0.5
+    }, bearerHeaders(login.body.token, '203.0.113.42'));
+    assert.equal(rating.response.status, 200);
+    assert.ok(_test.inMemoryDB.ratings.some(item => item.userId === decoded.id));
+    assert.ok(_test.inMemoryDB.loginHistory.some(item => item.userId === decoded.id));
+
+    const deleted = await request(`/api/admin/users/${decoded.id}`, {
+        method: 'DELETE',
+        headers: adminHeaders('test-admin', 'test-only-admin-password', '203.0.113.43')
+    });
+    assert.equal(deleted.response.status, 200);
+    assert.equal(_test.inMemoryDB.ratings.some(item => item.userId === decoded.id), false);
+    assert.equal(_test.inMemoryDB.loginHistory.some(item => item.userId === decoded.id), false);
+});
+
+test('admin authentication safely rejects mismatches and is rate limited', async () => {
+    const valid = await request('/api/admin/stats', {
+        headers: adminHeaders('test-admin', 'test-only-admin-password', '203.0.113.44')
+    });
+    assert.equal(valid.response.status, 200);
+
+    const wrongUsername = await request('/api/admin/stats', {
+        headers: adminHeaders('x', 'test-only-admin-password', '203.0.113.45')
+    });
+    assert.equal(wrongUsername.response.status, 403);
+
+    const wrongPassword = await request('/api/admin/stats', {
+        headers: adminHeaders('test-admin', 'x', '203.0.113.46')
+    });
+    assert.equal(wrongPassword.response.status, 403);
+
+    let limited;
+    for (let attempt = 0; attempt < 11; attempt += 1) {
+        limited = await request('/api/admin/stats', {
+            headers: adminHeaders('test-admin', 'wrong-password', '203.0.113.47')
+        });
+    }
+    assert.equal(limited.response.status, 429);
+    assert.deepEqual(limited.body, {
+        error: 'Too many admin authentication attempts. Please try again later.'
+    });
+});
+
+test('like helpers use atomic upsert while preserving toggle status', async () => {
+    const calls = [];
+    const insertedModel = {
+        findOneAndUpdate: async (...args) => {
+            calls.push(args);
+            return { value: { _id: 'like-1' }, lastErrorObject: { updatedExisting: false } };
+        },
+        deleteOne: async () => assert.fail('new likes must not be deleted')
+    };
+    const liked = await _test.toggleLike(
+        { userId: 'user-1', trackId: 'track-1' },
+        { userId: 'user-1', trackId: 'track-1' },
+        insertedModel
+    );
+    assert.equal(liked, 'liked');
+    assert.equal(calls[0][2].upsert, true);
+    assert.deepEqual(calls[0][1], {
+        $setOnInsert: { userId: 'user-1', trackId: 'track-1' }
+    });
+
+    let deletedId;
+    const existingModel = {
+        findOneAndUpdate: async () => ({
+            value: { _id: 'like-2' },
+            lastErrorObject: { updatedExisting: true }
+        }),
+        deleteOne: async filter => { deletedId = filter._id; }
+    };
+    const unliked = await _test.toggleLike(
+        { userId: 'user-1', trackId: 'track-1' },
+        { userId: 'user-1', trackId: 'track-1' },
+        existingModel
+    );
+    assert.equal(unliked, 'unliked');
+    assert.equal(deletedId, 'like-2');
+});
+
 test('search caches successful Spotify results without undefined helpers', async () => {
     const first = await request('/api/search?artist=Test%20Artist');
     assert.equal(first.response.status, 200);
@@ -201,6 +377,13 @@ test('production CORS rejection returns JSON 403 without a stack trace', async (
     assert.equal(blocked.response.status, 403);
     assert.deepEqual(blocked.body, { error: 'Origin not allowed' });
     assert.doesNotMatch(JSON.stringify(blocked.body), /server\.js|\bat\s/u);
+});
+
+test('unknown API routes return a controlled JSON 404', async () => {
+    const missing = await request('/api/does-not-exist');
+    assert.equal(missing.response.status, 404);
+    assert.deepEqual(missing.body, { error: 'API endpoint not found' });
+    assert.match(missing.response.headers.get('content-type'), /application\/json/);
 });
 
 test('production startup refuses to run without MONGO_URI', () => {

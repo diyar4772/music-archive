@@ -186,7 +186,7 @@ export class Navbar extends Component {
 
     async handleLogout() {
         try {
-            authLogout();
+            await authLogout();
             this.onLogout();
             this.updateAuthUI(false, null);
             if (window.showToast) {

@@ -128,8 +128,8 @@ async function initApp() {
 /**
  * Handle logout
  */
-function handleLogout() {
-    authLogout();
+async function handleLogout() {
+    await authLogout();
     if (router) {
         router.navigate('dashboard');
     }

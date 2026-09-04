@@ -828,6 +828,49 @@
         const API_URL = '/api';
         let currentUser = localStorage.getItem('userUsername');
         let token = localStorage.getItem('userToken');
+        const nativeFetch = window.fetch.bind(window);
+        let refreshRequest = null;
+
+        async function refreshWebAccessToken() {
+            const refreshToken = localStorage.getItem('userRefreshToken');
+            if (!refreshToken) return false;
+            if (!refreshRequest) {
+                refreshRequest = nativeFetch(`${API_URL}/auth/refresh`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refreshToken })
+                }).then(async response => {
+                    if (!response.ok) return false;
+                    const data = await response.json();
+                    token = data.token;
+                    localStorage.setItem('userToken', data.token);
+                    if (data.refreshToken) {
+                        localStorage.setItem('userRefreshToken', data.refreshToken);
+                    }
+                    return true;
+                }).finally(() => {
+                    refreshRequest = null;
+                });
+            }
+            return refreshRequest;
+        }
+
+        window.fetch = async function fetchWithRefresh(input, options = {}) {
+            const response = await nativeFetch(input, options);
+            const url = typeof input === 'string' ? input : input.url;
+            const isRefreshableApiRequest = url.startsWith(API_URL) &&
+                !url.startsWith(`${API_URL}/auth/refresh`) &&
+                !url.startsWith(`${API_URL}/login`) &&
+                !url.startsWith(`${API_URL}/register`) &&
+                !url.startsWith(`${API_URL}/logout`);
+
+            if (response.status !== 401 || !isRefreshableApiRequest) return response;
+            if (!(await refreshWebAccessToken())) return response;
+
+            const headers = new Headers(options.headers || {});
+            headers.set('Authorization', `Bearer ${token}`);
+            return nativeFetch(input, { ...options, headers });
+        };
 
         // Data
         let followedArtists = [];
@@ -2703,6 +2746,7 @@
                 if (d.token) {
                     token = d.token; currentUser = d.username;
                     localStorage.setItem('userToken', token); localStorage.setItem('userUsername', currentUser);
+                    if (d.refreshToken) localStorage.setItem('userRefreshToken', d.refreshToken);
                     closeAuthModal(); updateAuthUI(); fetchUserData();
                 } else {
                     alert('Giriş Başarısız: ' + (d.error || 'Bilinmeyen Hata'));
@@ -2712,7 +2756,22 @@
                 alert('Bağlantı Hatası: ' + e.message + '\nLütfen internet bağlantınızı ve sunucu durumunu kontrol edin.');
             }
         }
-        function logout() { localStorage.clear(); location.reload(); }
+        async function logout() {
+            const refreshToken = localStorage.getItem('userRefreshToken');
+            if (refreshToken) {
+                try {
+                    await nativeFetch(`${API_URL}/logout`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ refreshToken })
+                    });
+                } catch (error) {
+                    console.warn('Server logout failed; clearing the local session.');
+                }
+            }
+            localStorage.clear();
+            location.reload();
+        }
         function updateFollowBtn(isFollowing) {
             const btn = document.getElementById('followBtn');
             if (isFollowing) { btn.innerText = 'FOLLOWING'; btn.className = 'bg-green-500 text-black border-none px-6 py-2 rounded-full font-bold transition'; }

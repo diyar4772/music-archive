@@ -9,6 +9,7 @@ export const SEARCH_TYPES = {
 
 export const STORAGE_KEYS = {
     TOKEN: 'userToken',
+    REFRESH_TOKEN: 'userRefreshToken',
     USERNAME: 'userUsername',
     THEME: 'theme',
     LANG: 'lang',

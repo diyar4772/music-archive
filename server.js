@@ -61,6 +61,14 @@ const authLimiter = rateLimit({
     legacyHeaders: false
 });
 
+const adminLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: { error: 'Too many admin authentication attempts. Please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
 const generalLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute
     max: 100, // 100 requests per minute
@@ -209,7 +217,9 @@ const likeSchema = new mongoose.Schema({
     image: { type: String },
     previewUrl: { type: String },
     source: { type: String, default: 'manual' }, // 'manual' or 'dig'
-    mood: { type: String, default: null }
+    mood: { type: String, default: null },
+    userNote: { type: String, default: null },
+    noteUpdatedAt: { type: Date, default: null }
 }, { timestamps: true });
 
 // Indexes for Like schema - CRITICAL for performance at scale
@@ -246,7 +256,7 @@ const ratingSchema = new mongoose.Schema({
     itemName: { type: String },
     artistName: { type: String },
     image: { type: String },
-    rating: { type: Number, min: 1, max: 5, required: true } // 1-5 yıldız
+    rating: { type: Number, min: 0.5, max: 5, required: true } // 0.5-5 yıldız
 }, { timestamps: true });
 
 // Aynı kullanıcı aynı item'ı sadece bir kez puanlayabilir
@@ -271,6 +281,28 @@ const Playlist = mongoose.model('Playlist', playlistSchema);
 const PlaylistTrack = mongoose.model('PlaylistTrack', playlistTrackSchema);
 const Rating = mongoose.model('Rating', ratingSchema);
 const LoginHistory = mongoose.model('LoginHistory', loginHistorySchema);
+
+const upsertLike = async (filter, values, LikeModel = Like) => {
+    return LikeModel.findOneAndUpdate(
+        filter,
+        { $setOnInsert: values },
+        {
+            upsert: true,
+            new: true,
+            setDefaultsOnInsert: true,
+            includeResultMetadata: true
+        }
+    );
+};
+
+const toggleLike = async (filter, values, LikeModel = Like) => {
+    const result = await upsertLike(filter, values, LikeModel);
+    if (result.lastErrorObject?.updatedExisting) {
+        await LikeModel.deleteOne({ _id: result.value._id });
+        return 'unliked';
+    }
+    return 'liked';
+};
 
 // --- Spotify Token Management ---
 let spotifyToken = null;
@@ -465,7 +497,7 @@ const generateAccessToken = (user) => jwt.sign({
     id: user._id,
     username: user.username,
     isAdmin: Boolean(user.isAdmin)
-}, JWT_SECRET, { expiresIn: '7d' });
+}, JWT_SECRET, { expiresIn: '30m' });
 
 const searchCache = new Map();
 const SEARCH_CACHE_MAX_ENTRIES = 200;
@@ -545,9 +577,18 @@ app.post('/api/register', authLimiter, [validateUsername, validatePassword], asy
                 return res.status(400).json({ error: 'Username already taken' });
             }
             const userId = generateId();
-            inMemoryDB.users.push({ _id: userId, username, password: hashedPassword, createdAt: new Date(), isAdmin: false });
-            const token = jwt.sign({ id: userId, username }, JWT_SECRET, { expiresIn: '7d' });
-            return res.json({ token, username });
+            const refreshToken = generateRefreshToken();
+            const user = {
+                _id: userId,
+                username,
+                password: hashedPassword,
+                createdAt: new Date(),
+                isAdmin: false,
+                refreshToken: hashRefreshToken(refreshToken)
+            };
+            inMemoryDB.users.push(user);
+            const token = generateAccessToken(user);
+            return res.json({ token, refreshToken, username });
         }
 
         // Check if username exists (case-insensitive)
@@ -556,9 +597,14 @@ app.post('/api/register', authLimiter, [validateUsername, validatePassword], asy
             return res.status(400).json({ error: 'Username already taken' });
         }
 
-        const user = await User.create({ username, password: hashedPassword });
-        const token = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-        res.json({ token, username });
+        const refreshToken = generateRefreshToken();
+        const user = await User.create({
+            username,
+            password: hashedPassword,
+            refreshToken: hashRefreshToken(refreshToken)
+        });
+        const token = generateAccessToken(user);
+        res.json({ token, refreshToken, username: user.username });
     } catch (e) {
         console.error('Registration error:', e.message);
         res.status(400).json({ error: 'Registration failed. Please try again.' });
@@ -673,6 +719,31 @@ app.post('/api/auth/refresh', authLimiter, async (req, res) => {
     } catch (e) {
         console.error('Refresh token error:', e.message);
         res.status(500).json({ error: 'Failed to refresh token' });
+    }
+});
+
+app.post('/api/logout', authLimiter, async (req, res) => {
+    try {
+        const { refreshToken } = req.body;
+        if (typeof refreshToken !== 'string' || !refreshToken) {
+            return res.status(400).json({ error: 'Refresh token is required' });
+        }
+
+        const refreshTokenHash = hashRefreshToken(refreshToken);
+        if (useInMemory) {
+            const user = inMemoryDB.users.find(u => u.refreshToken === refreshTokenHash);
+            if (user) user.refreshToken = null;
+        } else {
+            await User.updateOne(
+                { refreshToken: refreshTokenHash },
+                { $set: { refreshToken: null } }
+            );
+        }
+
+        return res.json({ status: 'logged_out' });
+    } catch (e) {
+        console.error('Logout error:', e.message);
+        return res.status(500).json({ error: 'Logout failed' });
     }
 });
 
@@ -921,13 +992,11 @@ app.post('/api/like', authenticateToken, async (req, res) => {
             return res.json({ status: 'liked' });
         }
 
-        const exists = await Like.findOne({ userId: req.user.id, trackId });
-        if (exists) {
-            await Like.deleteOne({ _id: exists._id });
-            return res.json({ status: 'unliked' });
-        }
-        await Like.create({ userId: req.user.id, trackId, trackName, image, previewUrl });
-        res.json({ status: 'liked' });
+        const status = await toggleLike(
+            { userId: req.user.id, trackId },
+            { userId: req.user.id, trackId, trackName, image, previewUrl }
+        );
+        res.json({ status });
     } catch (e) {
         res.status(500).json({ error: 'Action failed' });
     }
@@ -1296,6 +1365,18 @@ app.put('/api/playlists/:id/cover', authenticateToken, async (req, res) => {
 // ============================================
 
 // Admin authentication middleware
+const timingSafeStringEqual = (provided, expected) => {
+    const providedBuffer = Buffer.from(String(provided ?? ''), 'utf8');
+    const expectedBuffer = Buffer.from(String(expected ?? ''), 'utf8');
+    const length = Math.max(providedBuffer.length, expectedBuffer.length);
+    const paddedProvided = Buffer.alloc(length);
+    const paddedExpected = Buffer.alloc(length);
+    providedBuffer.copy(paddedProvided);
+    expectedBuffer.copy(paddedExpected);
+    return crypto.timingSafeEqual(paddedProvided, paddedExpected) &&
+        providedBuffer.length === expectedBuffer.length;
+};
+
 const authenticateAdmin = (req, res, next) => {
     const authHeader = req.headers['authorization'];
 
@@ -1305,7 +1386,9 @@ const authenticateAdmin = (req, res, next) => {
         const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
         const [username, password] = credentials.split(':');
 
-        if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+        const usernameMatches = timingSafeStringEqual(username, ADMIN_USERNAME);
+        const passwordMatches = timingSafeStringEqual(password, ADMIN_PASSWORD);
+        if (usernameMatches && passwordMatches) {
             return next();
         }
     }
@@ -1324,6 +1407,8 @@ const authenticateAdmin = (req, res, next) => {
 
     res.status(403).json({ error: 'Admin access required' });
 };
+
+app.use(['/api/admin', '/admin', '/admin.html'], adminLimiter);
 
 // 📊 Get all users with stats (with search and sorting)
 app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
@@ -1554,6 +1639,8 @@ app.delete('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
             inMemoryDB.likes = inMemoryDB.likes.filter(l => l.userId !== userId);
             inMemoryDB.follows = inMemoryDB.follows.filter(f => f.userId !== userId);
             inMemoryDB.albumFollows = inMemoryDB.albumFollows.filter(a => a.userId !== userId);
+            inMemoryDB.ratings = inMemoryDB.ratings.filter(r => r.userId !== userId);
+            inMemoryDB.loginHistory = (inMemoryDB.loginHistory || []).filter(h => h.userId !== userId);
             const userPlaylists = inMemoryDB.playlists.filter(p => p.userId === userId);
             userPlaylists.forEach(p => {
                 inMemoryDB.playlistTracks = inMemoryDB.playlistTracks.filter(t => t.playlistId !== p._id);
@@ -1571,6 +1658,8 @@ app.delete('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
             Like.deleteMany({ userId }),
             Follow.deleteMany({ userId }),
             AlbumFollow.deleteMany({ userId }),
+            Rating.deleteMany({ userId }),
+            LoginHistory.deleteMany({ userId }),
             PlaylistTrack.deleteMany({ playlistId: { $in: await Playlist.find({ userId }).distinct('_id') } }),
             Playlist.deleteMany({ userId }),
             User.findByIdAndDelete(userId)
@@ -2269,28 +2358,27 @@ app.post('/api/library/like', mobileAuth, async (req, res) => {
             });
         }
 
-        // MongoDB - Check if exists
-        const exists = await Like.findOne({ userId: req.user.id, trackId: spotifyId });
-        if (exists) {
+        const result = await upsertLike(
+            { userId: req.user.id, trackId: spotifyId },
+            {
+                userId: req.user.id,
+                trackId: spotifyId,
+                trackName: title,
+                artistId: artistId || null,
+                artistName: artistName || 'Unknown Artist',
+                image: albumArt,
+                previewUrl: previewUrl,
+                source: source,
+                mood: mood || null
+            }
+        );
+        if (result.lastErrorObject?.updatedExisting) {
             return res.json({
                 success: true,
                 message: 'Already in Library',
                 action: 'exists'
             });
         }
-
-        // Create new like entry
-        await Like.create({
-            userId: req.user.id,
-            trackId: spotifyId,
-            trackName: title,
-            artistId: artistId || null,
-            artistName: artistName || 'Unknown Artist',
-            image: albumArt,
-            previewUrl: previewUrl,
-            source: source,
-            mood: mood || null
-        });
 
         console.log(`📚 Library: Added "${title}" by ${artistName} for user ${req.user.username || req.user.id}`);
 
@@ -2457,7 +2545,7 @@ app.post('/api/library/note', mobileAuth, async (req, res) => {
             });
         }
 
-        // MongoDB - need to add userNote field support
+        // MongoDB
         const result = await Like.findOneAndUpdate(
             { userId: req.user.id, trackId: spotifyId },
             { $set: { userNote: note || null, noteUpdatedAt: new Date() } },
@@ -2793,6 +2881,10 @@ app.get('/api/library/check/:spotifyId', mobileAuth, async (req, res) => {
 // 📱 MOBILE: Bind to 0.0.0.0 for local network access (React Native Expo)
 const HOST = process.env.HOST || '0.0.0.0';
 
+app.use('/api', (req, res) => {
+    res.status(404).json({ error: 'API endpoint not found' });
+});
+
 // Convert expected request failures to stable JSON without exposing stack traces.
 app.use((err, req, res, next) => {
     if (err?.code === 'CORS_NOT_ALLOWED') {
@@ -2820,5 +2912,18 @@ if (require.main === module) {
     });
 }
 
-module.exports = { app, connectDatabase, startServer };
+module.exports = {
+    app,
+    connectDatabase,
+    startServer,
+    ...(process.env.NODE_ENV === 'test' ? {
+        _test: {
+            inMemoryDB,
+            models: { User, Like, Rating, LoginHistory },
+            timingSafeStringEqual,
+            toggleLike,
+            upsertLike
+        }
+    } : {})
+};
 
