@@ -64,6 +64,16 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+    <!-- i18next CDN via importmap -->
+    <script type="importmap">
+    {
+        "imports": {
+            "i18next": "https://cdn.jsdelivr.net/npm/i18next@23.7.16/dist/esm/index.js",
+            "i18next-browser-languagedetector": "https://cdn.jsdelivr.net/npm/i18next-browser-languagedetector@7.2.0/dist/esm/index.js"
+        }
+    }
+    </script>
+
     <style>
         /* Base font family */
         body {
@@ -248,51 +258,8 @@
 <body
     class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark min-h-screen flex flex-col items-center py-6 px-4 transition-colors duration-200 font-display">
 
-    <!-- Top Bar -->
-    <div class="w-full max-w-6xl flex justify-between items-center mb-6 relative z-50">
-        <h1 class="text-3xl font-bold cursor-pointer" onclick="showDashboard()">Music <span
-                class="spotify-green">Library</span></h1>
-
-        <div class="flex items-center gap-3">
-            <!-- Theme Toggle Button -->
-            <button id="themeToggle" onclick="toggleTheme()"
-                class="w-10 h-10 rounded-full bg-gray-200 dark:bg-[#2A2A2A] hover:bg-gray-300 dark:hover:bg-[#3E3E3E] flex items-center justify-center text-text-light dark:text-white transition-colors"
-                title="Toggle Theme">
-                <span id="themeIconMaterial" class="material-icons">brightness_6</span>
-            </button>
-
-            <div id="authSection" class="relative"></div>
-        </div>
-
-        <div id="profileDropdown"
-            class="hidden absolute right-0 top-12 bg-white dark:bg-card-dark w-56 rounded-lg shadow-xl z-50 border border-gray-200 dark:border-white/5">
-            <button onclick="openProfileModal('likes')"
-                class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 border-b border-gray-200 dark:border-white/5 flex justify-between items-center transition-colors">
-                <span data-lang="liked_songs">Beğenilen Şarkılar</span> <i
-                    class="fa-solid fa-heart text-accent-coral"></i>
-            </button>
-            <button onclick="openProfileModal('follows')"
-                class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 border-b border-gray-200 dark:border-white/5 flex justify-between items-center transition-colors">
-                <span data-lang="library.following">Takip Edilenler</span> <i class="fa-solid fa-user text-accent-purple"></i>
-            </button>
-            <button onclick="openProfileModal('playlists')"
-                class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 border-b border-gray-200 dark:border-white/5 flex justify-between items-center transition-colors">
-                <span data-lang="library.playlists">Listelerim</span> <i class="fa-solid fa-music text-accent-teal"></i>
-            </button>
-            <button onclick="createPlaylist()"
-                class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 border-b border-gray-200 dark:border-white/5 flex justify-between items-center transition-colors">
-                <span data-lang="library.createPlaylist">Liste Oluştur</span> <i class="fa-solid fa-plus"></i>
-            </button>
-            <button onclick="openSettingsModal()"
-                class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 border-b border-gray-200 dark:border-white/5 flex justify-between items-center transition-colors">
-                <span data-lang="settings.title">Ayarlar</span> <i class="fa-solid fa-gear text-gray-400"></i>
-            </button>
-            <button onclick="logout()"
-                class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 text-red-400 transition-colors">
-                <span data-lang="common.logout">Çıkış Yap</span>
-            </button>
-        </div>
-    </div>
+    <!-- Navbar Container (will be rendered by Navbar component) -->
+    <div id="navbar"></div>
 
     <!-- Settings Modal -->
     <div id="settingsModal"
@@ -333,31 +300,14 @@
         </div>
     </div>
 
-    <!-- Search Section -->
-    <div class="w-full max-w-xl mb-8 relative z-40">
-        <div class="flex gap-3 relative">
-            <input type="text" id="searchInput" name="search" placeholder="Search for artists or tracks..."
-                class="flex-1 px-5 py-3 rounded-full bg-white dark:bg-card-dark border border-gray-200 dark:border-white/5 focus:ring-2 focus:ring-[#1DB954] text-text-light dark:text-white outline-none shadow-sm transition-colors"
-                autocomplete="off" data-form-type="other" data-lpignore="true">
-            <button onclick="performSearch()" class="btn-spotify text-black font-bold px-6 py-3 rounded-full">
-                <i class="fa-solid fa-magnifying-glass"></i>
-            </button>
-        </div>
-        <div id="autocompleteList" class="autocomplete-list hidden"></div>
+    <!-- Search Bar Container (will be rendered by SearchBar component) -->
+    <div id="searchBar"></div>
 
-        <!-- Filter Chips -->
-        <div class="flex gap-2 mt-4 justify-center flex-wrap">
-            <button onclick="setSearchType('artist')" id="type-artist"
-                class="px-3 py-1 bg-white dark:bg-card-dark border border-gray-200 dark:border-white/5 rounded-full text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ring-1 ring-transparent focus:ring-green-500 transition-colors text-green-500">Musicians</button>
-            <button onclick="setSearchType('track')" id="type-track"
-                class="px-3 py-1 bg-white dark:bg-card-dark border border-gray-200 dark:border-white/5 rounded-full text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ring-1 ring-transparent focus:ring-green-500 transition-colors">Songs</button>
-            <button onclick="setSearchType('album')" id="type-album"
-                class="px-3 py-1 bg-white dark:bg-card-dark border border-gray-200 dark:border-white/5 rounded-full text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 ring-1 ring-transparent focus:ring-green-500 transition-colors">Albums</button>
-        </div>
-    </div>
+    <!-- App Container (Router will render views here) -->
+    <div id="app" class="w-full"></div>
 
-    <!-- Dashboard (Quick Access) -->
-    <div id="dashboard" class="w-full max-w-6xl animate-fade-in">
+    <!-- Legacy Dashboard Container (for backward compatibility during transition) -->
+    <div id="dashboard" class="w-full max-w-6xl animate-fade-in hidden">
         <h2 class="text-2xl font-bold mb-6">Kütüphanem</h2>
 
         <!-- Bento Grid Layout -->
@@ -3468,6 +3418,8 @@
             else list.classList.add('hidden');
         }
     </script>
+    <!-- Main Application Entry Point -->
+    <script type="module" src="js/app.js"></script>
 </body>
 
 </html>
