@@ -8,8 +8,11 @@ const jwt = require('jsonwebtoken');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
+const crypto = require('crypto');
 
-dotenv.config();
+if (process.env.SKIP_DOTENV_CONFIG !== 'true') {
+    dotenv.config();
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,6 +35,7 @@ const ADMIN_PASSWORD = requireSecret('ADMIN_PASSWORD');
 // 🔒 SECURITY: Development conveniences are fail-closed — NODE_ENV is not set on
 // most hosts, so anything unset must behave as production.
 const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const MOCK_AUTH_ENABLED = IS_DEVELOPMENT && process.env.ENABLE_MOCK_AUTH === 'true';
 
 if (MOCK_AUTH_ENABLED) {
@@ -96,7 +100,10 @@ const corsOptions = {
         if (allowedOrigins.includes(origin)) {
             return callback(null, true);
         }
-        return callback(new Error('Not allowed by CORS'));
+        const error = new Error('Origin is not allowed by CORS');
+        error.status = 403;
+        error.code = 'CORS_NOT_ALLOWED';
+        return callback(error);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -125,18 +132,27 @@ const generateId = () => {
 };
 
 // --- MongoDB Connection ---
-if (process.env.MONGO_URI) {
-    mongoose.connect(process.env.MONGO_URI)
-        .then(() => console.log('✅ MongoDB Connected!'))
-        .catch(err => {
-            console.error('❌ MongoDB Connection Error:', err.message);
-            console.log('🔄 Switching to In-Memory Database for local testing...');
-            useInMemory = true;
-        });
-} else {
-    console.log('⚠️ MONGO_URI not set - Using In-Memory Database for local testing');
-    useInMemory = true;
-}
+const connectDatabase = async () => {
+    if (!process.env.MONGO_URI) {
+        if (IS_PRODUCTION) {
+            throw new Error('MONGO_URI is required in production');
+        }
+        console.warn('⚠️ MONGO_URI not set - Using In-Memory Database outside production');
+        useInMemory = true;
+        return;
+    }
+
+    try {
+        await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 5000 });
+        useInMemory = false;
+        console.log('✅ MongoDB Connected!');
+    } catch (err) {
+        console.error('❌ MongoDB Connection Error:', err.message);
+        if (IS_PRODUCTION) throw err;
+        console.warn('🔄 Using In-Memory Database outside production');
+        useInMemory = true;
+    }
+};
 
 // --- Mongoose Schemas ---
 const userSchema = new mongoose.Schema({
@@ -426,13 +442,41 @@ const authenticateToken = async (req, res, next) => {
 
 // --- Input Validation Helpers ---
 const validateUsername = body('username')
+    .isString().withMessage('Username must be a string').bail()
     .trim()
     .isLength({ min: 3, max: 30 }).withMessage('Username must be 3-30 characters')
     .matches(/^[a-zA-Z0-9_]+$/).withMessage('Username can only contain letters, numbers, and underscores')
     .escape();
 
 const validatePassword = body('password')
+    .isString().withMessage('Password must be a string').bail()
     .isLength({ min: 6, max: 100 }).withMessage('Password must be at least 6 characters');
+
+const generateRefreshToken = () => crypto.randomBytes(64).toString('hex');
+const hashRefreshToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+const generateAccessToken = (user) => jwt.sign({
+    id: user._id,
+    username: user.username,
+    isAdmin: Boolean(user.isAdmin)
+}, JWT_SECRET, { expiresIn: '7d' });
+
+const searchCache = new Map();
+const SEARCH_CACHE_MAX_ENTRIES = 200;
+const cacheGet = (key) => {
+    const entry = searchCache.get(key);
+    if (!entry) return null;
+    if (entry.expiresAt <= Date.now()) {
+        searchCache.delete(key);
+        return null;
+    }
+    return entry.value;
+};
+const cacheSet = (key, value, ttlSeconds) => {
+    if (searchCache.size >= SEARCH_CACHE_MAX_ENTRIES && !searchCache.has(key)) {
+        searchCache.delete(searchCache.keys().next().value);
+    }
+    searchCache.set(key, { value, expiresAt: Date.now() + (ttlSeconds * 1000) });
+};
 
 // 🔒 SECURITY: Escape special regex characters to prevent injection
 const escapeRegex = (string) => {
@@ -518,7 +562,7 @@ app.post('/api/login', authLimiter, async (req, res) => {
     try {
         const { username, password } = req.body;
 
-        if (!username || !password) {
+        if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
             return res.status(400).json({ error: 'Username and password are required' });
         }
 
@@ -533,7 +577,7 @@ app.post('/api/login', authLimiter, async (req, res) => {
 
             // Generate new refresh token on login
             const refreshToken = generateRefreshToken();
-            user.refreshToken = refreshToken;
+            user.refreshToken = hashRefreshToken(refreshToken);
 
             // Record login history (in-memory)
             if (!inMemoryDB.loginHistory) inMemoryDB.loginHistory = [];
@@ -545,7 +589,7 @@ app.post('/api/login', authLimiter, async (req, res) => {
                 inMemoryDB.loginHistory = inMemoryDB.loginHistory.filter(h => !toRemove.includes(h));
             }
 
-            const token = jwt.sign({ id: user._id, username: user.username, isAdmin: user.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
+            const token = generateAccessToken(user);
             return res.json({ token, refreshToken, username: user.username });
         }
 
@@ -556,7 +600,7 @@ app.post('/api/login', authLimiter, async (req, res) => {
 
         // Generate new refresh token on login
         const refreshToken = generateRefreshToken();
-        user.refreshToken = refreshToken;
+        user.refreshToken = hashRefreshToken(refreshToken);
 
         // Update login stats
         user.lastLogin = new Date();
@@ -575,7 +619,7 @@ app.post('/api/login', authLimiter, async (req, res) => {
             await LoginHistory.deleteMany({ _id: { $in: oldRecords.map(r => r._id) } });
         }
 
-        const token = jwt.sign({ id: user._id, username: user.username, isAdmin: user.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
+        const token = generateAccessToken(user);
         res.json({ token, refreshToken, username: user.username });
     } catch (e) {
         console.error('Login error:', e.message);
@@ -588,30 +632,37 @@ app.post('/api/auth/refresh', authLimiter, async (req, res) => {
     try {
         const { refreshToken } = req.body;
 
-        if (!refreshToken) {
+        if (typeof refreshToken !== 'string' || !refreshToken) {
             return res.status(400).json({ error: 'Refresh token is required' });
         }
 
+        const refreshTokenHash = hashRefreshToken(refreshToken);
+        const nextRefreshToken = generateRefreshToken();
+        const nextRefreshTokenHash = hashRefreshToken(nextRefreshToken);
+
         if (useInMemory) {
-            const user = inMemoryDB.users.find(u => u.refreshToken === refreshToken);
+            const user = inMemoryDB.users.find(u => u.refreshToken === refreshTokenHash);
             if (!user) {
                 return res.status(401).json({ error: 'Invalid refresh token' });
             }
 
-            // Generate new access token
-            const token = jwt.sign({ id: user._id, username: user.username, isAdmin: user.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
-            return res.json({ token });
+            user.refreshToken = nextRefreshTokenHash;
+            const token = generateAccessToken(user);
+            return res.json({ token, refreshToken: nextRefreshToken });
         }
 
         // MongoDB: Find user by refresh token
-        const user = await User.findOne({ refreshToken });
+        const user = await User.findOneAndUpdate(
+            { refreshToken: refreshTokenHash },
+            { $set: { refreshToken: nextRefreshTokenHash } },
+            { new: true }
+        );
         if (!user) {
             return res.status(401).json({ error: 'Invalid refresh token' });
         }
 
-        // Generate new access token
-        const token = jwt.sign({ id: user._id, username: user.username, isAdmin: user.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
-        res.json({ token });
+        const token = generateAccessToken(user);
+        res.json({ token, refreshToken: nextRefreshToken });
     } catch (e) {
         console.error('Refresh token error:', e.message);
         res.status(500).json({ error: 'Failed to refresh token' });
@@ -624,7 +675,11 @@ app.post('/api/auth/refresh', authLimiter, async (req, res) => {
 app.get('/api/search', userLimiter, async (req, res) => {
     try {
         const { artist, type } = req.query;
-        if (!artist) return res.status(400).json({ error: 'Missing query' });
+        if (typeof artist !== 'string' || !artist.trim()) return res.status(400).json({ error: 'Missing query' });
+
+        const cacheKey = `search:${type || 'artist'}:${artist.trim().toLowerCase()}`;
+        const cachedResult = cacheGet(cacheKey);
+        if (cachedResult) return res.json(cachedResult);
 
         const token = await getSpotifyToken();
 
@@ -2730,11 +2785,33 @@ app.get('/api/library/check/:spotifyId', mobileAuth, async (req, res) => {
 
 // 📱 MOBILE: Bind to 0.0.0.0 for local network access (React Native Expo)
 const HOST = process.env.HOST || '0.0.0.0';
-app.listen(PORT, HOST, () => {
-    console.log(`🚀 Server running on http://${HOST}:${PORT}`);
-    console.log(`📱 Mobile access: Use your computer's IP address instead of localhost`);
-    console.log(`🔒 Admin panel: http://localhost:${PORT}/admin`);
-    console.log(`📊 Admin API: /api/admin/users, /api/admin/stats`);
-    console.log(`📚 Library API: /api/library/like, /api/library/track/:id, /api/library/follow, /api/library/note`);
+
+// Convert expected request failures to stable JSON without exposing stack traces.
+app.use((err, req, res, next) => {
+    if (err?.code === 'CORS_NOT_ALLOWED') {
+        return res.status(403).json({ error: 'Origin not allowed' });
+    }
+    console.error('Unhandled request error:', err?.message || err);
+    return res.status(err?.status || 500).json({ error: 'Internal server error' });
 });
+
+const startServer = async () => {
+    await connectDatabase();
+    return app.listen(PORT, HOST, () => {
+        console.log(`🚀 Server running on http://${HOST}:${PORT}`);
+        console.log(`📱 Mobile access: Use your computer's IP address instead of localhost`);
+        console.log(`🔒 Admin panel: http://localhost:${PORT}/admin`);
+        console.log(`📊 Admin API: /api/admin/users, /api/admin/stats`);
+        console.log(`📚 Library API: /api/library/like, /api/library/track/:id, /api/library/follow, /api/library/note`);
+    });
+};
+
+if (require.main === module) {
+    startServer().catch((err) => {
+        console.error('❌ FATAL: Server startup failed:', err.message);
+        process.exitCode = 1;
+    });
+}
+
+module.exports = { app, connectDatabase, startServer };
 

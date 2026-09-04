@@ -179,10 +179,10 @@ api.interceptors.request.use(
 );
 
 // Helper function to refresh auth token
-const refreshAuthToken = async (refreshToken: string): Promise<string | null> => {
+const refreshAuthToken = async (refreshToken: string): Promise<{ token: string; refreshToken?: string } | null> => {
     try {
         const response = await axios.post(`${getBaseURL()}/auth/refresh`, { refreshToken });
-        return response.data.token || null;
+        return response.data.token ? response.data : null;
     } catch (error) {
         logger.error('Failed to refresh token', error, 'api');
         return null;
@@ -202,15 +202,18 @@ api.interceptors.response.use(
             const refreshToken = await getRefreshToken();
             if (refreshToken) {
                 logger.debug('Attempting to refresh token', undefined, 'api');
-                const newToken = await refreshAuthToken(refreshToken);
-                
-                if (newToken) {
+                const refreshedAuth = await refreshAuthToken(refreshToken);
+
+                if (refreshedAuth) {
                     // Save new token
-                    await setToken(newToken);
-                    
+                    await setToken(refreshedAuth.token);
+                    if (refreshedAuth.refreshToken) {
+                        await setRefreshToken(refreshedAuth.refreshToken);
+                    }
+
                     // Update authorization header
                     if (originalRequest.headers) {
-                        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                        originalRequest.headers.Authorization = `Bearer ${refreshedAuth.token}`;
                     }
                     
                     // Retry original request
