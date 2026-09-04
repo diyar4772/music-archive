@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
+const jwt = require('jsonwebtoken');
 
 process.env.NODE_ENV = 'test';
 process.env.SKIP_DOTENV_CONFIG = 'true';
@@ -39,7 +40,6 @@ let server;
 let baseUrl;
 
 test.before(async () => {
-    await connectDatabase();
     await new Promise((resolve) => {
         server = app.listen(0, '127.0.0.1', resolve);
     });
@@ -66,6 +66,61 @@ const postJson = (path, body, headers = {}) => request(path, {
     method: 'POST',
     headers: { 'content-type': 'application/json', ...headers },
     body: JSON.stringify(body)
+});
+
+test('health reports 503 before database readiness and 200 for controlled in-memory mode', async () => {
+    const unavailable = await request('/api/health');
+    assert.equal(unavailable.response.status, 503);
+    assert.deepEqual(unavailable.body, { status: 'not_ready' });
+
+    await connectDatabase();
+
+    const ready = await request('/api/health');
+    assert.equal(ready.response.status, 200);
+    assert.deepEqual(ready.body, { status: 'ready' });
+});
+
+test('static serving exposes only required frontend assets', async () => {
+    const index = await request('/');
+    assert.equal(index.response.status, 200);
+    assert.match(index.response.headers.get('content-type'), /text\/html/);
+
+    const frontendModule = await request('/js/app.js');
+    assert.equal(frontendModule.response.status, 200);
+    assert.match(frontendModule.response.headers.get('content-type'), /javascript/);
+
+    for (const sourcePath of [
+        '/server.js',
+        '/package.json',
+        '/panel-4772.html',
+        '/CLAUDE_BACKEND_AUDIT.md',
+        '/docs/reports/CODEX_BACKEND_RUNTIME_SECURITY_FIXES_2026-09-04.md',
+        '/.env',
+        '/.git/config'
+    ]) {
+        const result = await request(sourcePath);
+        assert.equal(result.response.status, 404, sourcePath);
+    }
+});
+
+test('protected endpoints return 401 for missing, invalid, and expired access tokens', async () => {
+    const missing = await request('/api/me');
+    assert.equal(missing.response.status, 401);
+
+    const invalid = await request('/api/me', {
+        headers: { authorization: 'Bearer invalid-token' }
+    });
+    assert.equal(invalid.response.status, 401);
+
+    const expiredToken = jwt.sign(
+        { id: 'expired-user', username: 'expired' },
+        process.env.JWT_SECRET,
+        { expiresIn: -1 }
+    );
+    const expired = await request('/api/me', {
+        headers: { authorization: `Bearer ${expiredToken}` }
+    });
+    assert.equal(expired.response.status, 401);
 });
 
 test('register and login reject non-string credentials', async () => {
@@ -119,6 +174,22 @@ test('search caches successful Spotify results without undefined helpers', async
     assert.equal(second.response.status, 200);
     assert.deepEqual(second.body, first.body);
     assert.equal(spotifySearchCalls, 1);
+});
+
+test('unauthenticated search requests are limited by IPv4/IPv6-safe IP keys', async () => {
+    for (const clientIp of ['203.0.113.10', '2001:db8::1']) {
+        let limitedResponse;
+        for (let attempt = 0; attempt < 21; attempt += 1) {
+            limitedResponse = await request('/api/search?artist=Rate%20Limited', {
+                headers: { 'x-forwarded-for': clientIp }
+            });
+        }
+
+        assert.equal(limitedResponse.response.status, 429, clientIp);
+        assert.deepEqual(limitedResponse.body, {
+            error: 'Too many search requests. Please slow down.'
+        });
+    }
 });
 
 test('production CORS rejection returns JSON 403 without a stack trace', async () => {

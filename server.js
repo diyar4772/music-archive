@@ -6,9 +6,10 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
 const crypto = require('crypto');
+const path = require('path');
 
 if (process.env.SKIP_DOTENV_CONFIG !== 'true') {
     dotenv.config();
@@ -72,12 +73,8 @@ const userLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute
     max: 20, // 20 requests per user per minute
     keyGenerator: (req) => {
-        // Use user ID if authenticated, otherwise fall back to IP
-        return req.user?.id || req.ip || 'anonymous';
-    },
-    skip: (req) => {
-        // Skip rate limiting for unauthenticated requests (they use generalLimiter)
-        return !req.user;
+        if (req.user?.id) return `user:${req.user.id}`;
+        return `ip:${ipKeyGenerator(req.ip)}`;
     },
     message: { error: 'Too many search requests. Please slow down.' },
     standardHeaders: true,
@@ -110,8 +107,19 @@ const corsOptions = {
     allowedHeaders: ['Content-Type', 'Authorization']
 };
 app.use(cors(corsOptions));
-app.use(express.static('.'));
+app.get(['/', '/index.html'], (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+app.use('/js', express.static(path.join(__dirname, 'js'), { index: false }));
 app.use(express.json({ limit: '5mb' })); // Limit payload size
+
+app.get('/api/health', (req, res) => {
+    const databaseReady = useInMemory || mongoose.connection.readyState === 1;
+    return res.status(databaseReady ? 200 : 503).json({
+        status: databaseReady ? 'ready' : 'not_ready'
+    });
+});
+
 app.use(generalLimiter);
 
 // --- In-Memory Fallback Database ---
@@ -165,7 +173,6 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Indexes for User schema - CRITICAL for performance
-userSchema.index({ username: 1 }); // Already unique, but explicit index for clarity
 userSchema.index({ refreshToken: 1 }); // For refresh token lookups (frequent query)
 userSchema.index({ lastLogin: -1 }); // For sorting users by last login (admin queries)
 userSchema.index({ createdAt: -1 }); // For sorting by registration date
@@ -404,7 +411,7 @@ const authenticateToken = async (req, res, next) => {
             req.user = user;
             return next();
         } catch (err) {
-            return res.sendStatus(403);
+            return res.sendStatus(401);
         }
     }
 
