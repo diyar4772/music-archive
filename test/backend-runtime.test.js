@@ -154,6 +154,33 @@ test('legacy bridge helpers read live auth state instead of a parse-time token',
     assert.match(appModule.body, /createPlaylistRequest\(name\)/);
 });
 
+test('auth modal is a real form owned by the modular app', async () => {
+    const index = await request('/');
+    // A real form makes Enter submit and puts the password field inside a form.
+    assert.match(index.body, /<form id="authForm"/);
+    assert.match(index.body, /id="authSubmit"[^>]*|type="submit"/);
+    assert.match(index.body, /id="authError"/);
+    assert.match(index.body, /id="authSwitch"/);
+    assert.match(index.body, /id="authClose"/);
+    // No inline onclick may drive the modal any more.
+    assert.doesNotMatch(index.body, /onclick="handleAuth\(\)"/);
+    assert.doesNotMatch(index.body, /onclick="toggleAuthMode\(\)"/);
+    assert.doesNotMatch(index.body, /onclick="closeAuthModal\(\)"/);
+
+    const appModule = await request('/js/app.js');
+    // Single submit listener, explicit mode state, local empty-field validation,
+    // in-modal error rendering and a double-submit guard.
+    assert.match(appModule.body, /getElementById\('authForm'\)\?\.addEventListener\('submit', submitAuth\)/);
+    assert.match(appModule.body, /let authMode = 'login'/);
+    assert.match(appModule.body, /authSubmitting/);
+    assert.match(appModule.body, /setAuthError\('Kullanıcı adı ve parola gerekli\.'\)/);
+    // Mode must never be inferred from the heading text again.
+    assert.doesNotMatch(appModule.body, /authTitle'\)\.(innerText|textContent)\s*===/);
+
+    const authService = await request('/js/services/auth.js');
+    assert.match(authService.body, /return \{ ok: false, error: error\.message \}/);
+});
+
 test('API keeps its CORS allowlist and answers preflight for allowed origins', async () => {
     const allowed = await request('/api/health', { headers: { origin: 'https://allowed.example' } });
     assert.equal(allowed.response.status, 200);

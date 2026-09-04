@@ -5,52 +5,49 @@ import { STORAGE_KEYS } from '../config.js';
 import { showToast } from '../utils.js';
 
 /**
- * Login user
+ * Persist a successful auth response. `store.setToken` writes STORAGE_KEYS.TOKEN,
+ * so only the refresh token and username need explicit writes.
+ */
+function persistSession(data) {
+    store.setToken(data.token);
+    store.setUser(data.username);
+    if (data.refreshToken) {
+        localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, data.refreshToken);
+    }
+    localStorage.setItem(STORAGE_KEYS.USERNAME, data.username);
+}
+
+/**
+ * Login user. Returns the failure reason so the caller can surface it in place —
+ * the toast helper is a no-op when the page has no #toast element, which silently
+ * swallowed every auth error.
  * @param {string} username - Username
  * @param {string} password - Password
- * @returns {Promise<boolean>} Success status
+ * @returns {Promise<{ok: boolean, error?: string}>}
  */
 export async function login(username, password) {
     try {
-        const data = await post('/login', { username, password });
-
-        store.setToken(data.token);
-        store.setUser(data.username);
-        if (data.refreshToken) {
-            localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, data.refreshToken);
-        }
-        localStorage.setItem(STORAGE_KEYS.USERNAME, data.username);
-
+        persistSession(await post('/login', { username, password }));
         showToast('✅ Giriş başarılı!');
-        return true;
+        return { ok: true };
     } catch (error) {
-        showToast('❌ ' + error.message);
-        return false;
+        return { ok: false, error: error.message };
     }
 }
 
 /**
- * Register new user
+ * Register new user.
  * @param {string} username - Username
  * @param {string} password - Password
- * @returns {Promise<boolean>} Success status
+ * @returns {Promise<{ok: boolean, error?: string}>}
  */
 export async function register(username, password) {
     try {
-        const data = await post('/register', { username, password });
-
-        store.setToken(data.token);
-        store.setUser(data.username);
-        if (data.refreshToken) {
-            localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, data.refreshToken);
-        }
-        localStorage.setItem(STORAGE_KEYS.USERNAME, data.username);
-
+        persistSession(await post('/register', { username, password }));
         showToast('✅ Kayıt başarılı!');
-        return true;
+        return { ok: true };
     } catch (error) {
-        showToast('❌ ' + error.message);
-        return false;
+        return { ok: false, error: error.message };
     }
 }
 

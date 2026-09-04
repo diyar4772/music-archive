@@ -49,6 +49,7 @@ async function initApp() {
 
     // Initialize UI components
     initModals();
+    initAuthModal();
     initMiniPlayer();
     // Note: Search is initialized by SearchBar component or fallback below
 
@@ -308,21 +309,45 @@ window.exportStats = exportStats;
 window.store = store;
 window.API_URL = API_URL;
 
+// --- Auth modal ---------------------------------------------------------
+// The modal is owned here only. Mode lives in an explicit variable rather than
+// being read back from the heading text, and submission goes through the form's
+// single submit listener so Enter works like the button.
 let authMode = 'login';
+let authSubmitting = false;
+
+const setAuthError = (message) => {
+    const box = document.getElementById('authError');
+    if (!box) return;
+    if (message) {
+        box.textContent = message;
+        box.classList.remove('hidden');
+    } else {
+        box.textContent = '';
+        box.classList.add('hidden');
+    }
+};
+
 const updateAuthModal = () => {
     const isLogin = authMode === 'login';
     const title = document.getElementById('authTitle');
     const switcher = document.getElementById('authSwitch');
+    const submit = document.getElementById('authSubmit');
+    const password = document.getElementById('authPassword');
     if (title) title.textContent = isLogin ? 'Giriş Yap' : 'Kayıt Ol';
     if (switcher) switcher.textContent = isLogin ? 'Hesabın yok mu? Kayıt ol' : 'Hesabın var mı? Giriş yap';
+    if (submit) submit.textContent = isLogin ? 'Giriş Yap' : 'Kayıt Ol';
+    if (password) password.autocomplete = isLogin ? 'current-password' : 'new-password';
 };
 
 window.openAuthModal = (mode = 'login') => {
     authMode = mode === 'register' ? 'register' : 'login';
+    setAuthError(null);
     updateAuthModal();
     const modal = document.getElementById('authModal');
     modal?.classList.remove('hidden');
     requestAnimationFrame(() => modal?.classList.add('visible'));
+    document.getElementById('authUsername')?.focus();
 };
 
 window.closeAuthModal = () => {
@@ -331,24 +356,58 @@ window.closeAuthModal = () => {
     setTimeout(() => modal?.classList.add('hidden'), 300);
 };
 
-window.toggleAuthMode = () => {
-    authMode = authMode === 'login' ? 'register' : 'login';
-    updateAuthModal();
-};
+async function submitAuth(event) {
+    event.preventDefault();
+    if (authSubmitting) return; // guards double click and Enter-while-pending
 
-window.handleAuth = async () => {
-    const username = document.getElementById('authUsername')?.value.trim() || '';
+    const usernameInput = document.getElementById('authUsername');
     const passwordInput = document.getElementById('authPassword');
+    const submitButton = document.getElementById('authSubmit');
+    const username = usernameInput?.value.trim() || '';
     const password = passwordInput?.value || '';
-    const succeeded = authMode === 'login'
-        ? await login(username, password)
-        : await register(username, password);
-    if (!succeeded) return;
-    if (passwordInput) passwordInput.value = '';
-    window.closeAuthModal();
-    navbar?.render();
-    router?.navigate('dashboard');
-};
+
+    setAuthError(null);
+    if (!username || !password) {
+        // Fail locally: no point spending a request or a rate-limit slot.
+        setAuthError('Kullanıcı adı ve parola gerekli.');
+        (username ? passwordInput : usernameInput)?.focus();
+        return;
+    }
+
+    authSubmitting = true;
+    if (submitButton) submitButton.disabled = true;
+    try {
+        const result = authMode === 'login'
+            ? await login(username, password)
+            : await register(username, password);
+
+        if (!result.ok) {
+            setAuthError(result.error || 'İşlem başarısız. Lütfen tekrar deneyin.');
+            return; // modal stays open
+        }
+
+        if (passwordInput) passwordInput.value = '';
+        setAuthError(null);
+        window.closeAuthModal();
+        navbar?.render();
+        await fetchUserData();
+        router?.navigate('dashboard');
+    } finally {
+        authSubmitting = false;
+        if (submitButton) submitButton.disabled = false;
+    }
+}
+
+function initAuthModal() {
+    document.getElementById('authForm')?.addEventListener('submit', submitAuth);
+    document.getElementById('authSwitch')?.addEventListener('click', () => {
+        authMode = authMode === 'login' ? 'register' : 'login';
+        setAuthError(null);
+        updateAuthModal();
+    });
+    document.getElementById('authClose')?.addEventListener('click', () => window.closeAuthModal());
+    updateAuthModal();
+}
 
 // Theme toggle (needs to be defined)
 window.toggleTheme = toggleTheme;

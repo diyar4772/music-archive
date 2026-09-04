@@ -513,17 +513,27 @@
         class="modal hidden fixed inset-0 bg-black/50 dark:bg-black/80 flex justify-center items-center z-[70]">
         <div
             class="bg-white dark:bg-card-dark p-8 rounded-xl w-full max-w-sm border border-gray-200 dark:border-white/5 shadow-xl">
-            <h2 class="text-2xl font-bold mb-6" id="authTitle">Log In</h2>
-            <input type="text" id="authUsername" placeholder="Username"
-                class="w-full bg-gray-100 dark:bg-[#1a1a24] border border-gray-200 dark:border-white/10 p-3 rounded-lg mb-4 text-text-light dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors">
-            <input type="password" id="authPassword" placeholder="Password"
-                class="w-full bg-gray-100 dark:bg-[#1a1a24] border border-gray-200 dark:border-white/10 p-3 rounded-lg mb-6 text-text-light dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors">
-            <button onclick="handleAuth()"
-                class="w-full btn-spotify text-black font-bold py-3 rounded-full mb-4">Submit</button>
-            <p class="text-center text-sm text-text-secondary-light dark:text-gray-400 cursor-pointer hover:underline"
-                onclick="toggleAuthMode()" id="authSwitch">Register</p>
-            <button onclick="closeAuthModal()"
-                class="w-full mt-4 text-gray-500 hover:text-text-light dark:hover:text-white transition-colors">Close</button>
+            <h2 class="text-2xl font-bold mb-6" id="authTitle">Giriş Yap</h2>
+            <!-- Owned entirely by js/app.js: a real form so Enter submits, no inline
+                 onclick, and no mode detection from the heading text. -->
+            <form id="authForm" novalidate>
+                <input type="text" id="authUsername" name="username" autocomplete="username"
+                    placeholder="Kullanıcı adı"
+                    class="w-full bg-gray-100 dark:bg-[#1a1a24] border border-gray-200 dark:border-white/10 p-3 rounded-lg mb-4 text-text-light dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors">
+                <input type="password" id="authPassword" name="password" autocomplete="current-password"
+                    placeholder="Parola"
+                    class="w-full bg-gray-100 dark:bg-[#1a1a24] border border-gray-200 dark:border-white/10 p-3 rounded-lg mb-4 text-text-light dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors">
+                <p id="authError" role="alert" aria-live="polite"
+                    class="hidden mb-4 text-sm text-red-500 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+                </p>
+                <button type="submit" id="authSubmit"
+                    class="w-full btn-spotify text-black font-bold py-3 rounded-full disabled:opacity-60 disabled:cursor-not-allowed">Gönder</button>
+            </form>
+            <button type="button" id="authSwitch"
+                class="w-full mt-4 text-center text-sm text-text-secondary-light dark:text-gray-400 hover:underline">Hesabın
+                yok mu? Kayıt ol</button>
+            <button type="button" id="authClose"
+                class="w-full mt-4 text-gray-500 hover:text-text-light dark:hover:text-white transition-colors">Kapat</button>
         </div>
     </div>
 
