@@ -16,6 +16,27 @@ aliases:
 
 # Music Archive — Yapısal Denetim ve Agent Altyapısı Yol Haritası
 
+## Güncel durum — 5 Eylül 2026, yapım brifi
+
+Güncel öncelik `MUSIC-ARCHIVE-BRIEF.md` dosyasıdır. Aşağıdaki eski denetim
+`751b56d` revizyonunu anlatır; güncel hata listesi olarak kullanılmamalıdır.
+Yeni başlangıç `f2a5cf6`: tek ESM frontend, 85 satırlık HTML iskeleti, route
+gölgeleme koruması, ESLint ve CI zaten vardır. İlk doğrulamada 41/41 backend
+testi ve lint geçti. Web Vanilla JS, mobil Expo/React Native; Flutter yok.
+
+Faz 0'da bulunan güncel kusurlar: bozuk URL escape'inin Router'ı durdurması,
+arşiv yükleme hatalarının boş liste olarak gösterilmesi, çıkış işleminin iki
+defa çalışması ve kaydedilen albümlerin çıkışta bellekte kalması. Düzeltildi;
+URL ayrıştırmasına regresyon testi, arşiv hata ekranına yeniden deneme eklendi.
+Kalıcı veritabanı ve tarayıcı kabul sonuçları yeni teslim raporunda tutulacak.
+
+Sıra: mevcut akışların doğrulanması → mevcut tasarıma bağlı stüdyo yüzeyi →
+deneysel MIDI motoru → ilk kaydet/kurtar/yeniden dinle akışı. Mikrofon, analiz
+ve ileri çalışma araçları sonraki işlerdir; donanım kabulü otomatik testle
+tamamlanmış sayılmayacak.
+
+---
+
 > [!abstract] Bir cümlede
 > Repo'nun **güvenliği iyi durumda** (29/29 test geçiyor), ama **yapısı iki yarım kalmış refactor'ın üstüste yığılmasından** ibaret: iki paralel frontend, boş bir backend iskeleti, birbirini gölgeleyen API route'ları ve diff'in %85'ini yiyen bir satır sonu kaosu. Kod yazmadan önce **silmek** gerekiyor.
 

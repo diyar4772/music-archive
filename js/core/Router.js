@@ -65,12 +65,9 @@ export class Router {
         const queryString = hash.split('?')[1];
         if (!queryString) return {};
 
-        const params = {};
-        queryString.split('&').forEach(param => {
-            const [key, value] = param.split('=');
-            params[decodeURIComponent(key)] = decodeURIComponent(value || '');
-        });
-        return params;
+        // URLSearchParams tolerates malformed escapes, preserves '=' in values
+        // and decodes '+' correctly. A pasted URL must not stop navigation.
+        return Object.fromEntries(new URLSearchParams(queryString));
     }
 
     /**

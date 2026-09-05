@@ -81,20 +81,24 @@ export class LibraryView extends Component {
         try {
             switch (this.viewType) {
                 case 'follows':
-                    await getFollowedArtists();
+                    await getFollowedArtists({ strict: true });
                     if (this.isMounted) this.renderFollowedArtists();
                     break;
                 case 'playlists':
-                    await getPlaylists();
+                    await getPlaylists({ strict: true });
                     if (this.isMounted) this.renderPlaylists();
                     break;
                 default:
-                    await getLikedTracks();
+                    await getLikedTracks({ strict: true });
                     if (this.isMounted) this.renderLikedTracks();
             }
         } catch (error) {
-            console.error('Failed to load library content:', error);
-            replace(content, errorState(t('library.loadFailed')));
+            if (!this.isMounted) return;
+            replace(content, errorState(t('library.loadFailed'), error.message));
+            content.append(el('button', {
+                className: 'ma-btn ma-btn-primary', text: t('common.retry'),
+                attrs: { type: 'button' }, on: { click: () => this.loadContent() }
+            }));
         }
     }
 

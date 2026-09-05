@@ -7,7 +7,7 @@
  */
 import { Component } from '../core/Component.js';
 import { store } from '../state/store.js';
-import { isAuthenticated, getCurrentUser, logout as authLogout } from '../services/auth.js';
+import { isAuthenticated, getCurrentUser } from '../services/auth.js';
 import i18n, { t, changeLanguage } from '../services/i18n.js';
 import { el, initialOf } from '../core/dom.js';
 import { showToast } from '../utils.js';
@@ -196,8 +196,7 @@ export class Navbar extends Component {
 
     async handleLogout() {
         try {
-            await authLogout();
-            this.onLogout();
+            await this.onLogout();
             this.render();
         } catch (error) {
             console.error('Logout error:', error);

@@ -17,13 +17,14 @@ import { t } from './i18n.js';
  * Get all liked tracks
  * @returns {Promise<Array>}
  */
-export async function getLikedTracks() {
+export async function getLikedTracks({ strict = false } = {}) {
     try {
         const { likes } = await fetchMe();
         store.setLikedTracks(likes);
         return likes;
     } catch (error) {
-        console.error('Failed to fetch liked tracks:', error.message);
+        if (strict) throw error;
+        console.warn('Failed to fetch liked tracks:', error.message);
         return [];
     }
 }
@@ -116,13 +117,14 @@ export function isTrackLiked(trackId) {
  * Get all followed artists
  * @returns {Promise<Array>}
  */
-export async function getFollowedArtists() {
+export async function getFollowedArtists({ strict = false } = {}) {
     try {
         const { follows } = await fetchMe();
         store.setFollowedArtists(follows);
         return follows;
     } catch (error) {
-        console.error('Failed to fetch followed artists:', error.message);
+        if (strict) throw error;
+        console.warn('Failed to fetch followed artists:', error.message);
         return [];
     }
 }
@@ -262,13 +264,14 @@ export function isAlbumFollowed(albumId) {
  * Get all playlists
  * @returns {Promise<Array>}
  */
-export async function getPlaylists() {
+export async function getPlaylists({ strict = false } = {}) {
     try {
         const data = await get('/playlists');
         store.setPlaylists(data);
         return data;
     } catch (error) {
-        console.error('Failed to fetch playlists:', error.message);
+        if (strict) throw error;
+        console.warn('Failed to fetch playlists:', error.message);
         return [];
     }
 }

@@ -72,6 +72,7 @@ export async function logout() {
 
     // Clear user data
     store.setFollowedArtists([]);
+    store.setAlbumFollows([]);
     store.setLikedTracks([]);
     store.setPlaylists([]);
     store.setRatings([]);
@@ -107,4 +108,3 @@ export function initAuth() {
         store.setUser(username);
     }
 }
-
