@@ -225,11 +225,23 @@ function artwork(src, name, baseClass, { tag = 'span', attrs = {}, on = {}, clas
         on
     });
     node.style.backgroundColor = accentFor(name);
+
     const url = safeImageUrl(src);
-    // Setting through CSSOM means an unparseable value is dropped rather than
-    // written into the document, and safeImageUrl has already rejected
-    // anything that is not http(s), same-origin or a data: image.
-    if (url !== PLACEHOLDER_IMAGE) node.style.backgroundImage = `url("${url}")`;
+    if (url === PLACEHOLDER_IMAGE) return node;
+
+    // Probe the artwork off-document rather than swapping straight to it: the
+    // initial has to stay visible when the URL 404s, and a background image
+    // would otherwise sit *under* the letter and show both at once.
+    const probe = new Image();
+    probe.addEventListener('load', () => {
+        // Setting through CSSOM means an unparseable value is dropped rather
+        // than written into the document, and safeImageUrl has already rejected
+        // anything that is not http(s), same-origin or a data: image.
+        node.style.backgroundImage = `url("${url}")`;
+        node.textContent = '';
+    });
+    probe.src = url;
+
     return node;
 }
 

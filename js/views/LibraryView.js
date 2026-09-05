@@ -1,6 +1,11 @@
 /**
- * Library View
- * Displays the user's liked tracks, followed artists and playlists.
+ * Library view.
+ *
+ * The three collections behind one route: archived tracks as a table with the
+ * mood, rating and note columns from the design, followed artists as cards, and
+ * playlists as a grid ending in the "new playlist" tile. The design also drew a
+ * duration column; /api/me does not carry track length, so it is left out
+ * rather than shipped permanently blank.
  *
  * Track, artist and playlist names are user- or Spotify-supplied, so rows are
  * built as DOM nodes and never interpolated into markup.
@@ -8,18 +13,16 @@
 import { Component } from '../core/Component.js';
 import { store } from '../state/store.js';
 import { getLikedTracks, getFollowedArtists, getPlaylists } from '../services/library.js';
-import { el, img, replace, emptyState, loadingState } from '../core/dom.js';
+import { getTrackRating } from '../services/rating.js';
+import { el, cover, avatar, stars, kicker, replace, emptyState, errorState, loadingState } from '../core/dom.js';
 import { t } from '../services/i18n.js';
+import { isAuthenticated } from '../services/auth.js';
 
 const TABS = [
-    { id: 'likes', key: 'library.likedSongs', icon: 'fa-heart', active: 'bg-green-500 text-white' },
-    { id: 'follows', key: 'library.following', icon: 'fa-user', active: 'bg-purple-500 text-white' },
-    { id: 'playlists', key: 'library.playlists', icon: 'fa-list', active: 'bg-teal-500 text-white' }
+    { id: 'likes', key: 'library.likedSongs' },
+    { id: 'follows', key: 'library.following' },
+    { id: 'playlists', key: 'library.playlists' }
 ];
-
-const IDLE_TAB = 'bg-gray-100 dark:bg-card-dark text-text-light dark:text-white';
-const GRID = 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4';
-const CARD = 'bg-white dark:bg-card-dark p-4 rounded-xl text-left hover:scale-105 transition shadow-sm border border-gray-100 dark:border-white/5';
 
 export class LibraryView extends Component {
     constructor(container, props = {}) {
@@ -31,30 +34,49 @@ export class LibraryView extends Component {
     }
 
     render() {
-        const root = el('div', { className: 'w-full max-w-6xl mx-auto animate-fade-in' }, [
-            el('div', { className: 'flex flex-wrap items-center justify-between gap-3 mb-6' }, [
-                el('h2', { className: 'text-2xl font-bold', text: t('library.title'), attrs: { 'data-lang': 'library.title' } }),
-                el('div', { className: 'flex flex-wrap gap-2' }, TABS.map(tab => el('button', {
-                    className: `px-4 py-2 rounded-full text-sm font-semibold transition-colors ${this.viewType === tab.id ? tab.active : IDLE_TAB}`,
-                    attrs: { type: 'button', 'aria-pressed': String(this.viewType === tab.id) },
+        const counts = {
+            likes: store.likedTracks.length,
+            follows: store.followedArtists.length,
+            playlists: store.playlists.length
+        };
+
+        this.container.replaceChildren(el('main', { className: 'ma-main' }, [
+            kicker(t('library.title')),
+            el('h2', { className: 'ma-page-title', text: t('library.subtitle') }),
+
+            el('div', { style: 'display:flex;gap:8px;margin-top:24px;flex-wrap:wrap' },
+                TABS.map(tab => el('button', {
+                    className: `ma-pill${tab.id === this.viewType ? ' is-active' : ''}`,
+                    attrs: { type: 'button', 'aria-pressed': String(tab.id === this.viewType) },
                     on: { click: () => this.router?.navigate(`library?type=${tab.id}`) }
                 }, [
-                    el('i', { className: `fa-solid ${tab.icon} mr-2` }),
-                    t(tab.key)
-                ])))
-            ]),
-            el('div', { attrs: { id: 'libraryContent' } })
-        ]);
+                    t(tab.key),
+                    el('span', { className: 'ma-pill-count', text: String(counts[tab.id]) })
+                ]))),
 
-        replace(this.container, root);
-        this.loadContent();
+            el('div', { className: 'ma-rule', style: 'margin-top:20px' }),
+            el('div', { attrs: { id: 'libraryContent' } })
+        ]));
+
+        void this.loadContent();
     }
 
     async loadContent() {
         const content = this.querySelector('#libraryContent');
         if (!content) return;
 
-        replace(content, loadingState(t('common.loading')));
+        if (!isAuthenticated()) {
+            replace(content, emptyState('♥', t('library.emptyLikes'), t('library.emptyLikesBody'), el('button', {
+                className: 'ma-btn ma-btn-primary',
+                style: 'margin-top:24px',
+                text: t('auth.login'),
+                attrs: { type: 'button' },
+                on: { click: () => window.openAuthModal?.() }
+            })));
+            return;
+        }
+
+        replace(content, loadingState(5));
 
         try {
             switch (this.viewType) {
@@ -72,7 +94,7 @@ export class LibraryView extends Component {
             }
         } catch (error) {
             console.error('Failed to load library content:', error);
-            replace(content, emptyState('fa-solid fa-triangle-exclamation', t('library.loadFailed'), 'text-red-500'));
+            replace(content, errorState(t('library.loadFailed')));
         }
     }
 
@@ -81,37 +103,68 @@ export class LibraryView extends Component {
         const tracks = store.likedTracks;
 
         if (tracks.length === 0) {
-            replace(content, emptyState('fa-solid fa-heart', t('library.emptyLikes')));
+            replace(content, emptyState('♥', t('library.emptyLikes'), t('library.emptyLikesBody'), el('button', {
+                className: 'ma-btn ma-btn-primary',
+                style: 'margin-top:24px',
+                text: t('library.startSearching'),
+                attrs: { type: 'button' },
+                on: { click: () => this.router?.navigate('search') }
+            })));
             return;
         }
 
-        replace(content, el('div', { className: 'space-y-2' }, tracks.map(track => el('button', {
-            className: 'w-full flex items-center gap-4 p-3 rounded-lg text-left hover:bg-gray-100 dark:hover:bg-white/5 transition-colors',
-            attrs: { type: 'button' },
-            dataset: { trackId: track.trackId },
-            on: {
-                click: () => window.openTrackDetail?.(
-                    track.trackId, track.trackName, track.artistName, track.image, track.previewUrl
-                )
-            }
-        }, [
-            img(track.image, 'w-16 h-16 rounded object-cover shrink-0', track.trackName),
-            el('span', { className: 'flex-1 min-w-0' }, [
-                el('span', { className: 'block font-bold truncate', text: track.trackName }),
-                el('span', {
-                    className: 'block text-sm text-text-secondary-light dark:text-text-secondary-dark truncate',
-                    text: track.artistName || ''
-                }),
-                track.userNote && el('span', {
-                    className: 'block text-xs text-text-secondary-light dark:text-gray-500 truncate mt-0.5',
-                    text: `📝 ${track.userNote}`
-                })
+        const head = el('div', { className: 'ma-row-head' }, [
+            el('div', { style: 'width:36px;flex:0 0 auto' }),
+            el('div', { style: 'flex:1 1 auto', text: t('library.colTrack') }),
+            el('div', { className: 'ma-col-mood', text: t('library.colMood') }),
+            el('div', { className: 'ma-col-stars', text: t('library.colRating') }),
+            el('div', { className: 'ma-col-actions' })
+        ]);
+
+        replace(content, el('div', {}, [head, ...tracks.map(track => this.trackRow(track))]));
+    }
+
+    /**
+     * @param {Object} track - a stored like: trackId, trackName, artistName, image, mood, userNote
+     * @returns {HTMLElement}
+     */
+    trackRow(track) {
+        const open = () => window.openTrackDetail?.(
+            track.trackId, track.trackName, track.artistName, track.image, track.previewUrl
+        );
+
+        return el('div', { className: 'ma-row', dataset: { trackId: track.trackId } }, [
+            cover(track.image, track.trackName || '', 'ma-cover-sm', {
+                tag: 'button',
+                attrs: { type: 'button', 'aria-label': track.trackName || '', 'aria-hidden': null },
+                on: { click: open }
+            }),
+            el('div', { className: 'ma-row-main', attrs: { role: 'button', tabindex: '0' }, on: {
+                click: open,
+                keydown: event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } }
+            } }, [
+                el('div', { className: 'ma-row-title', text: track.trackName }),
+                el('div', { className: 'ma-row-sub', text: track.artistName || '' })
             ]),
-            el('span', {
-                className: 'shrink-0 w-10 h-10 flex items-center justify-center bg-green-500 text-white rounded-full',
-                html: '<i class="fa-solid fa-play"></i>'
-            })
-        ]))));
+            el('div', { className: 'ma-col-mood' }, track.mood ? [el('span', { className: 'ma-tag', text: track.mood })] : []),
+            el('div', { className: 'ma-col-stars' }, [stars(getTrackRating(track.trackId))]),
+            el('div', { className: 'ma-col-actions' }, [
+                track.userNote ? el('button', {
+                    className: 'ma-iconbtn',
+                    style: 'width:28px;height:28px;color:var(--violet-ink)',
+                    text: '✎',
+                    attrs: { type: 'button', title: t('library.hasNote'), 'aria-label': t('library.hasNote') },
+                    on: { click: open }
+                }) : null,
+                el('button', {
+                    className: 'ma-iconbtn is-on',
+                    style: 'width:28px;height:28px',
+                    text: '♥',
+                    attrs: { type: 'button', 'aria-label': t('track.unlike') },
+                    on: { click: open }
+                })
+            ])
+        ]);
     }
 
     renderFollowedArtists() {
@@ -119,46 +172,86 @@ export class LibraryView extends Component {
         const artists = store.followedArtists;
 
         if (artists.length === 0) {
-            replace(content, emptyState('fa-solid fa-user', t('library.emptyFollows')));
+            replace(content, emptyState('◉', t('library.emptyFollows'), t('library.emptyFollowsBody')));
             return;
         }
 
-        replace(content, el('div', { className: GRID }, artists.map(artist => el('button', {
-            className: `${CARD} text-center`,
-            attrs: { type: 'button' },
-            dataset: { artistId: artist.artistId },
-            on: {
-                click: () => this.router?.navigate(
-                    `search?q=${encodeURIComponent(artist.artistName)}&type=artist`
-                )
-            }
-        }, [
-            img(artist.image, 'w-full aspect-square rounded-full object-cover mb-3', artist.artistName),
-            el('span', { className: 'block font-bold truncate', text: artist.artistName })
-        ]))));
+        replace(content, el('div', { className: 'ma-grid ma-grid-5', style: 'padding-top:24px' },
+            artists.map(artist => el('button', {
+                className: 'ma-card',
+                style: 'text-align:center',
+                attrs: { type: 'button' },
+                dataset: { artistId: artist.artistId },
+                on: {
+                    click: () => this.router?.navigate(
+                        `search?q=${encodeURIComponent(artist.artistName)}&type=artist`
+                    )
+                }
+            }, [
+                avatar(artist.image, artist.artistName || '', 'ma-avatar-lg', { className: 'ma-mx-auto' }),
+                el('div', { style: 'font-size:14px;font-weight:600;margin-top:14px', className: 'ma-truncate', text: artist.artistName })
+            ]))));
     }
 
     renderPlaylists() {
         const content = this.querySelector('#libraryContent');
         const playlists = store.playlists;
 
-        if (playlists.length === 0) {
-            replace(content, emptyState('fa-solid fa-list', t('library.emptyPlaylists')));
-            return;
-        }
-
-        replace(content, el('div', { className: GRID }, playlists.map(playlist => el('button', {
-            className: CARD,
+        const tiles = playlists.map(playlist => el('button', {
+            className: 'ma-card-flush',
+            style: 'cursor:pointer;text-align:left;padding:0;color:inherit;font:inherit',
             attrs: { type: 'button' },
             dataset: { playlistId: playlist.id },
             on: { click: () => window.openPlaylistDetails?.(playlist.id) }
         }, [
-            img(playlist.coverImage, 'w-full aspect-square rounded-lg object-cover mb-3', playlist.name),
-            el('span', { className: 'block font-bold truncate', text: playlist.name }),
-            el('span', {
-                className: 'block text-sm text-text-secondary-light dark:text-text-secondary-dark',
-                text: `${playlist.trackCount ?? playlist.PlaylistTracks?.length ?? 0} ${t('common.songs')}`
-            })
-        ]))));
+            cover(playlist.coverImage, playlist.name || '', '', {
+                className: 'ma-playlist-cover',
+                attrs: { 'aria-hidden': 'true' }
+            }),
+            el('div', { style: 'padding:14px 16px 16px' }, [
+                el('div', { className: 'ma-truncate', style: 'font-size:15px;font-weight:600', text: playlist.name }),
+                el('div', {
+                    style: 'font-size:12px;color:var(--ink3);margin-top:3px',
+                    text: `${playlist.trackCount ?? playlist.PlaylistTracks?.length ?? 0} ${t('common.songs')}`
+                })
+            ])
+        ]));
+
+        tiles.push(el('button', {
+            className: 'ma-newtile',
+            attrs: { type: 'button' },
+            on: { click: () => window.createPlaylist?.() }
+        }, [
+            el('span', { style: 'font-size:22px', text: '＋' }),
+            el('span', { text: t('library.newPlaylist') })
+        ]));
+
+        if (playlists.length === 0) {
+            replace(content, emptyState('≡', t('library.emptyPlaylists'), t('library.emptyPlaylistsBody'), el('button', {
+                className: 'ma-btn ma-btn-primary',
+                style: 'margin-top:24px',
+                text: t('library.createPlaylist'),
+                attrs: { type: 'button' },
+                on: { click: () => window.createPlaylist?.() }
+            })));
+            return;
+        }
+
+        replace(content, el('div', { className: 'ma-grid ma-grid-4', style: 'padding-top:24px' }, tiles));
+    }
+
+    onMount() {
+        this.unsubscribe = store.subscribe(
+            this.viewType === 'follows' ? 'followedArtists' : (this.viewType === 'playlists' ? 'playlists' : 'likedTracks'),
+            () => {
+                if (this.viewType === 'follows') this.renderFollowedArtists();
+                else if (this.viewType === 'playlists') this.renderPlaylists();
+                else this.renderLikedTracks();
+            }
+        );
+    }
+
+    onUnmount() {
+        this.unsubscribe?.();
     }
 }

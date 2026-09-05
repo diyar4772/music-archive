@@ -1040,7 +1040,7 @@ app.get('/api/me', authenticateToken, async (req, res) => {
             const ratings = inMemoryDB.ratings.filter(r => r.userId === req.user.id);
             return res.json({
                 follows: follows.map(f => ({ artistId: f.artistId, artistName: f.artistName, image: f.image })),
-                likes: likes.map(l => ({ trackId: l.trackId, trackName: l.trackName, artistName: l.artistName || 'Unknown Artist', image: l.image, previewUrl: l.previewUrl, userNote: l.userNote, noteUpdatedAt: l.noteUpdatedAt })),
+                likes: likes.map(l => ({ trackId: l.trackId, trackName: l.trackName, artistName: l.artistName || 'Unknown Artist', image: l.image, previewUrl: l.previewUrl, mood: l.mood || null, userNote: l.userNote, noteUpdatedAt: l.noteUpdatedAt, createdAt: l.createdAt })),
                 albumFollows: albumFollows.map(a => ({ albumId: a.albumId, albumName: a.albumName, image: a.image, artistName: a.artistName })),
                 ratings: ratings.map(r => ({ itemId: r.itemId, itemType: r.itemType, itemName: r.itemName, artistName: r.artistName, image: r.image, rating: r.rating }))
             });
@@ -1053,7 +1053,7 @@ app.get('/api/me', authenticateToken, async (req, res) => {
 
         res.json({
             follows: follows.map(f => ({ artistId: f.artistId, artistName: f.artistName, image: f.image })),
-            likes: likes.map(l => ({ trackId: l.trackId, trackName: l.trackName, artistName: l.artistName || 'Unknown Artist', image: l.image, previewUrl: l.previewUrl, userNote: l.userNote, noteUpdatedAt: l.noteUpdatedAt })),
+            likes: likes.map(l => ({ trackId: l.trackId, trackName: l.trackName, artistName: l.artistName || 'Unknown Artist', image: l.image, previewUrl: l.previewUrl, mood: l.mood || null, userNote: l.userNote, noteUpdatedAt: l.noteUpdatedAt, createdAt: l.createdAt })),
             albumFollows: albumFollows.map(a => ({ albumId: a.albumId, albumName: a.albumName, image: a.image, artistName: a.artistName })),
             ratings: ratings.map(r => ({ itemId: r.itemId, itemType: r.itemType, itemName: r.itemName, artistName: r.artistName, image: r.image, rating: r.rating }))
         });

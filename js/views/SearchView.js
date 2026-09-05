@@ -1,6 +1,9 @@
 /**
- * Search View
- * Displays search results for artists, tracks, and albums.
+ * Search view.
+ *
+ * Owns the search field (SearchBar mounts into this screen now) and paints the
+ * three result shapes the API returns: a single artist with its discography for
+ * `artist`, and flat lists for `track` and `album`.
  *
  * Result names come straight from Spotify, so every row is built as DOM nodes;
  * nothing upstream is ever concatenated into markup.
@@ -8,9 +11,20 @@
 import { Component } from '../core/Component.js';
 import { store } from '../state/store.js';
 import { performSearch } from '../services/search.js';
-import { followArtist, unfollowArtist, isArtistFollowed } from '../services/library.js';
-import { el, img, replace, emptyState, loadingState, PLACEHOLDER_IMAGE } from '../core/dom.js';
+import { followArtist, unfollowArtist, isArtistFollowed, isAlbumFollowed, likeTrack } from '../services/library.js';
+import { getTrackRating } from '../services/rating.js';
+import { el, cover, avatar, stars, kicker, replace, emptyState, errorState, loadingState } from '../core/dom.js';
+import { SearchBar } from '../components/SearchBar.js';
 import { t } from '../services/i18n.js';
+
+/** Error codes that mean "the archive is fine, only Spotify is out of reach". */
+const UPSTREAM_CODES = new Set([
+    'SEARCH_UNAVAILABLE',
+    'SEARCH_UPSTREAM_AUTH_FAILED',
+    'SEARCH_UPSTREAM_FAILED',
+    'SEARCH_RATE_LIMITED',
+    'SEARCH_TIMEOUT'
+]);
 
 export class SearchView extends Component {
     constructor(container, props = {}) {
@@ -18,200 +32,206 @@ export class SearchView extends Component {
         this.router = props.router;
         this.query = props.queryParams?.q || '';
         this.searchType = props.queryParams?.type || store.searchType || 'artist';
-        this.results = [];
+        this.results = null;
         this.currentArtist = null;
+        this.searchBar = null;
     }
 
     render() {
-        this.setHTML(`
-            <div class="w-full max-w-6xl animate-fade-in">
-                <button data-action="back"
-                    class="mb-6 text-text-secondary-light dark:text-gray-400 hover:text-text-light dark:hover:text-white flex items-center gap-2 transition-colors">
-                    <i class="fa-solid fa-arrow-left"></i> <span data-lang="search.backToDashboard">${t('search.backToDashboard')}</span>
-                </button>
+        const head = el('div', { attrs: { id: 'searchBarHost' } });
 
-                <!-- Artist Content -->
-                <div id="artistContent" class="hidden">
-                    <div class="flex flex-col md:flex-row items-center gap-8 mb-12 bg-white dark:bg-gradient-to-r dark:from-gray-900 dark:to-gray-800 p-8 rounded-2xl shadow-lg dark:shadow-xl border border-gray-100 dark:border-white/5">
-                        <img id="artistImage" src="/js/placeholder.svg" alt="" class="w-56 h-56 rounded-full object-cover shadow-2xl">
-                        <div class="text-center md:text-left flex-1">
-                            <h2 id="artistName" class="text-5xl font-extrabold mb-4"></h2>
-                            <button id="followBtn" data-action="toggle-follow"
-                                class="border border-gray-300 dark:border-gray-500 hover:border-text-light dark:hover:border-white px-6 py-2 rounded-full font-bold uppercase text-xs tracking-widest transition-colors" type="button"></button>
-                        </div>
-                    </div>
-                    <h3 class="text-2xl font-bold mb-6" data-lang="search.albums">${t('search.albums')}</h3>
-                    <div id="albumsGrid" class="grid grid-cols-2 md:grid-cols-5 gap-6"></div>
-                </div>
+        this.container.replaceChildren(el('main', { className: 'ma-main' }, [
+            head,
+            el('div', { className: 'ma-rule', style: 'margin-top:24px' }),
+            el('div', { attrs: { id: 'searchResults' } })
+        ]));
 
-                <!-- Track Results Content -->
-                <div id="trackResults" class="hidden space-y-2"></div>
+        this.searchBar?.unmount();
+        this.searchBar = new SearchBar(head, {
+            router: this.router,
+            query: this.query,
+            onSearch: query => this.router?.navigate(
+                `search?q=${encodeURIComponent(query)}&type=${store.searchType}`
+            )
+        });
+        this.searchBar.mount();
 
-                <!-- Album Results Content -->
-                <div id="albumResults" class="hidden grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
-            </div>
-        `);
-
-        this.attachEventListeners();
-
-        if (this.query) {
-            this.performSearch();
-        }
+        if (this.query) void this.runSearch();
+        else this.showStartState();
     }
 
-    attachEventListeners() {
-        const backBtn = this.querySelector('[data-action="back"]');
-        if (backBtn) {
-            this.addEventListener(backBtn, 'click', () => {
-                if (this.router) {
-                    this.router.navigate('dashboard');
-                }
-            });
-        }
-
-        const followBtn = this.querySelector('[data-action="toggle-follow"]');
-        if (followBtn) {
-            this.addEventListener(followBtn, 'click', () => {
-                this.toggleFollow();
-            });
-        }
+    /** @returns {Element|null} */
+    get results_() {
+        return this.querySelector('#searchResults');
     }
 
-    async performSearch() {
-        if (!this.query) return;
+    showStartState() {
+        replace(this.results_, emptyState('⌕', t('search.startTitle'), t('search.startBody')));
+    }
 
-        const target = this.querySelector('#trackResults');
-        if (target) {
-            target.classList.remove('hidden');
-            replace(target, loadingState(t('search.searching')));
-        }
+    async runSearch() {
+        replace(this.results_, loadingState(5));
+
         try {
             this.results = await performSearch(this.query, this.searchType);
             if (!this.isMounted) return;
             this.displayResults();
         } catch (error) {
             if (!this.isMounted) return;
-            if (target) {
-                replace(target, emptyState(
-                    'fa-solid fa-triangle-exclamation',
-                    error.message || t('search.failed'),
-                    'text-red-500'
-                ));
-            }
+            if (UPSTREAM_CODES.has(error.code)) this.showUpstreamNotice();
+            else replace(this.results_, errorState(t('search.failed'), error.message || ''));
         }
+    }
+
+    /** The designed 503 card: search is out, the archive still works. */
+    showUpstreamNotice() {
+        replace(this.results_, el('div', { className: 'ma-card-flush', style: 'margin-top:28px' }, [
+            el('div', { className: 'ma-notice' }, [
+                el('div', { className: 'ma-notice-mark', text: '!' }),
+                el('div', {}, [
+                    el('div', { style: 'font-size:17px;font-weight:600', text: t('search.unavailableTitle') }),
+                    el('div', {
+                        style: 'font-size:13px;color:var(--ink2);margin-top:6px;line-height:1.6',
+                        text: t('search.unavailableBody')
+                    }),
+                    el('div', { style: 'display:flex;gap:10px;margin-top:16px;flex-wrap:wrap' }, [
+                        el('button', {
+                            className: 'ma-btn ma-btn-secondary ma-btn-sm',
+                            text: t('common.retry'),
+                            attrs: { type: 'button' },
+                            on: { click: () => void this.runSearch() }
+                        }),
+                        el('button', {
+                            className: 'ma-btn ma-btn-ghost ma-btn-sm',
+                            text: t('search.backToLibrary'),
+                            attrs: { type: 'button' },
+                            on: { click: () => this.router?.navigate('library') }
+                        })
+                    ])
+                ])
+            ])
+        ]));
     }
 
     displayResults() {
-        if (!this.results || this.results.length === 0) {
-            const target = this.querySelector('#trackResults');
-            if (target) {
-                target.classList.remove('hidden');
-                replace(target, emptyState('fa-solid fa-magnifying-glass', t('search.noResults', { query: this.query })));
-            }
+        const empty = !this.results || (Array.isArray(this.results) && this.results.length === 0);
+        if (empty) {
+            replace(this.results_, emptyState('⌕', t('search.emptyTitle', { query: this.query }), t('search.emptyBody')));
             return;
         }
 
-        this.querySelector('#trackResults')?.classList.add('hidden');
-        if (this.searchType === 'artist' && this.results.id) {
-            this.displayArtistResults();
-        } else if (this.searchType === 'track') {
-            this.displayTrackResults();
-        } else if (this.searchType === 'album') {
-            this.displayAlbumResults();
-        }
+        if (this.searchType === 'artist' && this.results.id) this.displayArtist();
+        else if (this.searchType === 'track') this.displayTracks();
+        else if (this.searchType === 'album') this.displayAlbums();
+        else this.displayArtistList();
     }
 
-    displayArtistResults() {
+    /* ── artist page ─────────────────────────────────────────────────── */
+
+    displayArtist() {
         const artist = this.results;
         this.currentArtist = artist;
+        const albums = artist.albums || [];
+        const archived = albums.filter(album => isAlbumFollowed(album.id)).length;
+        const pct = albums.length ? Math.round((archived / albums.length) * 100) : 0;
 
-        this.querySelector('#artistContent')?.classList.remove('hidden');
+        replace(this.results_, el('div', {}, [
+            el('section', { className: 'ma-artist-hero', style: 'margin-top:0' }, [
+                el('div', { className: 'ma-artist-hero-inner', style: 'padding-left:0;padding-right:0' }, [
+                    avatar(artist.image, artist.name || '', 'ma-avatar-xl'),
+                    el('div', { style: 'flex:1 1 auto;min-width:0' }, [
+                        kicker(t('artist.kicker')),
+                        el('h2', { className: 'ma-artist-name', text: artist.name }),
+                        el('div', {
+                            style: 'font-size:14px;color:var(--ink2);margin-top:10px',
+                            text: t('artist.meta', { total: albums.length, tracks: archived })
+                        }),
+                        el('div', { style: 'display:flex;gap:10px;margin-top:24px;flex-wrap:wrap' }, [
+                            el('button', {
+                                className: 'ma-btn',
+                                attrs: { type: 'button', id: 'followBtn' },
+                                on: { click: () => void this.toggleFollow() }
+                            })
+                        ])
+                    ]),
+                    this.coverageCard(albums, archived, pct)
+                ])
+            ]),
 
-        const artistImage = this.querySelector('#artistImage');
-        if (artistImage) artistImage.src = artist.image || PLACEHOLDER_IMAGE;
+            el('div', { style: 'display:flex;align-items:center;justify-content:space-between;margin:32px 0 18px;gap:12px' }, [
+                kicker(t('artist.discography')),
+                el('span', { style: 'font-size:11px;color:var(--ink3)', text: t('common.results', { n: albums.length }) })
+            ]),
 
-        const artistName = this.querySelector('#artistName');
-        if (artistName) artistName.textContent = artist.name;
+            albums.length === 0
+                ? emptyState('≡', t('search.noAlbums'), '')
+                : el('div', { className: 'ma-grid ma-grid-4', style: 'gap:20px' },
+                    albums.map(album => this.albumTile(album, isAlbumFollowed(album.id))))
+        ]));
 
         this.paintFollowButton();
-
-        const albumsGrid = this.querySelector('#albumsGrid');
-        if (!albumsGrid) return;
-
-        const albums = artist.albums || [];
-        if (albums.length === 0) {
-            replace(albumsGrid, emptyState('fa-solid fa-compact-disc', t('search.noAlbums')));
-            return;
-        }
-
-        replace(albumsGrid, ...albums.map(album => el('button', {
-            className: 'p-3 rounded-xl bg-white dark:bg-card-dark text-left hover:scale-105 transition shadow-sm border border-gray-100 dark:border-white/5',
-            attrs: { type: 'button' },
-            on: { click: () => window.openAlbumDetail?.(album.id) }
-        }, [
-            img(album.image, 'w-full aspect-square rounded-lg object-cover mb-2', album.name),
-            el('span', { className: 'block font-semibold truncate', text: album.name }),
-            album.year && el('span', { className: 'block text-xs text-text-secondary-light dark:text-gray-400', text: album.year })
-        ])));
     }
 
-    paintFollowButton() {
-        const followBtn = this.querySelector('#followBtn');
-        if (!followBtn || !this.currentArtist) return;
-        const followed = isArtistFollowed(this.currentArtist.id);
-        followBtn.textContent = followed ? t('search.unfollow') : t('search.follow');
-        followBtn.classList.toggle('bg-green-500', followed);
-        followBtn.classList.toggle('text-white', followed);
-        followBtn.classList.toggle('border-green-500', followed);
-    }
-
-    displayTrackResults() {
-        const trackResults = this.querySelector('#trackResults');
-        if (!trackResults) return;
-
-        trackResults.classList.remove('hidden');
-        trackResults.className = 'space-y-2';
-        replace(trackResults, ...this.results.map(track => el('button', {
-            className: 'w-full flex items-center gap-4 p-3 rounded-lg text-left hover:bg-gray-100 dark:hover:bg-white/5 transition-colors',
-            attrs: { type: 'button' },
-            dataset: { trackId: track.id },
-            on: {
-                click: () => window.openTrackDetail?.(track.id, track.name, track.artist, track.image, track.preview_url)
-            }
-        }, [
-            img(track.image, 'w-16 h-16 rounded object-cover shrink-0', track.name),
-            el('span', { className: 'flex-1 min-w-0' }, [
-                el('span', { className: 'block font-bold truncate', text: track.name }),
+    /**
+     * @param {Array} albums
+     * @param {number} archived
+     * @param {number} pct
+     * @returns {HTMLElement}
+     */
+    coverageCard(albums, archived, pct) {
+        return el('div', { className: 'ma-card ma-coverage' }, [
+            kicker(t('artist.coverage')),
+            el('div', { style: 'display:flex;align-items:baseline;gap:8px;margin-top:14px;flex-wrap:wrap' }, [
+                el('span', { style: 'font-size:34px;font-weight:700;letter-spacing:-0.03em', text: `${pct}%` }),
                 el('span', {
-                    className: 'block text-sm text-text-secondary-light dark:text-text-secondary-dark truncate',
-                    text: track.artist
+                    style: 'font-size:13px;color:var(--ink2)',
+                    text: t('artist.coverageBody', { total: albums.length, archived })
                 })
             ]),
-            el('span', {
-                className: 'shrink-0 w-10 h-10 flex items-center justify-center bg-green-500 text-white rounded-full',
-                html: '<i class="fa-solid fa-play"></i>'
-            })
-        ])));
+            el('div', { className: 'ma-meter', style: 'margin-top:16px' }, [
+                el('div', { className: 'ma-meter-fill', style: `width:${pct}%` })
+            ]),
+            el('div', { className: 'ma-ticks', style: 'margin-top:14px' },
+                albums.slice(0, 24).map(album => el('div', {
+                    className: `ma-tick${isAlbumFollowed(album.id) ? ' is-on' : ''}`
+                }))),
+            el('div', { style: 'font-size:11px;color:var(--ink3);margin-top:10px', text: t('artist.tickHint') })
+        ]);
     }
 
-    displayAlbumResults() {
-        const albumResults = this.querySelector('#albumResults');
-        if (!albumResults) return;
+    /**
+     * @param {{id: string, name: string, image?: string, year?: string}} album
+     * @param {boolean} inArchive
+     * @returns {HTMLElement}
+     */
+    albumTile(album, inArchive) {
+        const art = cover(album.image, album.name || '', 'ma-cover-fill');
+        if (!inArchive) art.style.opacity = '.72';
 
-        albumResults.classList.remove('hidden');
-        replace(albumResults, ...this.results.map(album => el('button', {
-            className: 'bg-white dark:bg-card-dark p-4 rounded-xl text-left hover:scale-105 transition shadow-sm border border-gray-100 dark:border-white/5',
+        return el('button', {
+            className: 'ma-tile',
             attrs: { type: 'button' },
             dataset: { albumId: album.id },
             on: { click: () => window.openAlbumDetail?.(album.id) }
         }, [
-            img(album.image, 'w-full aspect-square rounded-lg object-cover mb-3', album.name),
-            el('span', { className: 'block font-bold truncate', text: album.name }),
-            el('span', {
-                className: 'block text-sm text-text-secondary-light dark:text-text-secondary-dark truncate',
+            el('div', { style: 'position:relative' }, [
+                art,
+                inArchive ? el('span', { className: 'ma-album-flag', text: t('artist.inArchive') }) : null
+            ]),
+            el('div', { className: 'ma-truncate', style: 'font-size:15px;font-weight:500;margin-top:12px', text: album.name }),
+            el('div', {
+                style: 'font-size:12px;color:var(--ink3);margin-top:2px',
                 text: [album.artist, album.year].filter(Boolean).join(' · ')
             })
-        ])));
+        ]);
+    }
+
+    paintFollowButton() {
+        const button = this.querySelector('#followBtn');
+        if (!button || !this.currentArtist) return;
+        const followed = isArtistFollowed(this.currentArtist.id);
+        button.textContent = followed ? t('search.unfollow') : t('search.follow');
+        button.className = `ma-btn ${followed ? 'ma-btn-secondary' : 'ma-btn-primary'}`;
     }
 
     async toggleFollow() {
@@ -221,7 +241,114 @@ export class SearchView extends Component {
         const followed = isArtistFollowed(this.currentArtist.id);
         const ok = followed
             ? await unfollowArtist(this.currentArtist.id)
-            : await followArtist(this.currentArtist);
+            : await followArtist({
+                id: this.currentArtist.id,
+                name: this.currentArtist.name,
+                image: this.currentArtist.image
+            });
         if (ok) this.paintFollowButton();
+    }
+
+    /* ── list results ────────────────────────────────────────────────── */
+
+    /** The `artist` type can also come back as a plain list from autocomplete. */
+    displayArtistList() {
+        replace(this.results_, this.section(t('search.artists'), this.results.length,
+            el('div', { className: 'ma-grid ma-grid-6' }, this.results.map(artist => el('button', {
+                className: 'ma-card',
+                style: 'text-align:center',
+                attrs: { type: 'button' },
+                on: { click: () => this.router?.navigate(`search?q=${encodeURIComponent(artist.name)}&type=artist`) }
+            }, [
+                avatar(artist.image, artist.name || '', 'ma-avatar-md', { className: 'ma-mx-auto' }),
+                el('div', { className: 'ma-truncate', style: 'font-size:14px;font-weight:500;margin-top:14px', text: artist.name }),
+                el('div', { className: 'ma-truncate', style: 'font-size:11px;color:var(--ink3);margin-top:2px', text: artist.genres || '' })
+            ])))));
+    }
+
+    displayTracks() {
+        replace(this.results_, this.section(t('search.tracks'), this.results.length,
+            el('div', { className: 'ma-rows' }, this.results.map(track => this.trackRow(track)))));
+    }
+
+    /**
+     * @param {{id: string, name: string, artist: string, image?: string, preview_url?: string}} track
+     * @returns {HTMLElement}
+     */
+    trackRow(track) {
+        const open = () => window.openTrackDetail?.(track.id, track.name, track.artist, track.image, track.preview_url);
+
+        return el('div', { className: 'ma-row', dataset: { trackId: track.id } }, [
+            cover(track.image, track.name || '', 'ma-cover-sm', {
+                tag: 'button',
+                attrs: { type: 'button', 'aria-label': track.name || '', 'aria-hidden': null },
+                on: { click: open }
+            }),
+            el('div', { className: 'ma-row-main', attrs: { role: 'button', tabindex: '0' }, on: {
+                click: open,
+                keydown: event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } }
+            } }, [
+                el('div', { className: 'ma-row-title', text: track.name }),
+                el('div', { className: 'ma-row-sub', text: track.artist || '' })
+            ]),
+            el('div', { className: 'ma-col-stars' }, [stars(getTrackRating(track.id))]),
+            el('div', { className: 'ma-col-actions' }, [
+                el('button', {
+                    className: 'ma-iconbtn',
+                    text: '♥',
+                    attrs: { type: 'button', title: t('search.archive'), 'aria-label': t('search.archive') },
+                    on: { click: event => void this.archive(track, event.currentTarget) }
+                }),
+                el('button', {
+                    className: 'ma-iconbtn',
+                    text: '⋯',
+                    attrs: { type: 'button', 'aria-label': t('track.details') },
+                    on: { click: open }
+                })
+            ])
+        ]);
+    }
+
+    /**
+     * @param {Object} track
+     * @param {HTMLElement} button
+     */
+    async archive(track, button) {
+        if (!store.token) return window.openAuthModal?.();
+        const ok = await likeTrack(track);
+        if (ok) button.classList.add('is-on');
+    }
+
+    displayAlbums() {
+        replace(this.results_, this.section(t('search.albums'), this.results.length,
+            el('div', { className: 'ma-grid ma-grid-5' },
+                this.results.map(album => this.albumTile(album, isAlbumFollowed(album.id))))));
+    }
+
+    /**
+     * @param {string} title
+     * @param {number} count
+     * @param {Node} body
+     * @returns {HTMLElement}
+     */
+    section(title, count, body) {
+        return el('section', { style: 'padding:28px 0 0' }, [
+            el('div', { style: 'display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px' }, [
+                kicker(title),
+                el('span', { style: 'font-size:11px;color:var(--ink3)', text: t('search.resultCount', { n: count }) })
+            ]),
+            body
+        ]);
+    }
+
+    onMount() {
+        // A follow or an archive made elsewhere should repaint this screen's
+        // buttons rather than leave them showing the previous state.
+        this.unsubscribeFollows = store.subscribe('followedArtists', () => this.paintFollowButton());
+    }
+
+    onUnmount() {
+        this.unsubscribeFollows?.();
+        this.searchBar?.unmount();
     }
 }
