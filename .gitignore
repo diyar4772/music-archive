@@ -46,3 +46,8 @@ Eski raporlar vb/
 *_REPORT.md
 *_SUMMARY.md
 merge_files.py
+
+# Design canvases are assembled from the .dc.html sources next to them.
+# The seeded page is a 2 MB build output — regenerate it, don't commit it.
+design/*.html
+!design/*.dc.html

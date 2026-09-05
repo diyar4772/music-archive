@@ -1,0 +1,47 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "Brief", "x": 0, "y": 0, "w": 520, "h": 760 },
+    { "file": "Katalog.dc.html", "title": "Fiş Kataloğu", "x": 620, "y": 0, "w": 880, "h": 760 },
+    { "file": "Duvar.dc.html", "title": "Plak Duvarı", "x": 1600, "y": 0, "w": 880, "h": 760 },
+    { "file": "Defter.dc.html", "title": "Defter", "x": 620, "y": 1020, "w": 880, "h": 760 },
+    { "file": "Cetvel.dc.html", "title": "Cetvel", "x": 1600, "y": 1020, "w": 880, "h": 760 }
+  ],
+  "annotations": [
+    {
+      "id": "note-katalog",
+      "x": 620,
+      "y": -186,
+      "w": 400,
+      "text": "FİŞ KATALOĞU\nNeden: \"arşiv\" kelimesini birebir alır. Kayıt fiziksel bir nesne olunca saklamak bir eylem gibi hissettiriyor — tam da ürünün iddiası.\n\nBedeli: kâğıt taklidi hızla bunaltabilir, ve fiş yüksek olduğu için ekrana 3 kayıt sığıyor. 500 şarkıda gezinmek zor."
+    },
+    {
+      "id": "note-duvar",
+      "x": 1600,
+      "y": -186,
+      "w": 400,
+      "text": "PLAK DUVARI\nNeden: koleksiyonun kendisi görsel. Kapaklar büyüdükçe arşiv \"benim\" gibi görünüyor; arayüz kayboluyor.\n\nBedeli: ürünü rakiplerinden ayıran şeyler — puan, mood, not — ikinci plana düşüyor. Bu tasarım Spotify'a en çok benzeyen tasarım."
+    },
+    {
+      "id": "note-defter",
+      "x": 620,
+      "y": 834,
+      "w": 400,
+      "text": "DEFTER\nNeden: \"ne dinlediğin değil, neyi sakladığın\" cümlesinin en dürüst karşılığı. Burada asıl nesne not; şarkı, notun altındaki künye.\n\nBedeli: taramak için değil okumak için bir arayüz. Notsuz kayıtlar boş satır gibi duruyor — arşivin çoğu notsuzsa sayfa fakir görünür."
+    },
+    {
+      "id": "note-cetvel",
+      "x": 1600,
+      "y": 834,
+      "w": 400,
+      "text": "CETVEL\nNeden: koleksiyonculuğun öbür yarısı sayı. Diskografi kapsaması burada bir ayrıntı değil, ekranın konusu. Tamamlamacı için bağımlılık yapar.\n\nBedeli: soğuk. Günlük tarafı — not, anı, mood — tabloda bir sütuna iniyor. Arşiv, envantere dönüşüyor."
+    },
+    {
+      "id": "note-brief",
+      "x": 0,
+      "y": 834,
+      "w": 400,
+      "text": "Dördü de aynı arşivi gösteriyor: aynı şarkılar, aynı puanlar, aynı notlar. Sadece hangisinin öne çıktığı değişiyor.\n\nKarma da mümkün: örneğin Cetvel'in kapsama tablosu sanatçı sayfasında, Defter'in not akışı ayrı bir sekmede."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

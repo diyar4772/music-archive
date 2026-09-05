@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #A78BFA; text-decoration: none; }
+    a:hover { color: #F472B6; }
+  </style>
+</helmet>
+<div style="width: 520px; height: 760px; box-sizing: border-box; background: #0A0A0B; color: #FAFAFA; font-family: Inter, system-ui, sans-serif; padding: 40px 36px; display: flex; flex-direction: column; gap: 28px;">
+
+  <div style="display: flex; flex-direction: column; gap: 14px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="width: 22px; height: 22px; background: linear-gradient(135deg, #8B5CF6, #F472B6); display: flex; align-items: flex-end; padding: 3px; box-sizing: border-box;">
+        <div style="width: 100%; height: 7px; background: #0A0A0B;"></div>
+      </div>
+      <div style="font-size: 13px; font-weight: 600; letter-spacing: -0.01em;">Music Archive</div>
+    </div>
+    <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #71717A;">Yön seçimi</div>
+    <h1 style="margin: 0; font-size: 42px; line-height: 1.05; letter-spacing: -0.035em; font-weight: 700; text-wrap: balance;">Arşiv neye<br>benzemeli?</h1>
+    <p style="margin: 0; font-size: 15px; line-height: 1.65; color: #A1A1AA; max-width: 40ch;">Dört yön, aynı arşivi gösteriyor. Ürünün kendisi değişmiyor — puan, mood, kişisel not ve diskografi kapsaması dördünde de duruyor. Değişen, arşivin <em style="font-style: normal; color: #FAFAFA;">ne gibi hissettirdiği</em>.</p>
+  </div>
+
+  <div style="height: 2px; background: #3F3F46;"></div>
+
+  <div style="display: flex; flex-direction: column; gap: 20px;">
+
+    <div style="display: flex; gap: 14px; align-items: flex-start;">
+      <div style="width: 28px; height: 28px; flex: 0 0 auto; background: #8C3A2B; border: 1px solid #C4BBA8;"></div>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-size: 16px; font-weight: 600; letter-spacing: -0.01em;">Fiş Kataloğu</div>
+        <div style="font-size: 13px; line-height: 1.6; color: #A1A1AA;">Kütüphane fiş dolabı. Kâğıt, daktilo, kaşe. Her kayıt fiziksel bir fiş.</div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 14px; align-items: flex-start;">
+      <div style="width: 28px; height: 28px; flex: 0 0 auto; background: #0B0B0C; border: 1px solid #3F3F46;"></div>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-size: 16px; font-weight: 600; letter-spacing: -0.01em;">Plak Duvarı</div>
+        <div style="font-size: 13px; line-height: 1.6; color: #A1A1AA;">Kapaklar konuşur, arayüz susar. Galeri karanlığı, uçtan uca ızgara.</div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 14px; align-items: flex-start;">
+      <div style="width: 28px; height: 28px; flex: 0 0 auto; background: #F7F3EA; border: 1px solid #2E4272;"></div>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-size: 16px; font-weight: 600; letter-spacing: -0.01em;">Defter</div>
+        <div style="font-size: 13px; line-height: 1.6; color: #A1A1AA;">Asıl nesne not. Şarkı, notun konusu. Çizgili kâğıt, mürekkep, kenar notu.</div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 14px; align-items: flex-start;">
+      <div style="width: 28px; height: 28px; flex: 0 0 auto; background: #0C0E11; border: 1px solid #46A17E;"></div>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-size: 16px; font-weight: 600; letter-spacing: -0.01em;">Cetvel</div>
+        <div style="font-size: 13px; line-height: 1.6; color: #A1A1AA;">Koleksiyoncunun tablosu. Yoğun satır, hâkim rakam, her yerde kapsama.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid #27272A; font-size: 12px; line-height: 1.6; color: #71717A;">Her yönün üstündeki notta gerekçesi ve bedeli yazıyor. Bugün yayında olan tasarım bu dördünden hiçbiri değil — o, ortada duran nötr sistem.</div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
