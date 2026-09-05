@@ -8,7 +8,7 @@
 import { store } from './state/store.js';
 import { mountShell } from './components/Shell.js';
 import { initAuth, isAuthenticated, login, register, logout as authLogout } from './services/auth.js';
-import { initSearch, performSearch } from './services/search.js';
+import { performSearch } from './services/search.js';
 // Aliased so the bare `createPlaylist` identifier keeps resolving to the global
 // modal opener defined below — importing it unaliased would silently change what
 // Navbar's onCreatePlaylist callback points at.
@@ -25,14 +25,13 @@ import { Router } from './core/Router.js';
 import { DashboardView } from './views/DashboardView.js';
 import { SearchView } from './views/SearchView.js';
 import { LibraryView } from './views/LibraryView.js';
+import { DigView } from './views/DigView.js';
 import { Navbar } from './components/Navbar.js';
-import { SearchBar } from './components/SearchBar.js';
 import { initToast } from './components/Toast.js';
 
 // Global router instance
 let router = null;
 let navbar = null;
-let searchBar = null;
 
 /**
  * Initialize the application
@@ -56,7 +55,7 @@ async function initApp() {
     initModals();
     initAuthModal();
     initMiniPlayer();
-    // Note: Search is initialized by SearchBar component or fallback below
+    // The search field belongs to the search screen; SearchView mounts it.
 
     // Wait for DOM to be fully ready
     const appContainer = document.getElementById('app');
@@ -75,11 +74,15 @@ async function initApp() {
         'dashboard': DashboardView,
         'search': SearchView,
         'library': LibraryView,
+        'dig': DigView,
         '*': DashboardView // Default route
     });
 
     // Make router globally accessible
     window.router = router;
+
+    // The header highlights the active section, so it repaints on every route.
+    window.addEventListener('hashchange', () => navbar?.render());
 
     // Initialize Navbar
     const navbarContainer = document.getElementById('navbar');
@@ -99,26 +102,6 @@ async function initApp() {
         console.warn('[App] Navbar container not found');
     }
 
-    // Initialize SearchBar
-    const searchBarContainer = document.getElementById('searchBar');
-    if (searchBarContainer) {
-        console.log('[App] Initializing SearchBar...');
-        searchBar = new SearchBar(searchBarContainer, {
-            router,
-            onSearch: (query) => {
-                if (router) {
-                    router.navigate(`search?q=${encodeURIComponent(query)}&type=${store.searchType}`);
-                }
-            }
-        });
-        searchBar.mount();
-        console.log('[App] SearchBar initialized');
-    } else {
-        console.warn('[App] SearchBar container not found, using fallback');
-        // Fallback: SearchBar might be in HTML, initialize search service
-        initSearch();
-    }
-
     // Setup global event listeners
     setupEventListeners();
 
@@ -132,12 +115,17 @@ function renderStartupError() {
     const appContainer = document.getElementById('app');
     if (!appContainer) return;
     appContainer.innerHTML = `
-        <section class="w-full max-w-2xl mx-auto bg-white dark:bg-card-dark rounded-2xl p-8 text-center shadow-sm">
-            <i class="fa-solid fa-triangle-exclamation text-3xl text-amber-500 mb-4"></i>
-            <h2 class="text-2xl font-bold mb-2">${t('app.loadFailed')}</h2>
-            <p class="text-text-secondary-light dark:text-text-secondary-dark mb-5">${t('app.loadFailedBody')}</p>
-            <button id="retryBootstrap" class="btn-spotify text-white font-bold px-6 py-3 rounded-full">${t('common.retry')}</button>
-        </section>`;
+        <main class="ma-main">
+            <div class="ma-empty">
+                <div class="ma-notice-mark" style="margin:0 auto">!</div>
+                <div class="ma-empty-title"></div>
+                <div class="ma-empty-body"></div>
+                <button id="retryBootstrap" class="ma-btn ma-btn-primary" style="margin-top:24px"></button>
+            </div>
+        </main>`;
+    appContainer.querySelector('.ma-empty-title').textContent = t('app.loadFailed');
+    appContainer.querySelector('.ma-empty-body').textContent = t('app.loadFailedBody');
+    appContainer.querySelector('#retryBootstrap').textContent = t('common.retry');
     document.getElementById('retryBootstrap')?.addEventListener('click', () => window.location.reload());
 }
 
@@ -193,16 +181,13 @@ function setupEventListeners() {
     document.addEventListener('languagechange', () => {
         applyTranslations(document);
         navbar?.render();
-        searchBar?.render();
         router?.handleRoute();
     });
 
-    // Close dropdowns on outside click
+    // Close the suggestion list on an outside click. The profile menu closes
+    // itself from inside the Navbar component, which owns it.
     document.addEventListener('click', (e) => {
-        if (!e.target.closest('#authSection')) {
-            document.getElementById('profileDropdown')?.classList.add('hidden');
-        }
-        if (!e.target.closest('.w-full.max-w-xl')) {
+        if (!e.target.closest('.ma-searchbar')) {
             document.getElementById('autocompleteList')?.classList.add('hidden');
         }
     });
@@ -245,17 +230,17 @@ function applySettings() {
 function applyTheme(theme) {
     const isDark = theme !== 'light';
 
-    // Tailwind runs in darkMode:"class", so the `dark` class on <html> is what every
-    // `dark:` utility keys off. The previous implementation only wrote inline colours
-    // on <body> and left that class alone, which left light mode with dark cards on a
-    // light page. Clear those inline overrides so the utilities decide.
+    // Two switches, one source of truth. `data-ma-theme` selects the token set in
+    // styles.css; the `dark` class is what Tailwind's `dark:` utilities in the
+    // older modal markup key off. theme-boot.js sets the same pair before first
+    // paint so a light-mode reload does not flash dark.
+    document.documentElement.dataset.maTheme = isDark ? 'dark' : 'light';
     document.documentElement.classList.toggle('dark', isDark);
     document.body.style.backgroundColor = '';
     document.body.style.color = '';
-    document.body.classList.toggle('light-mode', !isDark);
 
-    const icon = document.getElementById('themeIconMaterial');
-    if (icon) icon.textContent = isDark ? 'dark_mode' : 'light_mode';
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.content = isDark ? '#0A0A0B' : '#FAFAFA';
 }
 
 // ============ CROSS-MODULE ENTRY POINTS ============
@@ -410,8 +395,8 @@ async function confirmCreatePlaylist() {
     const nameInput = document.getElementById('newPlaylistName');
     const name = nameInput?.value.trim() || '';
     if (!name) {
-        nameInput?.classList.add('ring-2', 'ring-red-500');
-        setTimeout(() => nameInput?.classList.remove('ring-2', 'ring-red-500'), 2000);
+        if (nameInput) nameInput.style.borderColor = 'var(--err)';
+        setTimeout(() => { if (nameInput) nameInput.style.borderColor = ''; }, 2000);
         nameInput?.focus();
         return;
     }
