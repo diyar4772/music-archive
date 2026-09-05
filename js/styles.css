@@ -1315,6 +1315,26 @@ button.ma-card:hover,
     .ma-stat-big { font-size: 56px }
 }
 
+/* The nav sits beside the brand and the tools until the three of them stop
+   fitting. That happens well before 640px: "Overview / Search / Library / Dig"
+   is wider than the Turkish labels, and it was being clipped mid-word. Wrap the
+   nav onto its own row early enough that every language clears it. */
+@media (max-width: 820px) {
+    .ma-header-inner {
+        flex-wrap: wrap;
+        gap: 12px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+    }
+
+    .ma-nav {
+        order: 3;
+        flex-basis: 100%;
+    }
+
+    .ma-brand { flex: 1 1 auto }
+}
+
 @media (max-width: 640px) {
     .ma-grid-6,
     .ma-grid-5,
@@ -1324,9 +1344,6 @@ button.ma-card:hover,
     .ma-bento-hero,
     .ma-bento-wide { grid-column: span 1 }
     .ma-col-dur { display: none }
-    .ma-header-inner { flex-wrap: wrap; gap: 12px; padding-top: 10px; padding-bottom: 10px }
-    .ma-nav { order: 3; flex-basis: 100%; }
-    .ma-brand { flex: 1 1 auto }
     .ma-avatar-xl { width: 112px; height: 112px; font-size: 36px }
     .mini-player-body { gap: 10px; height: 64px }
     .mini-player-time { display: none }
