@@ -840,7 +840,7 @@ app.get('/api/search', userLimiter, async (req, res) => {
             // Fetch ALL albums using pagination
             let allAlbums = [];
             let offset = 0;
-            const limit = 50; // Max allowed by Spotify
+            const limit = 10; // Compatible with Spotify development mode
             let hasMore = true;
 
             while (hasMore) {
@@ -871,7 +871,7 @@ app.get('/api/search', userLimiter, async (req, res) => {
                 }
             }
 
-            return res.json({
+            const result = {
                 id: artistData.id,
                 name: artistData.name,
                 image: artistData.images[0]?.url,
@@ -882,7 +882,9 @@ app.get('/api/search', userLimiter, async (req, res) => {
                     image: a.images[0]?.url,
                     year: a.release_date?.split('-')[0] || ''
                 }))
-            });
+            };
+            cacheSet(cacheKey, result, 3600);
+            return res.json(result);
         }
 
         // Album search results - with smart ranking

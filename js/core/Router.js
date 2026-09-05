@@ -17,8 +17,6 @@ export class Router {
         // Listen for hash changes
         window.addEventListener('hashchange', () => this.handleRoute());
         
-        // Listen for popstate (back/forward buttons)
-        window.addEventListener('popstate', () => this.handleRoute());
 
         // Handle initial route - set default if no hash
         if (!window.location.hash || window.location.hash === '' || window.location.hash === '#') {

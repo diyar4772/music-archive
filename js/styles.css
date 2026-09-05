@@ -1,0 +1,306 @@
+/* Base font family */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        :root {
+            --violet: #8B5CF6;
+            --violet-light: #A78BFA;
+            --violet-dark: #7C3AED;
+            --pink: #F472B6;
+            --ring: rgba(139, 92, 246, .55);
+            --track: rgba(0, 0, 0, .10);
+        }
+
+        .dark {
+            --track: rgba(255, 255, 255, .10);
+        }
+
+        /* Legacy brand hooks, repointed at Electric Violet. The class names stay so
+           existing markup keeps working; only what they render changed. */
+        .spotify-green {
+            background-image: linear-gradient(135deg, var(--violet) 0%, var(--pink) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .bg-spotify {
+            background-color: var(--violet);
+        }
+
+        .btn-spotify {
+            background-image: linear-gradient(135deg, var(--violet) 0%, var(--violet-dark) 100%);
+            color: #fff;
+            box-shadow: 0 6px 20px -8px rgba(139, 92, 246, .8);
+            transition: transform .18s cubic-bezier(.16, 1, .3, 1), box-shadow .18s ease, filter .18s ease;
+        }
+
+        .btn-spotify:hover {
+            filter: brightness(1.08);
+            transform: translateY(-1px);
+            box-shadow: 0 10px 28px -8px rgba(139, 92, 246, .9);
+        }
+
+        .btn-spotify:active {
+            transform: translateY(0);
+        }
+
+        .btn-spotify:disabled {
+            filter: none;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Keyboard users get a visible focus ring everywhere. */
+        :focus-visible {
+            outline: 2px solid var(--ring);
+            outline-offset: 2px;
+            border-radius: 8px;
+        }
+
+        /* Text Glow Effects */
+        .text-glow-coral {
+            text-shadow: 0 0 24px rgba(244, 114, 182, .45);
+        }
+
+        .text-glow-purple {
+            text-shadow: 0 0 24px rgba(139, 92, 246, .45);
+        }
+
+        .text-glow-teal {
+            text-shadow: 0 0 24px rgba(34, 211, 238, .40);
+        }
+
+        .text-glow-orange {
+            text-shadow: 0 0 24px rgba(251, 191, 36, .40);
+        }
+
+        /* Loading skeletons */
+        .skeleton {
+            position: relative;
+            overflow: hidden;
+            background: var(--track);
+            border-radius: 10px;
+        }
+
+        .skeleton::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            transform: translateX(-100%);
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .10), transparent);
+            animation: shimmer 1.4s infinite;
+        }
+
+        @keyframes shimmer {
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        /* Toast — utils.js showToast() targets #toast; without this element every
+           notification was silently dropped. */
+        #toast {
+            position: fixed;
+            left: 50%;
+            bottom: 28px;
+            z-index: 200;
+            max-width: min(92vw, 30rem);
+            padding: 12px 20px;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: .9rem;
+            color: #fff;
+            background: rgba(30, 30, 36, .92);
+            border: 1px solid rgba(255, 255, 255, .10);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 16px 40px -12px rgba(0, 0, 0, .7);
+            transition: opacity .25s ease, transform .25s cubic-bezier(.16, 1, .3, 1);
+            pointer-events: none;
+        }
+
+        #toast.opacity-0 {
+            opacity: 0;
+            transform: translate(-50%, 20px);
+        }
+
+        #toast.opacity-100 {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+
+        /* Slimmer scrollbars that match the surfaces */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: #3F3F46 transparent;
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #3F3F46;
+            border-radius: 9999px;
+            border: 3px solid transparent;
+            background-clip: content-box;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--violet);
+            background-clip: content-box;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+            *,
+            *::before,
+            *::after {
+                animation-duration: .01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: .01ms !important;
+            }
+        }
+
+        .modal {
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .modal.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .modal.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .autocomplete-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            border-radius: 0 0 12px 12px;
+            z-index: 50;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        /* Light mode autocomplete */
+        .autocomplete-list {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-top: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .dark .autocomplete-list {
+            background: #1A1A20;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-top: none;
+            box-shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.85);
+        }
+
+        .autocomplete-item:hover {
+            background: #F5F3FF;
+        }
+
+        .dark .autocomplete-item:hover {
+            background: rgba(139, 92, 246, 0.14);
+        }
+
+        .playing-row {
+            background-color: rgba(139, 92, 246, 0.10);
+            box-shadow: inset 3px 0 0 var(--violet);
+        }
+
+        .dark .playing-row {
+            background-color: rgba(139, 92, 246, 0.14);
+        }
+
+        /* Mini Player Styles */
+        .mini-player {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 12px 20px;
+            z-index: 1000;
+            transform: translateY(100%);
+            transition: transform 0.3s ease, background-color 0.2s ease;
+        }
+
+        .mini-player.active {
+            transform: translateY(0);
+        }
+
+        .mini-player-progress {
+            height: 3px;
+            background: #404040;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            cursor: pointer;
+        }
+
+        .mini-player-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--violet), var(--pink));
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        .mini-player-progress:hover .mini-player-progress-bar {
+            filter: brightness(1.15);
+        }
+
+        /* Star Rating Styles */
+        .star-rating {
+            display: inline-flex;
+            gap: 2px;
+        }
+
+        .star-rating .star {
+            cursor: pointer;
+            font-size: 1.25rem;
+            color: #3F3F46;
+            transition: all 0.15s ease;
+        }
+
+        .star-rating .star:hover {
+            transform: scale(1.2);
+        }
+
+        .star-rating .star.filled {
+            color: #FBBF24;
+        }
+
+        .star-rating .star.half-filled {
+            background: linear-gradient(90deg, #FBBF24 50%, #3F3F46 50%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .star-rating.readonly .star {
+            cursor: default;
+        }
+
+        .star-rating.readonly .star:hover {
+            transform: none;
+        }
+
+        .rating-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(251, 191, 36, 0.15);
+            color: #FBBF24;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+        }

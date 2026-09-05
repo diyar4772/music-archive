@@ -40,6 +40,7 @@ export function playTrack(track) {
     updatePlayingUI(id);
     showMiniPlayer();
 
+    updatePlayPauseButton(true);
     currentAudio.play().catch(err => {
         console.error('Playback error:', err);
         showToast('❌ Oynatma başarısız');
@@ -101,13 +102,13 @@ export function stopPlayback() {
  * Update mini player display
  */
 function updateMiniPlayer({ name, artist, image }) {
-    const nameEl = document.getElementById('miniPlayerTrack');
+    const nameEl = document.getElementById('miniPlayerTitle');
     const artistEl = document.getElementById('miniPlayerArtist');
     const imageEl = document.getElementById('miniPlayerImage');
 
     if (nameEl) nameEl.innerText = name;
     if (artistEl) artistEl.innerText = artist;
-    if (imageEl) imageEl.src = image || 'https://via.placeholder.com/60';
+    if (imageEl) imageEl.src = image || '/js/placeholder.svg';
 }
 
 /**
@@ -117,6 +118,7 @@ function showMiniPlayer() {
     const player = document.getElementById('miniPlayer');
     if (player) {
         player.classList.remove('translate-y-full');
+        player.classList.add('active');
     }
 }
 
@@ -127,6 +129,7 @@ function hideMiniPlayer() {
     const player = document.getElementById('miniPlayer');
     if (player) {
         player.classList.add('translate-y-full');
+        player.classList.remove('active');
     }
 }
 
@@ -190,6 +193,7 @@ export function isPlaying(trackId) {
  * Initialize mini player
  */
 export function initMiniPlayer() {
+    hideMiniPlayer();
     // Play/pause button
     const playBtn = document.getElementById('miniPlayerPlayBtn');
     if (playBtn) {
@@ -203,6 +207,11 @@ export function initMiniPlayer() {
     }
 
     // Expose to global for inline handlers (during transition)
+    window.seekTrack = event => {
+        if (!currentAudio || !Number.isFinite(currentAudio.duration)) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        currentAudio.currentTime = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)) * currentAudio.duration;
+    };
     window.playTrack = playTrack;
     window.toggleMiniPlayer = togglePlayPause;
     window.closeMiniPlayer = stopPlayback;

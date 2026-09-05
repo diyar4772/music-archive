@@ -114,3 +114,6 @@ export async function del(endpoint) {
     return fetchAPI(endpoint, { method: 'DELETE' });
 }
 
+export function put(endpoint, data) {
+    return fetchAPI(endpoint, { method: 'PUT', body: JSON.stringify(data) });
+}

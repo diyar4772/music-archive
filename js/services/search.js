@@ -9,7 +9,7 @@ import { debounce, showToast } from '../utils.js';
  * @param {string} overrideQuery - Optional query override
  * @returns {Promise<Object|Array>} Search results
  */
-export async function performSearch(overrideQuery) {
+export async function performSearch(overrideQuery, searchType = store.searchType) {
     const query = overrideQuery || document.getElementById('searchInput')?.value;
     if (!query) return null;
 
@@ -18,9 +18,9 @@ export async function performSearch(overrideQuery) {
 
     // Determine API type parameter
     let apiType = 'simple';
-    if (store.searchType === SEARCH_TYPES.TRACK) {
+    if (searchType === SEARCH_TYPES.TRACK) {
         apiType = 'track';
-    } else if (store.searchType === SEARCH_TYPES.ALBUM) {
+    } else if (searchType === SEARCH_TYPES.ALBUM) {
         apiType = 'album';
     }
 
@@ -162,7 +162,7 @@ function createAutocompleteItem({ name, image, subtitle, isLocal, isRounded = tr
     div.onclick = onClick;
 
     div.innerHTML = `
-        <img src="${image || 'https://via.placeholder.com/40'}" class="w-10 h-10 ${isRounded ? 'rounded-full' : 'rounded'} object-cover">
+        <img src="${image || '/js/placeholder.svg'}" class="w-10 h-10 ${isRounded ? 'rounded-full' : 'rounded'} object-cover">
         <div>
             <div class="font-bold text-sm">${name} ${isLocal ? '<i class="fa-solid fa-heart text-green-500 ml-1 text-xs"></i>' : ''}</div>
             <div class="text-xs text-gray-400">${subtitle}</div>

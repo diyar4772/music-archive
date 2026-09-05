@@ -1,3 +1,4 @@
+import { followArtist, unfollowArtist } from '../services/library.js';
 /**
  * Search View
  * Displays search results for artists, tracks, and albums
@@ -48,7 +49,7 @@ export class SearchView extends Component {
         `);
 
         this.attachEventListeners();
-        
+
         if (this.query) {
             this.performSearch();
         }
@@ -81,7 +82,8 @@ export class SearchView extends Component {
             target.innerHTML = '<div class="text-center py-12 text-text-secondary-light dark:text-text-secondary-dark"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Aranıyor...</div>';
         }
         try {
-            this.results = await performSearch(this.query);
+            this.results = await performSearch(this.query, this.searchType);
+            if (!this.isMounted) return;
             this.displayResults();
         } catch (error) {
             if (target) {
@@ -105,7 +107,8 @@ export class SearchView extends Component {
             return;
         }
 
-        if (this.searchType === 'artist' && this.results.length > 0) {
+        this.querySelector('#trackResults')?.classList.add('hidden');
+        if (this.searchType === 'artist' && this.results.id) {
             this.displayArtistResults();
         } else if (this.searchType === 'track') {
             this.displayTrackResults();
@@ -115,7 +118,7 @@ export class SearchView extends Component {
     }
 
     displayArtistResults() {
-        const artist = this.results[0];
+        const artist = this.results;
         this.currentArtist = artist;
 
         const artistContent = this.querySelector('#artistContent');
@@ -125,15 +128,26 @@ export class SearchView extends Component {
         const albumsGrid = this.querySelector('#albumsGrid');
 
         if (artistContent) artistContent.classList.remove('hidden');
-        if (artistImage) artistImage.src = artist.image || 'https://via.placeholder.com/224';
+        if (artistImage) artistImage.src = artist.image || '/js/placeholder.svg';
         if (artistName) artistName.textContent = artist.name;
         if (followBtn) {
             const isFollowed = store.followedArtists.some(a => a.artistId === artist.id);
             followBtn.textContent = isFollowed ? 'Unfollow' : 'Follow';
         }
         if (albumsGrid) {
-            // Albums would be loaded separately via API
-            albumsGrid.innerHTML = '<p class="text-gray-400">Albums loading...</p>';
+            albumsGrid.replaceChildren();
+            for (const album of artist.albums || []) {
+                const card = document.createElement('button');
+                card.className = 'p-3 rounded-xl bg-white dark:bg-card-dark text-left';
+                const img = document.createElement('img');
+                img.src = album.image || '/js/placeholder.svg';
+                img.className = 'w-full aspect-square rounded-lg mb-2';
+                const title = document.createElement('span');
+                title.textContent = album.name;
+                card.append(img, title);
+                card.addEventListener('click', () => window.openAlbumDetail(album.id));
+                albumsGrid.append(card);
+            }
         }
     }
 
@@ -145,7 +159,7 @@ export class SearchView extends Component {
         trackResults.innerHTML = this.results.map(track => `
             <div class="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition cursor-pointer"
                  data-track-id="${track.id}">
-                <img src="${track.image || 'https://via.placeholder.com/60'}" 
+                <img src="${track.image || '/js/placeholder.svg'}"
                      class="w-16 h-16 rounded object-cover">
                 <div class="flex-1">
                     <div class="font-bold">${track.name}</div>
@@ -177,7 +191,7 @@ export class SearchView extends Component {
         albumResults.innerHTML = this.results.map(album => `
             <div class="bg-white dark:bg-card-dark p-4 rounded-xl cursor-pointer hover:scale-105 transition shadow-sm border border-gray-100 dark:border-white/5"
                  data-album-id="${album.id}">
-                <img src="${album.image || 'https://via.placeholder.com/200'}" 
+                <img src="${album.image || '/js/placeholder.svg'}"
                      class="w-full aspect-square rounded-lg object-cover mb-3">
                 <div class="font-bold truncate">${album.name}</div>
                 <div class="text-sm text-text-secondary-light dark:text-text-secondary-dark truncate">${album.artist}</div>
@@ -198,12 +212,9 @@ export class SearchView extends Component {
     async toggleFollow() {
         if (!this.currentArtist) return;
 
-        // This would call the follow/unfollow API
-        // For now, just update UI
-        const followBtn = this.querySelector('#followBtn');
-        if (followBtn) {
-            const isFollowed = store.followedArtists.some(a => a.artistId === this.currentArtist.id);
-            followBtn.textContent = isFollowed ? 'Follow' : 'Unfollow';
-        }
+        if (!store.token) return window.openAuthModal();
+        const isFollowed = store.followedArtists.some(a => a.artistId === this.currentArtist.id);
+        const ok = isFollowed ? await unfollowArtist(this.currentArtist.id) : await followArtist(this.currentArtist);
+        if (ok) this.querySelector('#followBtn').textContent = isFollowed ? 'Follow' : 'Unfollow';
     }
 }

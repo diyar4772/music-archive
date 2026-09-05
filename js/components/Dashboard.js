@@ -77,7 +77,7 @@ export function renderRecentlyAdded() {
             ${recentTracks.map(track => `
                 <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-[#282828] transition cursor-pointer"
                      onclick="openTrackDetail('${track.trackId}')">
-                    <img src="${track.image || 'https://via.placeholder.com/40'}" 
+                    <img src="${track.image || '/js/placeholder.svg'}"
                          class="w-10 h-10 rounded object-cover">
                     <div class="flex-1 min-w-0">
                         <div class="font-medium truncate">${track.trackName}</div>
@@ -123,7 +123,7 @@ export function renderTopRated() {
                     <div class="w-6 text-center font-bold ${index < 3 ? 'text-amber-500' : 'text-gray-500'}">
                         ${index + 1}
                     </div>
-                    <img src="${track.image || 'https://via.placeholder.com/40'}" 
+                    <img src="${track.image || '/js/placeholder.svg'}"
                          class="w-10 h-10 rounded object-cover">
                     <div class="flex-1 min-w-0">
                         <div class="font-medium truncate">${track.trackName}</div>

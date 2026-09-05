@@ -141,13 +141,17 @@ test('static frontend assets are not gated by the API CORS allowlist', async () 
     }
 });
 
-test('legacy bridge helpers read live auth state instead of a parse-time token', async () => {
+test('modular API reads live auth state without a legacy token or global fetch override', async () => {
     const index = await request('/');
     // The stale `let token = localStorage.getItem(...)` snapshot must be gone: a
     // login performed after this script parsed used to leave legacy handlers
     // sending `Bearer null`.
     assert.doesNotMatch(index.body, /let\s+token\s*=\s*localStorage\.getItem/);
-    assert.match(index.body, /Object\.defineProperty\(window,\s*'token'/);
+    assert.doesNotMatch(index.body, /<script(?:\s[^>]*)?>\s*[^<\s]/);
+    assert.ok(index.body.split('\n').length < 200);
+    const api = await request('/js/services/api.js');
+    assert.match(api.body, /const token = store.token \|\| localStorage.getItem/);
+    assert.match(api.body, /refreshRequest/);
     // The single refresh authority stays in js/services/api.js — no global override.
     assert.doesNotMatch(index.body, /window\.fetch\s*=/);
 

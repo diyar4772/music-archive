@@ -38,6 +38,8 @@ async function toggleLike(track) {
     const trackId = track.trackId || track.id;
     const payload = {
         trackId,
+        artistName: track.artistName || track.artist || 'Unknown Artist',
+        artistId: track.artistId,
         trackName: track.trackName || track.name,
         image: track.image,
         previewUrl: track.previewUrl || track.preview_url || null

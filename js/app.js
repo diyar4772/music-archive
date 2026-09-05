@@ -1,3 +1,5 @@
+import { mountShell } from './components/Shell.js';
+import { initDetails } from './components/Details.js';
 /**
  * Music Archive Web - Main Application Entry Point
  * Koleksiyoner Arşivi - Web Frontend
@@ -47,6 +49,9 @@ async function initApp() {
     // Initialize auth
     initAuth();
 
+    mountShell();
+    initDetails();
+
     // Initialize UI components
     initModals();
     initAuthModal();
@@ -58,6 +63,11 @@ async function initApp() {
     if (!appContainer) {
         console.error('App container not found! Make sure <div id="app"></div> exists in HTML');
         return;
+    }
+
+    // Load user data if authenticated
+    if (isAuthenticated()) {
+        await fetchUserData();
     }
 
     // Initialize Router first (needed by other components)
@@ -79,9 +89,9 @@ async function initApp() {
             onLogout: handleLogout,
             onShowDashboard: () => router?.navigate('dashboard'),
             onToggleTheme: toggleTheme,
-            onOpenProfileModal: openProfileModal,
-            onCreatePlaylist: createPlaylist,
-            onOpenSettings: openSettingsModal
+            onOpenProfileModal: type => window.openProfileModal(type),
+            onCreatePlaylist: () => window.createPlaylist(),
+            onOpenSettings: () => window.openSettingsModal()
         });
         navbar.mount();
         console.log('[App] Navbar initialized');
@@ -112,10 +122,6 @@ async function initApp() {
     // Note: Auth UI is now handled by Navbar component
     // updateAuthUI() is no longer needed
 
-    // Load user data if authenticated
-    if (isAuthenticated()) {
-        await fetchUserData();
-    }
 
     // Initialize dashboard (for backward compatibility)
     initDashboard();
@@ -221,6 +227,11 @@ function setupEventListeners() {
         navbar?.render();
         router?.navigate('dashboard');
         showToast('Oturum süresi doldu. Lütfen yeniden giriş yapın.');
+    });
+
+    document.addEventListener('languagechange', () => {
+        document.documentElement.lang = i18n.language;
+        document.querySelectorAll('[data-lang]').forEach(el => { el.textContent = t(el.dataset.lang); });
     });
 
     // Close dropdowns on outside click
@@ -463,9 +474,13 @@ window.confirmCreatePlaylist = async () => {
     router?.navigate('dashboard');
 };
 
+window.changeLanguage = changeLanguage;
+window.closeSettingsModal = () => window.closeModal('settingsModal');
+window.closeCreatePlaylistModal = () => window.closeModal('createPlaylistModal');
 window.openSettingsModal = () => {
     const modal = document.getElementById('settingsModal');
     if (modal) {
+        document.getElementById('languageSelect').value = i18n.language;
         modal.classList.remove('hidden');
     }
 };

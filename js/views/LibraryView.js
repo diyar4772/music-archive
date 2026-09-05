@@ -20,7 +20,7 @@ export class LibraryView extends Component {
                 <div class="flex items-center justify-between mb-6">
                     <h2 class="text-2xl font-bold" data-lang="library.title">Kütüphanem</h2>
                     <div class="flex flex-wrap justify-end gap-2">
-                        <button data-view="likes" 
+                        <button data-view="likes"
                             class="px-4 py-2 rounded-full ${this.viewType === 'likes' ? 'bg-green-500 text-white' : 'bg-gray-100 dark:bg-card-dark text-text-light dark:text-white'}">
                             <i class="fa-solid fa-heart mr-2"></i>Beğenilenler
                         </button>
@@ -105,7 +105,7 @@ export class LibraryView extends Component {
                 ${tracks.map(track => `
                     <div class="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition cursor-pointer"
                          data-track-id="${track.trackId}">
-                        <img src="${track.image || 'https://via.placeholder.com/60'}" 
+                        <img src="${track.image || '/js/placeholder.svg'}"
                              class="w-16 h-16 rounded object-cover">
                         <div class="flex-1">
                             <div class="font-bold">${track.trackName}</div>
@@ -152,13 +152,17 @@ export class LibraryView extends Component {
                 ${artists.map(artist => `
                     <div class="bg-white dark:bg-card-dark p-4 rounded-xl cursor-pointer hover:scale-105 transition shadow-sm border border-gray-100 dark:border-white/5 text-center"
                          data-artist-id="${artist.artistId}">
-                        <img src="${artist.image || 'https://via.placeholder.com/200'}" 
+                        <img src="${artist.image || '/js/placeholder.svg'}"
                              class="w-full aspect-square rounded-full object-cover mb-3">
                         <div class="font-bold truncate">${artist.artistName}</div>
                     </div>
                 `).join('')}
             </div>
         `;
+        content.querySelectorAll('[data-artist-id]').forEach(node => {
+            const artist = artists.find(a => a.artistId === node.dataset.artistId);
+            node.addEventListener('click', () => this.router.navigate(`search?q=${encodeURIComponent(artist.artistName)}&type=artist`));
+        });
     }
 
     renderPlaylists() {
@@ -182,13 +186,16 @@ export class LibraryView extends Component {
                 ${playlists.map(playlist => `
                     <div class="bg-white dark:bg-card-dark p-4 rounded-xl cursor-pointer hover:scale-105 transition shadow-sm border border-gray-100 dark:border-white/5"
                          data-playlist-id="${playlist.id}">
-                        <img src="${playlist.coverImage || 'https://via.placeholder.com/200'}" 
+                        <img src="${playlist.coverImage || '/js/placeholder.svg'}"
                              class="w-full aspect-square rounded-lg object-cover mb-3">
                         <div class="font-bold truncate">${playlist.name}</div>
-                        <div class="text-sm text-text-secondary-light dark:text-text-secondary-dark">${playlist.trackCount} şarkı</div>
+                        <div class="text-sm text-text-secondary-light dark:text-text-secondary-dark">${playlist.trackCount ?? playlist.PlaylistTracks?.length ?? 0} şarkı</div>
                     </div>
                 `).join('')}
             </div>
         `;
+        content.querySelectorAll('[data-playlist-id]').forEach(node => {
+            node.addEventListener('click', () => window.openPlaylistDetails(node.dataset.playlistId));
+        });
     }
 }
