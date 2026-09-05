@@ -12,7 +12,7 @@
  */
 import { Component } from '../core/Component.js';
 import { store } from '../state/store.js';
-import { getLikedTracks, getFollowedArtists, getPlaylists } from '../services/library.js';
+import { getLikedTracks, getFollowedArtists, getPlaylists, unlikeTrack } from '../services/library.js';
 import { getTrackRating } from '../services/rating.js';
 import { el, cover, avatar, stars, kicker, replace, emptyState, errorState, loadingState } from '../core/dom.js';
 import { t } from '../services/i18n.js';
@@ -51,7 +51,11 @@ export class LibraryView extends Component {
                     on: { click: () => this.router?.navigate(`library?type=${tab.id}`) }
                 }, [
                     t(tab.key),
-                    el('span', { className: 'ma-pill-count', text: String(counts[tab.id]) })
+                    el('span', {
+                        className: 'ma-pill-count',
+                        attrs: { 'data-count': tab.id },
+                        text: String(counts[tab.id])
+                    })
                 ]))),
 
             el('div', { className: 'ma-rule', style: 'margin-top:20px' }),
@@ -164,11 +168,25 @@ export class LibraryView extends Component {
                     className: 'ma-iconbtn is-on',
                     style: 'width:28px;height:28px',
                     text: '♥',
-                    attrs: { type: 'button', 'aria-label': t('track.unlike') },
-                    on: { click: open }
+                    attrs: { type: 'button', title: t('track.unlike'), 'aria-label': t('track.unlike') },
+                    // It says "remove from archive", so it removes from the
+                    // archive. It used to open the drawer, which left the label
+                    // promising something the control did not do.
+                    on: { click: event => { event.stopPropagation(); void this.unarchive(track); } }
                 })
             ])
         ]);
+    }
+
+    /**
+     * Remove one track from the archive.
+     * @param {{trackId: string}} track
+     */
+    async unarchive(track) {
+        if (await unlikeTrack(track.trackId)) {
+            // The store notifies, which repaints the rows and the tab counts.
+            this.paintCounts();
+        }
     }
 
     renderFollowedArtists() {
@@ -244,18 +262,38 @@ export class LibraryView extends Component {
         replace(content, el('div', { className: 'ma-grid ma-grid-4', style: 'padding-top:24px' }, tiles));
     }
 
+    /**
+     * Refresh the numbers on the tab pills in place. They are read once while
+     * the screen is built, so without this a playlist created from the empty
+     * state showed up as a tile while its pill still said 0.
+     */
+    paintCounts() {
+        const counts = {
+            likes: store.likedTracks.length,
+            follows: store.followedArtists.length,
+            playlists: store.playlists.length
+        };
+        for (const [id, value] of Object.entries(counts)) {
+            const node = this.querySelector(`[data-count="${id}"]`);
+            if (node) node.textContent = String(value);
+        }
+    }
+
     onMount() {
-        this.unsubscribe = store.subscribe(
-            this.viewType === 'follows' ? 'followedArtists' : (this.viewType === 'playlists' ? 'playlists' : 'likedTracks'),
-            () => {
-                if (this.viewType === 'follows') this.renderFollowedArtists();
-                else if (this.viewType === 'playlists') this.renderPlaylists();
-                else this.renderLikedTracks();
-            }
+        // Every collection feeds the tab counts, so all three are watched; only
+        // the visible one also repaints its body.
+        this.unsubscribers = ['likedTracks', 'followedArtists', 'playlists'].map(key =>
+            store.subscribe(key, () => {
+                if (!this.isMounted) return;
+                this.paintCounts();
+                if (key === 'followedArtists' && this.viewType === 'follows') this.renderFollowedArtists();
+                else if (key === 'playlists' && this.viewType === 'playlists') this.renderPlaylists();
+                else if (key === 'likedTracks' && this.viewType === 'likes') this.renderLikedTracks();
+            })
         );
     }
 
     onUnmount() {
-        this.unsubscribe?.();
+        this.unsubscribers?.forEach(off => off());
     }
 }

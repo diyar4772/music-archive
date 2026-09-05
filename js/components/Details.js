@@ -450,8 +450,10 @@ export function setCoverTab(tab) {
     const upload = tab !== 'url';
     byId('coverUploadSection').classList.toggle('hidden', !upload);
     byId('coverUrlSection').classList.toggle('hidden', upload);
-    byId('coverTabUpload').className = `flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${upload ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-text-secondary-light dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`;
-    byId('coverTabUrl').className = `flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${upload ? 'bg-gray-100 dark:bg-gray-700 text-text-secondary-light dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600' : 'bg-blue-500 text-white'}`;
+    // Only the active flag changes; the sizing lives in the markup's inline
+    // style, so replacing the class list here cannot disturb the layout.
+    byId('coverTabUpload').className = `ma-pill${upload ? ' is-active' : ''}`;
+    byId('coverTabUrl').className = `ma-pill${upload ? '' : ' is-active'}`;
     if (!upload) coverData = null;
 }
 

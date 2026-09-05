@@ -54,7 +54,7 @@ export function closeModal(modalId, contentId) {
  * @param {Object} options - Confirmation options
  */
 export function showConfirmModal(options) {
-    const { title, message, icon, iconBg, confirmText, onConfirm } = options;
+    const { title, message, icon, confirmText, onConfirm } = options;
 
     const titleEl = document.getElementById('confirmTitle');
     const messageEl = document.getElementById('confirmMessage');
@@ -65,15 +65,20 @@ export function showConfirmModal(options) {
     if (messageEl) messageEl.textContent = message || 'Bu işlemi geri alamazsınız.';
 
     if (iconEl) {
+        // Swap the glyph, keep the mark. This used to overwrite the element's
+        // class with Tailwind utilities, which put a blue-red gradient circle
+        // in the middle of a dialog built from the design tokens.
         const glyph = document.createElement('i');
-        glyph.className = `${icon || 'fa-solid fa-trash'} text-2xl text-white`;
+        glyph.className = icon || 'fa-solid fa-trash';
         iconEl.replaceChildren(glyph);
-        iconEl.className = `w-16 h-16 ${iconBg || 'bg-gradient-to-br from-red-500 to-rose-600'} rounded-full flex items-center justify-center mx-auto mb-4`;
+        iconEl.className = 'ma-notice-mark';
+        iconEl.style.margin = '0 auto';
     }
 
     if (confirmBtn) {
         const check = document.createElement('i');
-        check.className = 'fa-solid fa-check mr-2';
+        // .ma-btn lays its children out with gap, so no margin utility here.
+        check.className = 'fa-solid fa-check';
         confirmBtn.replaceChildren(check, document.createTextNode(confirmText || 'Evet, sil'));
         confirmBtn.onclick = () => {
             if (onConfirm) onConfirm();

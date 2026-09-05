@@ -199,6 +199,7 @@ export class DigView extends Component {
         // swipe rather than a flicker.
         this.querySelector('#digCard')?.classList.add(action === 'archive' ? 'is-keeping' : 'is-skipping');
 
+        let recorded = true;
         try {
             await post('/dig/swipe', {
                 trackId: track.id,
@@ -216,9 +217,18 @@ export class DigView extends Component {
                 void getLikedTracks();
             }
         } catch (error) {
+            recorded = false;
             showToast(error.message || t('common.error'), 'error');
         } finally {
             this.swiping = false;
+        }
+
+        // Only a recorded decision advances the queue. Dropping the card on a
+        // failed request lost the track silently — the user pressed Archive,
+        // saw an error, and the song was gone from the queue anyway.
+        if (!recorded) {
+            this.querySelector('#digCard')?.classList.remove('is-keeping', 'is-skipping');
+            return;
         }
 
         this.queue = this.queue.slice(1);

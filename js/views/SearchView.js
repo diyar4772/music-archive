@@ -11,7 +11,10 @@
 import { Component } from '../core/Component.js';
 import { store } from '../state/store.js';
 import { performSearch } from '../services/search.js';
-import { followArtist, unfollowArtist, isArtistFollowed, isAlbumFollowed, likeTrack } from '../services/library.js';
+import {
+    followArtist, unfollowArtist, isArtistFollowed, isAlbumFollowed,
+    likeTrack, unlikeTrack, isTrackLiked
+} from '../services/library.js';
 import { getTrackRating } from '../services/rating.js';
 import { el, cover, avatar, stars, kicker, replace, emptyState, errorState, loadingState } from '../core/dom.js';
 import { SearchBar } from '../components/SearchBar.js';
@@ -294,10 +297,16 @@ export class SearchView extends Component {
             el('div', { className: 'ma-col-stars' }, [stars(getTrackRating(track.id))]),
             el('div', { className: 'ma-col-actions' }, [
                 el('button', {
-                    className: 'ma-iconbtn',
+                    // Reflect what is already in the archive: searching for a
+                    // track you saved last week used to show an empty heart.
+                    className: `ma-iconbtn${isTrackLiked(track.id) ? ' is-on' : ''}`,
                     text: '♥',
-                    attrs: { type: 'button', title: t('search.archive'), 'aria-label': t('search.archive') },
-                    on: { click: event => void this.archive(track, event.currentTarget) }
+                    attrs: {
+                        type: 'button',
+                        title: isTrackLiked(track.id) ? t('track.unlike') : t('search.archive'),
+                        'aria-label': isTrackLiked(track.id) ? t('track.unlike') : t('search.archive')
+                    },
+                    on: { click: event => void this.toggleArchive(track, event.currentTarget) }
                 }),
                 el('button', {
                     className: 'ma-iconbtn',
@@ -310,13 +319,22 @@ export class SearchView extends Component {
     }
 
     /**
+     * Add the track to the archive, or take it back out.
      * @param {Object} track
      * @param {HTMLElement} button
      */
-    async archive(track, button) {
+    async toggleArchive(track, button) {
         if (!store.token) return window.openAuthModal?.();
-        const ok = await likeTrack(track);
-        if (ok) button.classList.add('is-on');
+
+        const wasLiked = isTrackLiked(track.id);
+        const ok = wasLiked ? await unlikeTrack(track.id) : await likeTrack(track);
+        if (!ok) return;
+
+        const liked = isTrackLiked(track.id);
+        const label = liked ? t('track.unlike') : t('search.archive');
+        button.classList.toggle('is-on', liked);
+        button.title = label;
+        button.setAttribute('aria-label', label);
     }
 
     displayAlbums() {
