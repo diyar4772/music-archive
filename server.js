@@ -33,10 +33,15 @@ const JWT_SECRET = requireSecret('JWT_SECRET');
 const ADMIN_USERNAME = requireSecret('ADMIN_USERNAME');
 const ADMIN_PASSWORD = requireSecret('ADMIN_PASSWORD');
 
-// 🔒 SECURITY: Development conveniences are fail-closed — NODE_ENV is not set on
-// most hosts, so anything unset must behave as production.
-const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+// 🔒 SECURITY: Development conveniences are fail-closed — NODE_ENV is unset on
+// most hosts, so anything not explicitly development or test behaves as
+// production. Checking `=== 'production'` instead meant an unset NODE_ENV
+// disabled every production guard: a missing or unreachable MONGO_URI fell
+// back to the volatile in-memory database instead of refusing to start.
+const NODE_ENV = (process.env.NODE_ENV || '').trim().toLowerCase();
+const IS_DEVELOPMENT = NODE_ENV === 'development';
+const IS_TEST = NODE_ENV === 'test';
+const IS_PRODUCTION = !IS_DEVELOPMENT && !IS_TEST;
 const spotifyConfigured = () => Boolean(process.env.SPOTIFY_CLIENT_ID?.trim() && process.env.SPOTIFY_CLIENT_SECRET?.trim());
 if (!spotifyConfigured()) console.warn('⚠️ SPOTIFY_CLIENT_ID/SECRET missing — search and album endpoints return 503.');
 
@@ -49,9 +54,41 @@ if (MOCK_AUTH_ENABLED) {
 // 🔒 SECURITY: Trust proxy for Render.com (required for rate limiting behind proxy)
 app.set('trust proxy', 1);
 
-// 🔒 SECURITY: Helmet for secure HTTP headers
+// 🔒 SECURITY: Helmet for secure HTTP headers.
+//
+// CSP is on. It used to be disabled because the page carried inline event
+// attributes and an inline application script, which would have required
+// script-src 'unsafe-inline' — a policy that stops almost nothing. Those are
+// gone: every handler is attached with addEventListener, so script-src needs
+// only 'self' plus the Tailwind CDN.
+//
+// style-src still needs 'unsafe-inline' because the Tailwind CDN generates
+// utility classes at runtime and injects them as a <style> element; that is a
+// property of the CDN build, not of this application, and is the reason the
+// README recommends compiling Tailwind ahead of time for production.
 app.use(helmet({
-    contentSecurityPolicy: false, // Disable for CDN scripts
+    contentSecurityPolicy: {
+        useDefaults: false,
+        directives: {
+            'default-src': ["'self'"],
+            'base-uri': ["'self'"],
+            'form-action': ["'self'"],
+            'frame-ancestors': ["'none'"],
+            'object-src': ["'none'"],
+            'script-src': ["'self'", 'https://cdn.tailwindcss.com'],
+            'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
+            'font-src': ["'self'", 'https://fonts.gstatic.com', 'https://cdnjs.cloudflare.com'],
+            // Artwork comes from Spotify's CDN hosts, and playlist covers may be
+            // a data: URL the user just uploaded.
+            'img-src': ["'self'", 'data:', 'https:'],
+            // 30-second previews are served from Spotify and iTunes hosts.
+            'media-src': ["'self'", 'https:'],
+            'connect-src': ["'self'"],
+            'worker-src': ["'self'", 'blob:'],
+            'manifest-src': ["'self'"],
+            ...(IS_PRODUCTION ? { 'upgrade-insecure-requests': [] } : {})
+        }
+    },
     crossOriginEmbedderPolicy: false
 }));
 
@@ -153,7 +190,7 @@ const inMemoryDB = {
 };
 
 const generateId = () => {
-    return `local_${  (inMemoryDB.nextId++).toString()  }_${  Date.now()}`;
+    return `local_${inMemoryDB.nextId++}_${Date.now()}`;
 };
 
 // --- MongoDB Connection ---
@@ -1927,7 +1964,7 @@ app.post('/api/dig/swipe', authenticateToken, userLimiter, async (req, res) => {
             success: true,
             action,
             trackId,
-            message: action === 'archive' ? 'Added to your archive!' : `Swiped ${  action}`
+            message: action === 'archive' ? 'Added to your archive!' : `Swiped ${action}`
         });
     } catch (e) {
         console.error('Dig swipe error:', e.message);

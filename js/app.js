@@ -174,7 +174,7 @@ async function fetchUserData() {
 
     } catch (error) {
         console.error('Failed to fetch user data:', error);
-        showToast(`❌ ${  t('library.dataFailed')}`, 'error');
+        showToast(`❌ ${t('library.dataFailed')}`, 'error');
     }
 }
 

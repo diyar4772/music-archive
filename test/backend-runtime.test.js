@@ -181,7 +181,7 @@ test('frontend services only call endpoints the server exposes', async () => {
         for (const call of calls) {
             const full = `/api${call}`;
             const matched = [...declaredRoutes].some(route => {
-                const pattern = new RegExp(`^${  route.replace(/:[^/]+/g, '[^/]+')  }$`);
+                const pattern = new RegExp(`^${route.replace(/:[^/]+/g, '[^/]+')  }$`);
                 return pattern.test(full);
             });
             assert.ok(matched, `${file} calls ${full}, which server.js does not declare`);
@@ -734,5 +734,71 @@ test('production database connection failure is fatal instead of falling back', 
 
     assert.equal(result.status, 24);
     assert.match(result.stderr, /MongoDB Connection Error/);
+    assert.doesNotMatch(result.stdout, /In-Memory Database/);
+});
+
+test('CSP is enforced and needs no unsafe-inline for scripts', async () => {
+    const page = await request('/');
+    const csp = page.response.headers.get('content-security-policy');
+    assert.ok(csp, 'no Content-Security-Policy header');
+
+    const directives = Object.fromEntries(
+        csp.split(';').map(part => part.trim()).filter(Boolean).map(part => {
+            const [name, ...values] = part.split(/\s+/);
+            return [name, values];
+        })
+    );
+
+    // The whole point of removing the inline handlers: script-src must not need
+    // 'unsafe-inline', which would make the policy decorative.
+    assert.ok(!directives['script-src'].includes("'unsafe-inline'"));
+    assert.ok(!directives['script-src'].includes("'unsafe-eval'"));
+    assert.deepEqual(directives['default-src'], ["'self'"]);
+    assert.deepEqual(directives['object-src'], ["'none'"]);
+    assert.deepEqual(directives['frame-ancestors'], ["'none'"]);
+    assert.deepEqual(directives['base-uri'], ["'self'"]);
+    assert.deepEqual(directives['form-action'], ["'self'"]);
+    assert.deepEqual(directives['connect-src'], ["'self'"]);
+});
+
+test('no shipped markup carries inline event handlers', async () => {
+    // An inline on* attribute anywhere would force script-src 'unsafe-inline'
+    // back into the policy above, so this guards the CSP as much as the markup.
+    const sources = ['/', '/js/components/Shell.js', '/js/components/Navbar.js',
+        '/js/views/DashboardView.js', '/js/views/SearchView.js', '/js/components/Dashboard.js'];
+
+    for (const source of sources) {
+        const { body } = await request(source);
+        assert.doesNotMatch(
+            body,
+            /\son(?:click|change|input|submit|load|error|keypress|keydown|mouseover)\s*=\s*["']/i,
+            `${source} still contains an inline event attribute`
+        );
+    }
+});
+
+test('NODE_ENV that is neither development nor test is treated as production', async () => {
+    // NODE_ENV is unset on most hosts. Before this, an unset value disabled the
+    // production guards and a missing MONGO_URI silently fell back to the
+    // volatile in-memory database.
+    const script = "require('./server').connectDatabase().then(() => process.exit(0)).catch(() => process.exit(24))";
+    const env = {
+        ...process.env,
+        SKIP_DOTENV_CONFIG: 'true',
+        JWT_SECRET: 'test-only-jwt-secret',
+        ADMIN_USERNAME: 'test-admin',
+        ADMIN_PASSWORD: 'test-only-admin-password'
+    };
+    delete env.MONGO_URI;
+    delete env.NODE_ENV;
+
+    const result = spawnSync(process.execPath, ['-e', script], {
+        cwd: require('node:path').resolve(__dirname, '..'),
+        encoding: 'utf8',
+        timeout: 10000,
+        env
+    });
+
+    assert.equal(result.status, 24, 'unset NODE_ENV must fail fast without MONGO_URI');
     assert.doesNotMatch(result.stdout, /In-Memory Database/);
 });

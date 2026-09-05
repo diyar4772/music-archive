@@ -37,7 +37,7 @@ export async function rateTrack(itemId, rating, meta = {}) {
     const itemType = meta.itemType || 'track';
 
     if (typeof rating !== 'number' || !Number.isInteger(rating * 2) || rating < 0.5 || rating > 5) {
-        showToast(`❌ ${  t('track.ratingRange')}`, 'error');
+        showToast(`❌ ${t('track.ratingRange')}`, 'error');
         return false;
     }
 
@@ -60,10 +60,10 @@ export async function rateTrack(itemId, rating, meta = {}) {
         }
         store.setRatings(next);
 
-        showToast(`⭐ ${  t('track.ratingGiven', { n: rating })}`, 'success');
+        showToast(`⭐ ${t('track.ratingGiven', { n: rating })}`, 'success');
         return true;
     } catch (error) {
-        showToast(`❌ ${  error.message || t('common.error')}`, 'error');
+        showToast(`❌ ${error.message || t('common.error')}`, 'error');
         return false;
     }
 }
@@ -80,10 +80,10 @@ export async function removeRating(itemId, itemType = 'track') {
         store.setRatings(store.userRatings.filter(
             r => !(r.itemId === itemId && r.itemType === itemType)
         ));
-        showToast(`🗑️ ${  t('track.ratingRemoved')}`);
+        showToast(`🗑️ ${t('track.ratingRemoved')}`);
         return true;
     } catch (error) {
-        showToast(`❌ ${  error.message || t('common.error')}`, 'error');
+        showToast(`❌ ${error.message || t('common.error')}`, 'error');
         return false;
     }
 }

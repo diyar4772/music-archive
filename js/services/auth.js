@@ -29,7 +29,7 @@ function persistSession(data) {
 export async function login(username, password) {
     try {
         persistSession(await post('/login', { username, password }));
-        showToast(`✅ ${  t('auth.loginSuccess')}`, 'success');
+        showToast(`✅ ${t('auth.loginSuccess')}`, 'success');
         return { ok: true };
     } catch (error) {
         return { ok: false, error: error.message };
@@ -45,7 +45,7 @@ export async function login(username, password) {
 export async function register(username, password) {
     try {
         persistSession(await post('/register', { username, password }));
-        showToast(`✅ ${  t('auth.registerSuccess')}`, 'success');
+        showToast(`✅ ${t('auth.registerSuccess')}`, 'success');
         return { ok: true };
     } catch (error) {
         return { ok: false, error: error.message };
@@ -76,7 +76,7 @@ export async function logout() {
     store.setPlaylists([]);
     store.setRatings([]);
 
-    showToast(`👋 ${  t('auth.loggedOut')}`);
+    showToast(`👋 ${t('auth.loggedOut')}`);
 }
 
 /**

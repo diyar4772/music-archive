@@ -25,7 +25,7 @@ let currentPlaylist = null;
 let coverData = null;
 
 const byId = id => document.getElementById(id);
-const reportError = error => showToast(`❌ ${  error.message || t('common.error')}`, 'error');
+const reportError = error => showToast(`❌ ${error.message || t('common.error')}`, 'error');
 
 const PRIMARY_BUTTON = 'px-4 py-2 rounded-full bg-green-500 hover:bg-green-600 text-white text-sm font-semibold transition-colors';
 const GHOST_BUTTON = 'px-4 py-2 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-sm font-semibold transition-colors';
@@ -144,7 +144,7 @@ function trackRow(track, onRemove) {
         play.disabled = false;
         play.innerHTML = '<i class="fa-solid fa-play"></i>';
         if (!previewUrl) {
-            showToast(`❌ ${  t('track.noPreview')}`, 'error');
+            showToast(`❌ ${t('track.noPreview')}`, 'error');
             return;
         }
         track.preview_url = previewUrl;
@@ -285,7 +285,7 @@ export async function playTrackFromDetail() {
     try {
         const previewUrl = await resolvePreview(currentTrack);
         if (!previewUrl) {
-            showToast(`❌ ${  t('track.noPreview')}`, 'error');
+            showToast(`❌ ${t('track.noPreview')}`, 'error');
             return;
         }
         currentTrack.preview_url = previewUrl;
@@ -315,7 +315,7 @@ export async function saveTrackNote() {
         const stored = store.likedTracks.find(t => t.trackId === currentTrack.id);
         if (stored) stored.userNote = field.value;
         byId('trackNoteSaveBtn').classList.add('hidden');
-        showToast(`📝 ${  t('track.noteSaved')}`, 'success');
+        showToast(`📝 ${t('track.noteSaved')}`, 'success');
     } catch (error) {
         reportError(error);
     }
@@ -457,7 +457,7 @@ export function handleCoverFileSelect(event) {
     const file = event.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/') || file.size > 2 * 1024 * 1024) {
-        showToast(`❌ ${  t('cover.tooLarge')}`, 'error');
+        showToast(`❌ ${t('cover.tooLarge')}`, 'error');
         event.target.value = '';
         return;
     }

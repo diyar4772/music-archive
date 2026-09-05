@@ -207,7 +207,7 @@ export class Navbar extends Component {
             this.updateAuthUI(false, null);
         } catch (error) {
             console.error('Logout error:', error);
-            showToast(`❌ ${  t('common.error')}`, 'error');
+            showToast(`❌ ${t('common.error')}`, 'error');
         }
     }
 
