@@ -104,7 +104,7 @@ async function initApp() {
     if (searchBarContainer) {
         console.log('[App] Initializing SearchBar...');
         searchBar = new SearchBar(searchBarContainer, {
-            router: router,
+            router,
             onSearch: (query) => {
                 if (router) {
                     router.navigate(`search?q=${encodeURIComponent(query)}&type=${store.searchType}`);
@@ -174,7 +174,7 @@ async function fetchUserData() {
 
     } catch (error) {
         console.error('Failed to fetch user data:', error);
-        showToast('❌ ' + t('library.dataFailed'), 'error');
+        showToast(`❌ ${  t('library.dataFailed')}`, 'error');
     }
 }
 

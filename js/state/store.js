@@ -6,16 +6,13 @@
 import { STORAGE_KEYS, SEARCH_HISTORY_LIMIT } from '../config.js';
 
 // Import models for type conversion (lazy loaded to avoid circular deps)
-let Track, Artist, Album, Playlist, SpotifyAdapter;
+let Track, SpotifyAdapter;
 
 // Lazy load models to prevent circular dependencies
 async function loadModels() {
     if (!Track) {
         const models = await import('../models/index.js');
         Track = models.Track;
-        Artist = models.Artist;
-        Album = models.Album;
-        Playlist = models.Playlist;
 
         const adapters = await import('../adapters/index.js');
         SpotifyAdapter = adapters.SpotifyAdapter;

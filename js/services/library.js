@@ -9,6 +9,7 @@ import { get, post, del } from './api.js';
 import { fetchMe } from './me.js';
 import { store } from '../state/store.js';
 import { showToast } from '../utils.js';
+import { t } from './i18n.js';
 
 // ============ LIKES ============
 
@@ -76,7 +77,7 @@ export async function likeTrack(track) {
         if (status === 'liked') showToast('❤️ Arşivine eklendi');
         return status === 'liked';
     } catch (error) {
-        showToast('❌ ' + (error.message || t('common.error')), 'error');
+        showToast(`❌ ${  error.message || t('common.error')}`, 'error');
         return false;
     }
 }
@@ -95,7 +96,7 @@ export async function unlikeTrack(trackId) {
         if (status === 'unliked') showToast('💔 Arşivinden çıkarıldı');
         return status === 'unliked';
     } catch (error) {
-        showToast('❌ ' + (error.message || t('common.error')), 'error');
+        showToast(`❌ ${  error.message || t('common.error')}`, 'error');
         return false;
     }
 }
@@ -164,7 +165,7 @@ export async function followArtist(artist) {
         if (status === 'followed') showToast('✅ Sanatçı takip ediliyor');
         return status === 'followed';
     } catch (error) {
-        showToast('❌ ' + (error.message || t('common.error')), 'error');
+        showToast(`❌ ${  error.message || t('common.error')}`, 'error');
         return false;
     }
 }
@@ -183,7 +184,7 @@ export async function unfollowArtist(artistId) {
         if (status === 'unfollowed') showToast('👋 Takip bırakıldı');
         return status === 'unfollowed';
     } catch (error) {
-        showToast('❌ ' + (error.message || t('common.error')), 'error');
+        showToast(`❌ ${  error.message || t('common.error')}`, 'error');
         return false;
     }
 }
@@ -241,7 +242,7 @@ export async function toggleAlbumFollow(album) {
         showToast('🗑️ Albüm arşivinden çıkarıldı');
         return false;
     } catch (error) {
-        showToast('❌ ' + (error.message || t('common.error')), 'error');
+        showToast(`❌ ${  error.message || t('common.error')}`, 'error');
         return isAlbumFollowed(albumId);
     }
 }
@@ -287,7 +288,7 @@ export async function createPlaylist(name) {
         showToast('✅ Liste oluşturuldu');
         return data;
     } catch (error) {
-        showToast('❌ ' + (error.message || t('common.error')), 'error');
+        showToast(`❌ ${  error.message || t('common.error')}`, 'error');
         return null;
     }
 }
@@ -306,7 +307,7 @@ export async function deletePlaylist(playlistId) {
         showToast('🗑️ Liste silindi');
         return true;
     } catch (error) {
-        showToast('❌ ' + (error.message || t('common.error')), 'error');
+        showToast(`❌ ${  error.message || t('common.error')}`, 'error');
         return false;
     }
 }
@@ -329,7 +330,7 @@ export async function addToPlaylist(playlistId, track) {
         showToast('✅ Listeye eklendi');
         return true;
     } catch (error) {
-        showToast('❌ ' + (error.message || t('common.error')), 'error');
+        showToast(`❌ ${  error.message || t('common.error')}`, 'error');
         return false;
     }
 }
@@ -346,7 +347,7 @@ export async function removeFromPlaylist(playlistId, trackId) {
         showToast('🗑️ Şarkı listeden kaldırıldı');
         return true;
     } catch (error) {
-        showToast('❌ ' + (error.message || t('common.error')), 'error');
+        showToast(`❌ ${  error.message || t('common.error')}`, 'error');
         return false;
     }
 }

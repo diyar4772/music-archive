@@ -30,7 +30,7 @@ export async function performSearch(overrideQuery, searchType = store.searchType
         return await get(`/search?artist=${encodeURIComponent(query)}&type=${apiType}`);
     } catch (error) {
         
-        showToast('❌ ' + (error.message || t('search.failed')), 'error');
+        showToast(`❌ ${  error.message || t('search.failed')}`, 'error');
         throw error;
     }
 }

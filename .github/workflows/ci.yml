@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      # The suite sets SKIP_DOTENV_CONFIG and supplies its own throwaway
+      # secrets, stubs axios, and runs against the in-memory database, so it
+      # needs no repository secrets and reaches no external service.
+      - run: npm test
+
+  line-endings:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # .gitattributes normalises text files to LF; this fails if a CRLF file
+      # is committed anyway. mobile/ is excluded because it was deliberately
+      # left out of the normalisation pass and still ships CRLF throughout.
+      - name: Reject CRLF in tracked text files
+        run: |
+          if git grep -Il $'\r' -- . ':!mobile' ':!*.png' ':!*.jpg' ':!*.svg'; then
+            echo "::error::CRLF line endings found in the files listed above"
+            exit 1
+          fi

@@ -189,7 +189,7 @@ export class Album {
         return new Album({
             id: options.preserveId ? `spotify:${spotifyAlbum.id}` : undefined,
             name: spotifyAlbum.name,
-            artists: artists,
+            artists,
             artistIds: artistIds.map(id => `spotify:${id}`),
             type: spotifyAlbum.album_type || AlbumType.ALBUM,
             releaseDate: spotifyAlbum.release_date || null,

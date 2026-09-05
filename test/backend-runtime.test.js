@@ -181,7 +181,7 @@ test('frontend services only call endpoints the server exposes', async () => {
         for (const call of calls) {
             const full = `/api${call}`;
             const matched = [...declaredRoutes].some(route => {
-                const pattern = new RegExp('^' + route.replace(/:[^/]+/g, '[^/]+') + '$');
+                const pattern = new RegExp(`^${  route.replace(/:[^/]+/g, '[^/]+')  }$`);
                 return pattern.test(full);
             });
             assert.ok(matched, `${file} calls ${full}, which server.js does not declare`);

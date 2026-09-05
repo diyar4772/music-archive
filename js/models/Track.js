@@ -288,7 +288,7 @@ export class Track {
         return new Track({
             id: options.preserveId ? `spotify:${spotifyTrack.id}` : undefined,
             title: spotifyTrack.name,
-            artists: artists,
+            artists,
             album: album?.name || null,
             albumId: album?.id ? `spotify:${album.id}` : null,
             duration: spotifyTrack.duration_ms || 0,

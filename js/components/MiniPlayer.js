@@ -1,5 +1,4 @@
 // Mini Player Component
-import { store } from '../state/store.js';
 import { formatTime, showToast } from '../utils.js';
 
 let currentAudio = null;

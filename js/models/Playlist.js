@@ -206,7 +206,7 @@ export class Playlist {
             externalIds: {
                 spotify: spotifyPlaylist.id
             },
-            tracks: tracks,
+            tracks,
             owner: spotifyPlaylist.owner?.display_name || null,
             ownerId: spotifyPlaylist.owner?.id || null,
             metadata: {
@@ -237,7 +237,7 @@ export class Playlist {
             coverImage: legacyPlaylist.coverImage || null,
             source: TrackSource.MANUAL,
             isUserCreated: true,
-            tracks: tracks,
+            tracks,
             createdAt: legacyPlaylist.createdAt,
             updatedAt: legacyPlaylist.updatedAt
         });

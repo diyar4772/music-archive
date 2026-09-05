@@ -153,7 +153,7 @@ const inMemoryDB = {
 };
 
 const generateId = () => {
-    return 'local_' + (inMemoryDB.nextId++).toString() + '_' + Date.now();
+    return `local_${  (inMemoryDB.nextId++).toString()  }_${  Date.now()}`;
 };
 
 // --- MongoDB Connection ---
@@ -580,7 +580,7 @@ const rankSearchResults = (results, query, nameField = 'name') => {
             score = 10000;
         }
         // Name starts with query as complete word (e.g. "ye west" for "ye")
-        else if (name.startsWith(queryLower + ' ')) {
+        else if (name.startsWith(`${queryLower  } `)) {
             score = 5000;
         }
         // Name starts with query (e.g. "yeat" for "ye")
@@ -891,7 +891,7 @@ app.get('/api/search', userLimiter, async (req, res) => {
 
         // Album search results - with smart ranking
         if (type === 'album') {
-            let albums = searchResp.data.albums.items.map(a => ({
+            const albums = searchResp.data.albums.items.map(a => ({
                 id: a.id,
                 name: a.name,
                 artist: a.artists[0]?.name || 'Unknown',
@@ -1530,7 +1530,7 @@ app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
         }
 
         // MongoDB: Build query with optional search
-        let query = {};
+        const query = {};
         if (search && search.trim()) {
             query.username = { $regex: escapeRegex(search.trim()), $options: 'i' };
         }
@@ -1749,7 +1749,7 @@ app.delete('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
 
 // Redirect /admin to the actual file
 app.get(['/admin', '/admin.html'], (req, res) => {
-    res.sendFile(__dirname + '/panel-4772.html');
+    res.sendFile(`${__dirname  }/panel-4772.html`);
 });
 
 // ===================================================
@@ -1874,7 +1874,7 @@ app.get('/api/dig/queue', authenticateToken, userLimiter, async (req, res) => {
 // Dig Mode: Handle swipe action
 app.post('/api/dig/swipe', authenticateToken, userLimiter, async (req, res) => {
     try {
-        const { trackId, trackName, artistId, artistName, albumId, image, action, mood } = req.body;
+        const { trackId, trackName, artistId, artistName, image, action, mood } = req.body;
         const userId = req.user.id;
 
         if (!trackId || !action) {
@@ -1927,7 +1927,7 @@ app.post('/api/dig/swipe', authenticateToken, userLimiter, async (req, res) => {
             success: true,
             action,
             trackId,
-            message: action === 'archive' ? 'Added to your archive!' : 'Swiped ' + action
+            message: action === 'archive' ? 'Added to your archive!' : `Swiped ${  action}`
         });
     } catch (e) {
         console.error('Dig swipe error:', e.message);
@@ -2020,7 +2020,7 @@ app.get('/api/library/tracks', authenticateToken, async (req, res) => {
         }
 
         // MongoDB query
-        let query = { userId };
+        const query = { userId };
 
         // Search filter (regex)
         if (search) {
@@ -2092,7 +2092,7 @@ app.get('/api/library/artists', authenticateToken, async (req, res) => {
             return res.json({ artists, total });
         }
 
-        let query = { userId };
+        const query = { userId };
         if (search) {
             query.artistName = new RegExp(escapeRegex(search), 'i');
         }
@@ -2356,7 +2356,7 @@ app.post('/api/library/enrich-previews', authenticateToken, userLimiter, async (
                     total: userLikes.length,
                     enriched: enrichedCount,
                     failed: failedCount,
-                    alreadyHadPreview: alreadyHadPreview
+                    alreadyHadPreview
                 }
             });
         }
@@ -2416,7 +2416,7 @@ app.post('/api/library/enrich-previews', authenticateToken, userLimiter, async (
                 total: totalLikes,
                 enriched: enrichedCount,
                 failed: failedCount,
-                alreadyHadPreview: alreadyHadPreview
+                alreadyHadPreview
             }
         });
     } catch (e) {
@@ -2469,7 +2469,7 @@ app.get('/api/library/stats', authenticateToken, async (req, res) => {
                 totalFollowedArtists: followCount,
                 totalSavedAlbums: albumCount,
                 uniqueArtistsInLibrary: uniqueArtists.length,
-                tracksWithNotes: tracksWithNotes,
+                tracksWithNotes,
                 digModeTracks: digTracks,
                 manualTracks: trackCount - digTracks
             }
@@ -2512,7 +2512,7 @@ app.use('/api', (req, res) => {
 });
 
 // Convert expected request failures to stable JSON without exposing stack traces.
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
     if (err?.code === 'CORS_NOT_ALLOWED') {
         return res.status(403).json({ error: 'Origin not allowed' });
     }

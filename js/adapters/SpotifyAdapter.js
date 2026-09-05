@@ -60,7 +60,7 @@ export class SpotifyAdapter {
 
             // Core data
             title: spotifyTrack.name,
-            artists: artists,
+            artists,
             album: album?.name || null,
             albumId: album?.id ? `spotify:${album.id}` : null,
             duration: spotifyTrack.duration_ms || 0,
@@ -212,8 +212,8 @@ export class SpotifyAdapter {
         return new Album({
             id: options.preserveSpotifyId ? `spotify:${spotifyAlbum.id}` : undefined,
             name: spotifyAlbum.name,
-            artists: artists,
-            artistIds: artistIds,
+            artists,
+            artistIds,
             type: albumType,
             releaseDate: spotifyAlbum.release_date || null,
             totalTracks: spotifyAlbum.total_tracks || spotifyAlbum.tracks?.total || 0,
@@ -224,7 +224,7 @@ export class SpotifyAdapter {
                 spotify: spotifyAlbum.id,
                 upc: spotifyAlbum.external_ids?.upc || null
             },
-            tracks: tracks,
+            tracks,
             tracksLoaded: tracks.length > 0,
             metadata: {
                 label: spotifyAlbum.label || null,
@@ -292,7 +292,7 @@ export class SpotifyAdapter {
             externalIds: {
                 spotify: spotifyPlaylist.id
             },
-            tracks: tracks,
+            tracks,
             owner: spotifyPlaylist.owner?.display_name || null,
             ownerId: spotifyPlaylist.owner?.id || null,
             metadata: {

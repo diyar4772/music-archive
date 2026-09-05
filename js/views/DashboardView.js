@@ -5,7 +5,7 @@
 import { Component } from '../core/Component.js';
 import { store } from '../state/store.js';
 import { getLikedTracks, getFollowedArtists, getAlbumFollows, getPlaylists } from '../services/library.js';
-import { getRatings, getAverageRating, getTopRatedTracks } from '../services/rating.js';
+import { getRatings, getAverageRating } from '../services/rating.js';
 import { renderRecentlyAdded, renderTopRated } from '../components/Dashboard.js';
 import { exportToCSV, exportStats } from '../components/Export.js';
 import { t } from '../services/i18n.js';

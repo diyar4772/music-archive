@@ -75,6 +75,6 @@ export function getPlaceholderImage(size = 300) {
  */
 export function truncateText(text, maxLength = 50) {
     if (!text || text.length <= maxLength) return text;
-    return text.substring(0, maxLength - 3) + '...';
+    return `${text.substring(0, maxLength - 3)  }...`;
 }
 

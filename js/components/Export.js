@@ -95,7 +95,7 @@ function getDateString() {
  * Download file helper
  */
 function downloadFile(content, filename, mimeType) {
-    const blob = new Blob([content], { type: mimeType + ';charset=utf-8' });
+    const blob = new Blob([content], { type: `${mimeType  };charset=utf-8` });
     const url = URL.createObjectURL(blob);
 
     const link = document.createElement('a');
