@@ -190,30 +190,23 @@ export function isPlaying(trackId) {
 }
 
 /**
+ * Seek within the current preview from a click on the progress bar.
+ * @param {MouseEvent} event
+ * @param {HTMLElement} bar - the progress track that was clicked
+ */
+export function seekTo(event, bar) {
+    if (!currentAudio || !Number.isFinite(currentAudio.duration)) return;
+    const rect = bar.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    currentAudio.currentTime = ratio * currentAudio.duration;
+}
+
+/**
  * Initialize mini player
  */
 export function initMiniPlayer() {
     hideMiniPlayer();
-    // Play/pause button
-    const playBtn = document.getElementById('miniPlayerPlayBtn');
-    if (playBtn) {
-        playBtn.addEventListener('click', togglePlayPause);
-    }
-
-    // Close button
-    const closeBtn = document.getElementById('miniPlayerCloseBtn');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', stopPlayback);
-    }
-
-    // Expose to global for inline handlers (during transition)
-    window.seekTrack = event => {
-        if (!currentAudio || !Number.isFinite(currentAudio.duration)) return;
-        const rect = event.currentTarget.getBoundingClientRect();
-        currentAudio.currentTime = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)) * currentAudio.duration;
-    };
-    window.playTrack = playTrack;
-    window.toggleMiniPlayer = togglePlayPause;
-    window.closeMiniPlayer = stopPlayback;
+    document.getElementById('miniPlayerPlayBtn')?.addEventListener('click', togglePlayPause);
+    document.getElementById('miniPlayerCloseBtn')?.addEventListener('click', stopPlayback);
 }
 

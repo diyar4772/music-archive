@@ -1,121 +1,79 @@
 /**
- * Toast Notification Component
- * Displays temporary notification messages
+ * Toast notifications.
+ *
+ * There used to be two competing implementations — one writing into a single
+ * `#toast` element, one stacking cards — and `utils.showToast` picked whichever
+ * loaded last. This is the only one now; `utils.showToast` delegates here.
+ *
+ * Messages routinely carry server error text, so they are set with textContent.
  */
-import { Component } from '../core/Component.js';
+import { el } from '../core/dom.js';
 
-export class Toast extends Component {
-    constructor(container, props = {}) {
-        super(container || document.body, props);
-        this.toasts = [];
-        this.defaultDuration = props.duration || 3000;
-    }
+const TONES = {
+    success: 'border-l-4 border-green-500',
+    error: 'border-l-4 border-red-500',
+    warning: 'border-l-4 border-amber-500',
+    info: 'border-l-4 border-blue-500'
+};
 
-    /**
-     * Show a toast message
-     */
-    show(message, type = 'info', duration = this.defaultDuration) {
-        const toast = {
-            id: Date.now(),
-            message,
-            type,
-            duration
-        };
+let container = null;
 
-        this.toasts.push(toast);
-        this.render();
-
-        // Auto-remove after duration
-        setTimeout(() => {
-            this.remove(toast.id);
-        }, duration);
-
-        return toast.id;
-    }
-
-    /**
-     * Remove a toast by ID
-     */
-    remove(toastId) {
-        this.toasts = this.toasts.filter(t => t.id !== toastId);
-        this.render();
-    }
-
-    /**
-     * Clear all toasts
-     */
-    clear() {
-        this.toasts = [];
-        this.render();
-    }
-
-    render() {
-        if (!this.container) {
-            // Create container if it doesn't exist
-            this.container = document.createElement('div');
-            this.container.id = 'toast-container';
-            this.container.className = 'fixed top-4 right-4 z-[9999] flex flex-col gap-2';
-            document.body.appendChild(this.container);
-        }
-
-        this.clear();
-
-        this.toasts.forEach(toast => {
-            const toastElement = this.createElement('div', {
-                className: `toast toast-${toast.type} bg-white dark:bg-card-dark text-text-light dark:text-white px-4 py-3 rounded-lg shadow-lg border border-gray-200 dark:border-white/5 flex items-center gap-3 min-w-[300px] max-w-md animate-fade-in`,
-                'data-toast-id': toast.id
-            }, [
-                this.createElement('span', {}, toast.message),
-                this.createElement('button', {
-                    className: 'ml-auto text-gray-400 hover:text-text-light dark:hover:text-white',
-                    onclick: () => this.remove(toast.id)
-                }, [
-                    this.createElement('i', { className: 'fa-solid fa-times' })
-                ])
-            ]);
-
-            this.appendChild(toastElement);
-        });
-    }
-
-    // Convenience methods
-    success(message, duration) {
-        return this.show(message, 'success', duration);
-    }
-
-    error(message, duration) {
-        return this.show(message, 'error', duration);
-    }
-
-    info(message, duration) {
-        return this.show(message, 'info', duration);
-    }
-
-    warning(message, duration) {
-        return this.show(message, 'warning', duration);
-    }
-}
-
-// Global toast instance
-let globalToast = null;
-
-/**
- * Initialize global toast
- */
-export function initToast(container) {
-    globalToast = new Toast(container);
-    return globalToast;
+function ensureContainer() {
+    if (container?.isConnected) return container;
+    container = el('div', {
+        className: 'fixed top-4 right-4 left-4 sm:left-auto z-[9999] flex flex-col gap-2 pointer-events-none',
+        attrs: { id: 'toastContainer', role: 'status', 'aria-live': 'polite' }
+    });
+    document.body.appendChild(container);
+    return container;
 }
 
 /**
- * Show toast globally
+ * Show a toast.
+ * @param {string} message
+ * @param {'info'|'success'|'error'|'warning'} [type]
+ * @param {number} [duration] - milliseconds on screen
+ * @returns {HTMLElement} the toast node
  */
 export function showToast(message, type = 'info', duration = 3000) {
-    if (!globalToast) {
-        globalToast = initToast();
-    }
-    return globalToast.show(message, type, duration);
+    const host = ensureContainer();
+
+    const card = el('div', {
+        className: `toast pointer-events-auto bg-white dark:bg-card-dark text-text-light dark:text-white px-4 py-3 rounded-lg shadow-lg border border-gray-200 dark:border-white/10 ${TONES[type] || TONES.info} flex items-center gap-3 sm:min-w-[280px] max-w-md transition-all duration-200 opacity-0 translate-y-2`
+    }, [
+        el('span', { className: 'flex-1 text-sm', text: message }),
+        el('button', {
+            className: 'shrink-0 text-gray-400 hover:text-text-light dark:hover:text-white transition-colors',
+            attrs: { type: 'button', 'aria-label': 'Bildirimi kapat' },
+            html: '<i class="fa-solid fa-xmark"></i>'
+        })
+    ]);
+
+    const dismiss = () => {
+        card.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => card.remove(), 200);
+    };
+
+    card.querySelector('button').addEventListener('click', dismiss);
+    host.appendChild(card);
+    requestAnimationFrame(() => card.classList.remove('opacity-0', 'translate-y-2'));
+
+    // Keep the stack short so a burst of failures cannot cover the page.
+    while (host.children.length > 4) host.firstElementChild.remove();
+
+    setTimeout(dismiss, duration);
+    return card;
 }
 
-// Export for global access
-window.showToast = showToast;
+/** Remove every visible toast. */
+export function clearToasts() {
+    container?.replaceChildren();
+}
+
+/**
+ * Kept so app.js can create the container up front; showToast() creates it
+ * lazily anyway.
+ */
+export function initToast() {
+    ensureContainer();
+}

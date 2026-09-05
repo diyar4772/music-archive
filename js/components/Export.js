@@ -107,31 +107,3 @@ function downloadFile(content, filename, mimeType) {
 
     URL.revokeObjectURL(url);
 }
-
-/**
- * Render export button in UI
- */
-export function renderExportButton(containerId = 'exportContainer') {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-
-    container.innerHTML = `
-        <div class="flex gap-2">
-            <button onclick="exportToCSV()" 
-                    class="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg transition">
-                <i class="fa-solid fa-file-csv"></i>
-                CSV İndir
-            </button>
-            <button onclick="exportStats()" 
-                    class="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg transition">
-                <i class="fa-solid fa-file-code"></i>
-                JSON Yedek
-            </button>
-        </div>
-    `;
-}
-
-// Expose to global for inline handlers
-window.exportToCSV = exportToCSV;
-window.exportStats = exportStats;
-

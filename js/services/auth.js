@@ -3,6 +3,7 @@ import { post } from './api.js';
 import { store } from '../state/store.js';
 import { STORAGE_KEYS } from '../config.js';
 import { showToast } from '../utils.js';
+import { t } from './i18n.js';
 
 /**
  * Persist a successful auth response. `store.setToken` writes STORAGE_KEYS.TOKEN,
@@ -28,7 +29,7 @@ function persistSession(data) {
 export async function login(username, password) {
     try {
         persistSession(await post('/login', { username, password }));
-        showToast('✅ Giriş başarılı!');
+        showToast('✅ ' + t('auth.loginSuccess'), 'success');
         return { ok: true };
     } catch (error) {
         return { ok: false, error: error.message };
@@ -44,7 +45,7 @@ export async function login(username, password) {
 export async function register(username, password) {
     try {
         persistSession(await post('/register', { username, password }));
-        showToast('✅ Kayıt başarılı!');
+        showToast('✅ ' + t('auth.registerSuccess'), 'success');
         return { ok: true };
     } catch (error) {
         return { ok: false, error: error.message };
@@ -75,7 +76,7 @@ export async function logout() {
     store.setPlaylists([]);
     store.setRatings([]);
 
-    showToast('👋 Çıkış yapıldı');
+    showToast('👋 ' + t('auth.loggedOut'));
 }
 
 /**

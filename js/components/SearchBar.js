@@ -6,6 +6,7 @@ import { Component } from '../core/Component.js';
 import { store } from '../state/store.js';
 import { setSearchType, performSearch, handleAutocomplete } from '../services/search.js';
 import { debounce } from '../utils.js';
+import { t } from '../services/i18n.js';
 
 export class SearchBar extends Component {
     constructor(container, props = {}) {
@@ -26,14 +27,14 @@ export class SearchBar extends Component {
                         <input type="text"
                                id="searchInput"
                                name="search"
-                               aria-label="Sanatçı, şarkı veya albüm ara"
-                               placeholder="Sanatçı, şarkı veya albüm ara…"
+                               aria-label="${t('search.aria')}"
+                               placeholder="${t('search.placeholder')}"
                                class="w-full pl-12 pr-5 py-3.5 rounded-full bg-white dark:bg-card-dark border border-gray-200 dark:border-white/10 focus:border-green-500 focus:ring-2 focus:ring-green-500/40 text-text-light dark:text-white outline-none shadow-card dark:shadow-card-dark transition"
                                autocomplete="off"
                                data-form-type="other"
                                data-lpignore="true">
                     </div>
-                    <button id="searchButton" type="button" aria-label="Ara"
+                    <button id="searchButton" type="button" aria-label="${t('common.search')}"
                             class="btn-spotify text-white font-bold px-6 py-3.5 rounded-full shrink-0">
                         <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
                     </button>
@@ -41,21 +42,21 @@ export class SearchBar extends Component {
                 <div id="autocompleteList" class="autocomplete-list hidden"></div>
 
                 <!-- Filter Chips -->
-                <div class="flex gap-2 mt-4 justify-center flex-wrap" role="group" aria-label="Arama türü">
+                <div class="flex gap-2 mt-4 justify-center flex-wrap" role="group" aria-label="${t('search.typeGroup')}">
                     <button data-type="artist" type="button"
                             id="type-artist"
                             class="px-4 py-1.5 bg-white dark:bg-card-dark border border-gray-200 dark:border-white/10 rounded-full text-sm font-semibold hover:border-green-500/50 transition ${currentType === 'artist' ? 'text-green-500 border-green-500/60' : ''}">
-                        Sanatçılar
+                        ${t('search.artists')}
                     </button>
                     <button data-type="track" type="button"
                             id="type-track"
                             class="px-4 py-1.5 bg-white dark:bg-card-dark border border-gray-200 dark:border-white/10 rounded-full text-sm font-semibold hover:border-green-500/50 transition ${currentType === 'track' ? 'text-green-500 border-green-500/60' : ''}">
-                        Şarkılar
+                        ${t('search.tracks')}
                     </button>
                     <button data-type="album" type="button"
                             id="type-album"
                             class="px-4 py-1.5 bg-white dark:bg-card-dark border border-gray-200 dark:border-white/10 rounded-full text-sm font-semibold hover:border-green-500/50 transition ${currentType === 'album' ? 'text-green-500 border-green-500/60' : ''}">
-                        Albümler
+                        ${t('search.albums')}
                     </button>
                 </div>
             </div>

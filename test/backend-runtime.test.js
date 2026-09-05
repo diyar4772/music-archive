@@ -156,8 +156,11 @@ test('modular API reads live auth state without a legacy token or global fetch o
     assert.doesNotMatch(index.body, /window\.fetch\s*=/);
 
     const appModule = await request('/js/app.js');
-    assert.match(appModule.body, /window\.confirmCreatePlaylist\s*=/);
+    // Create-playlist is a module function now, not a window global: the modal is
+    // wired by Shell.js through a handler callback.
+    assert.match(appModule.body, /async function confirmCreatePlaylist\(\)/);
     assert.match(appModule.body, /createPlaylistRequest\(name\)/);
+    assert.match(appModule.body, /onConfirmCreatePlaylist: confirmCreatePlaylist/);
 });
 
 test('frontend services only call endpoints the server exposes', async () => {
@@ -218,7 +221,7 @@ test('auth modal is a real form owned by the modular app', async () => {
     assert.match(appModule.body, /getElementById\('authForm'\)\?\.addEventListener\('submit', submitAuth\)/);
     assert.match(appModule.body, /let authMode = 'login'/);
     assert.match(appModule.body, /authSubmitting/);
-    assert.match(appModule.body, /setAuthError\('Kullanıcı adı ve parola gerekli\.'\)/);
+    assert.match(appModule.body, /setAuthError\(t\('auth\.missingFields'\)\)/);
     // Mode must never be inferred from the heading text again.
     assert.doesNotMatch(appModule.body, /authTitle'\)\.(innerText|textContent)\s*===/);
 

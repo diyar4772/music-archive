@@ -1,3 +1,5 @@
+import { showToast as toast } from './components/Toast.js';
+
 // Utility Functions
 
 /**
@@ -43,22 +45,17 @@ export function formatDate(date, lang = 'tr') {
 }
 
 /**
- * Show toast notification
+ * Show a toast notification.
+ *
+ * Re-exported from the Toast component so every caller — services, views and
+ * components alike — feeds the same stack instead of the two implementations
+ * that used to race each other on `window.showToast`.
  * @param {string} msg - Message to display
- * @param {number} duration - Duration in ms
+ * @param {'info'|'success'|'error'|'warning'} [type]
+ * @param {number} [duration] - Duration in ms
  */
-export function showToast(msg, duration = 3000) {
-    const toast = document.getElementById('toast');
-    if (!toast) return;
-
-    toast.innerText = msg;
-    toast.classList.remove('translate-y-20', 'opacity-0');
-    toast.classList.add('translate-y-0', 'opacity-100');
-
-    setTimeout(() => {
-        toast.classList.remove('translate-y-0', 'opacity-100');
-        toast.classList.add('translate-y-20', 'opacity-0');
-    }, duration);
+export function showToast(msg, type = 'info', duration = 3000) {
+    return toast(msg, type, duration);
 }
 
 /**

@@ -61,18 +61,20 @@ export function showConfirmModal(options) {
     const iconEl = document.getElementById('confirmIcon');
     const confirmBtn = document.getElementById('confirmYesBtn');
 
-    if (titleEl) titleEl.innerText = title || 'Emin misiniz?';
-    if (messageEl) messageEl.innerText = message || 'Bu işlemi geri alamazsınız.';
+    if (titleEl) titleEl.textContent = title || 'Emin misiniz?';
+    if (messageEl) messageEl.textContent = message || 'Bu işlemi geri alamazsınız.';
 
-    if (icon && iconEl) {
-        iconEl.innerHTML = `<i class="${icon} text-2xl text-white"></i>`;
-    }
-    if (iconBg && iconEl) {
-        iconEl.className = `w-16 h-16 ${iconBg} rounded-full flex items-center justify-center mx-auto mb-4`;
+    if (iconEl) {
+        const glyph = document.createElement('i');
+        glyph.className = `${icon || 'fa-solid fa-trash'} text-2xl text-white`;
+        iconEl.replaceChildren(glyph);
+        iconEl.className = `w-16 h-16 ${iconBg || 'bg-gradient-to-br from-red-500 to-rose-600'} rounded-full flex items-center justify-center mx-auto mb-4`;
     }
 
     if (confirmBtn) {
-        confirmBtn.innerHTML = `<i class="fa-solid fa-check mr-2"></i>${confirmText || 'Evet, Sil'}`;
+        const check = document.createElement('i');
+        check.className = 'fa-solid fa-check mr-2';
+        confirmBtn.replaceChildren(check, document.createTextNode(confirmText || 'Evet, sil'));
         confirmBtn.onclick = () => {
             if (onConfirm) onConfirm();
             closeConfirmModal();
@@ -100,10 +102,4 @@ export function initModals() {
             setTimeout(() => e.target.classList.add('hidden'), 300);
         }
     });
-
-    // Expose to global for inline handlers
-    window.openModal = openModal;
-    window.closeModal = closeModal;
-    window.showConfirmModal = showConfirmModal;
-    window.closeConfirmModal = closeConfirmModal;
 }

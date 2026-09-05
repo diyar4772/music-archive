@@ -462,7 +462,9 @@ const enrichTracksWithPreviews = async (tracks) => {
                 return { ...track, preview_url: result.url, preview_source: 'itunes' };
             }
         }
-        return { ...track, preview_url: null };
+        // iTunes had nothing: keep whatever Spotify supplied rather than
+        // overwriting a working preview with null.
+        return { ...track, preview_url: track.preview_url || null };
     });
 
     const withPreview = enrichedTracks.filter(t => t.preview_url).length;
@@ -951,24 +953,39 @@ app.get('/api/search', userLimiter, async (req, res) => {
 // Album Details - Rate limited to protect Spotify API quota
 app.get('/api/album/:id', generalLimiter, async (req, res) => {
     try {
+        const cacheKey = `album:${req.params.id}`;
+        const cached = cacheGet(cacheKey);
+        if (cached) return res.json(cached);
+
         const token = await getSpotifyToken();
-        const resp = await axios.get(`https://api.spotify.com/v1/albums/${req.params.id}`, {
+        const resp = await axios.get(`https://api.spotify.com/v1/albums/${encodeURIComponent(req.params.id)}`, {
             headers: { 'Authorization': `Bearer ${token}` }, timeout: 10000
         });
 
-        res.json({
+        const artist = resp.data.artists[0]?.name || 'Unknown';
+        // Spotify stopped returning preview_url for most markets, which left every
+        // play button in the album modal dead. Same iTunes enrichment the track
+        // search already uses.
+        const tracks = await enrichTracksWithPreviews(resp.data.tracks.items.map(t => ({
+            id: t.id,
+            name: t.name,
+            artist: t.artists?.[0]?.name || artist,
+            duration_ms: t.duration_ms,
+            preview_url: t.preview_url,
+            spotify_url: t.external_urls?.spotify
+        })));
+
+        const album = {
             id: resp.data.id,
             name: resp.data.name,
             image: resp.data.images[0]?.url,
-            artist: resp.data.artists[0].name,
-            tracks: resp.data.tracks.items.map(t => ({
-                id: t.id,
-                name: t.name,
-                duration_ms: t.duration_ms,
-                preview_url: t.preview_url,
-                spotify_url: t.external_urls.spotify
-            }))
-        });
+            artist,
+            releaseDate: resp.data.release_date || '',
+            totalTracks: resp.data.total_tracks,
+            tracks
+        };
+        cacheSet(cacheKey, album, 3600);
+        res.json(album);
     } catch (e) {
         return sendSpotifyError(res, e);
     }

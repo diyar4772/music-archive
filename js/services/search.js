@@ -3,6 +3,8 @@ import { get } from './api.js';
 import { SEARCH_TYPES, DEBOUNCE_DELAY } from '../config.js';
 import { store } from '../state/store.js';
 import { debounce, showToast } from '../utils.js';
+import { el, img, replace } from '../core/dom.js';
+import { t } from './i18n.js';
 
 /**
  * Perform search based on current search type
@@ -28,7 +30,7 @@ export async function performSearch(overrideQuery, searchType = store.searchType
         return await get(`/search?artist=${encodeURIComponent(query)}&type=${apiType}`);
     } catch (error) {
         
-        showToast('❌ Arama başarısız: ' + error.message);
+        showToast('❌ ' + (error.message || t('search.failed')), 'error');
         throw error;
     }
 }
@@ -67,7 +69,7 @@ export async function handleAutocomplete(query) {
         return;
     }
 
-    list.innerHTML = '';
+    list.replaceChildren();
     list.classList.remove('hidden');
 
     let hasResults = false;
@@ -80,14 +82,14 @@ export async function handleAutocomplete(query) {
     if (localMatches.length > 0) {
         const header = document.createElement('div');
         header.className = 'px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider bg-[#303030]';
-        header.innerText = 'From Your Library';
+        header.textContent = t('search.fromLibrary');
         list.appendChild(header);
 
         localMatches.forEach(artist => {
             const div = createAutocompleteItem({
                 name: artist.artistName,
                 image: artist.image,
-                subtitle: 'Following',
+                subtitle: t('search.following'),
                 isLocal: true,
                 onClick: () => selectAutocompleteItem(artist.artistName)
             });
@@ -104,18 +106,18 @@ export async function handleAutocomplete(query) {
     if (historyMatches.length > 0) {
         const header = document.createElement('div');
         header.className = 'px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider bg-[#303030]';
-        header.innerText = 'Recent Searches';
+        header.textContent = t('search.recent');
         list.appendChild(header);
 
         historyMatches.forEach(term => {
-            const div = document.createElement('div');
-            div.className = 'autocomplete-item flex items-center gap-3 p-3 cursor-pointer text-white transition';
-            div.onclick = () => selectAutocompleteItem(term);
-            div.innerHTML = `
-                <i class="fa-solid fa-clock text-gray-400"></i>
-                <span>${term}</span>
-            `;
-            list.appendChild(div);
+            list.appendChild(el('button', {
+                className: 'autocomplete-item w-full flex items-center gap-3 p-3 text-left cursor-pointer transition',
+                attrs: { type: 'button' },
+                on: { click: () => selectAutocompleteItem(term) }
+            }, [
+                el('i', { className: 'fa-solid fa-clock text-gray-400' }),
+                el('span', { text: term })
+            ]));
         });
         hasResults = true;
     }
@@ -130,7 +132,7 @@ export async function handleAutocomplete(query) {
             if (hasResults) {
                 const header = document.createElement('div');
                 header.className = 'px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider bg-[#303030]';
-                header.innerText = 'Spotify Results';
+                header.textContent = t('search.spotifyResults');
                 list.appendChild(header);
             }
 
@@ -141,7 +143,7 @@ export async function handleAutocomplete(query) {
                 const div = createAutocompleteItem({
                     name: item.name,
                     image: item.image,
-                    subtitle: store.searchType === 'artist' ? (item.genres || 'Artist') : (item.artist || 'Track'),
+                    subtitle: store.searchType === 'artist' ? (item.genres || t('search.artists')) : (item.artist || t('search.tracks')),
                     isRounded: store.searchType === 'artist',
                     onClick: () => selectAutocompleteItem(item.name)
                 });
@@ -149,7 +151,10 @@ export async function handleAutocomplete(query) {
             });
         }
     } catch (error) {
-        list.textContent = error.message;
+        replace(list, el('div', {
+            className: 'p-3 text-sm text-red-500',
+            text: error.message || t('search.suggestFailed')
+        }));
     }
 }
 
@@ -157,19 +162,20 @@ export async function handleAutocomplete(query) {
  * Create autocomplete item element
  */
 function createAutocompleteItem({ name, image, subtitle, isLocal, isRounded = true, onClick }) {
-    const div = document.createElement('div');
-    div.className = `autocomplete-item flex items-center gap-3 p-3 cursor-pointer text-white transition ${isLocal ? 'border-l-4 border-green-500 bg-[#333]' : ''}`;
-    div.onclick = onClick;
-
-    div.innerHTML = `
-        <img src="${image || '/js/placeholder.svg'}" class="w-10 h-10 ${isRounded ? 'rounded-full' : 'rounded'} object-cover">
-        <div>
-            <div class="font-bold text-sm">${name} ${isLocal ? '<i class="fa-solid fa-heart text-green-500 ml-1 text-xs"></i>' : ''}</div>
-            <div class="text-xs text-gray-400">${subtitle}</div>
-        </div>
-    `;
-
-    return div;
+    return el('button', {
+        className: `autocomplete-item w-full flex items-center gap-3 p-3 text-left cursor-pointer transition ${isLocal ? 'border-l-4 border-green-500 bg-black/5 dark:bg-white/5' : ''}`,
+        attrs: { type: 'button' },
+        on: { click: onClick }
+    }, [
+        img(image, `w-10 h-10 shrink-0 ${isRounded ? 'rounded-full' : 'rounded'} object-cover`, name),
+        el('span', { className: 'min-w-0' }, [
+            el('span', { className: 'flex items-center gap-1 font-bold text-sm' }, [
+                el('span', { className: 'truncate', text: name }),
+                isLocal ? el('i', { className: 'fa-solid fa-heart text-green-500 text-xs' }) : null
+            ]),
+            el('span', { className: 'block text-xs text-gray-400 truncate', text: subtitle })
+        ])
+    ]);
 }
 
 /**

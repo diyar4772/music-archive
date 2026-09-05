@@ -1,201 +1,164 @@
 /**
  * Library View
- * Displays user's liked tracks, followed artists, and playlists
+ * Displays the user's liked tracks, followed artists and playlists.
+ *
+ * Track, artist and playlist names are user- or Spotify-supplied, so rows are
+ * built as DOM nodes and never interpolated into markup.
  */
 import { Component } from '../core/Component.js';
 import { store } from '../state/store.js';
 import { getLikedTracks, getFollowedArtists, getPlaylists } from '../services/library.js';
+import { el, img, replace, emptyState, loadingState } from '../core/dom.js';
 import { t } from '../services/i18n.js';
+
+const TABS = [
+    { id: 'likes', key: 'library.likedSongs', icon: 'fa-heart', active: 'bg-green-500 text-white' },
+    { id: 'follows', key: 'library.following', icon: 'fa-user', active: 'bg-purple-500 text-white' },
+    { id: 'playlists', key: 'library.playlists', icon: 'fa-list', active: 'bg-teal-500 text-white' }
+];
+
+const IDLE_TAB = 'bg-gray-100 dark:bg-card-dark text-text-light dark:text-white';
+const GRID = 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4';
+const CARD = 'bg-white dark:bg-card-dark p-4 rounded-xl text-left hover:scale-105 transition shadow-sm border border-gray-100 dark:border-white/5';
 
 export class LibraryView extends Component {
     constructor(container, props = {}) {
         super(container, props);
         this.router = props.router;
-        this.viewType = props.queryParams?.type || 'likes'; // likes, follows, playlists
+        this.viewType = TABS.some(tab => tab.id === props.queryParams?.type)
+            ? props.queryParams.type
+            : 'likes';
     }
 
     render() {
-        this.setHTML(`
-            <div class="w-full max-w-6xl animate-fade-in">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-2xl font-bold" data-lang="library.title">Kütüphanem</h2>
-                    <div class="flex flex-wrap justify-end gap-2">
-                        <button data-view="likes"
-                            class="px-4 py-2 rounded-full ${this.viewType === 'likes' ? 'bg-green-500 text-white' : 'bg-gray-100 dark:bg-card-dark text-text-light dark:text-white'}">
-                            <i class="fa-solid fa-heart mr-2"></i>Beğenilenler
-                        </button>
-                        <button data-view="follows"
-                            class="px-4 py-2 rounded-full ${this.viewType === 'follows' ? 'bg-purple-500 text-white' : 'bg-gray-100 dark:bg-card-dark text-text-light dark:text-white'}">
-                            <i class="fa-solid fa-user mr-2"></i>Takip Edilenler
-                        </button>
-                        <button data-view="playlists"
-                            class="px-4 py-2 rounded-full ${this.viewType === 'playlists' ? 'bg-teal-500 text-white' : 'bg-gray-100 dark:bg-card-dark text-text-light dark:text-white'}">
-                            <i class="fa-solid fa-list mr-2"></i>Listelerim
-                        </button>
-                    </div>
-                </div>
+        const root = el('div', { className: 'w-full max-w-6xl mx-auto animate-fade-in' }, [
+            el('div', { className: 'flex flex-wrap items-center justify-between gap-3 mb-6' }, [
+                el('h2', { className: 'text-2xl font-bold', text: t('library.title'), attrs: { 'data-lang': 'library.title' } }),
+                el('div', { className: 'flex flex-wrap gap-2' }, TABS.map(tab => el('button', {
+                    className: `px-4 py-2 rounded-full text-sm font-semibold transition-colors ${this.viewType === tab.id ? tab.active : IDLE_TAB}`,
+                    attrs: { type: 'button', 'aria-pressed': String(this.viewType === tab.id) },
+                    on: { click: () => this.router?.navigate(`library?type=${tab.id}`) }
+                }, [
+                    el('i', { className: `fa-solid ${tab.icon} mr-2` }),
+                    t(tab.key)
+                ])))
+            ]),
+            el('div', { attrs: { id: 'libraryContent' } })
+        ]);
 
-                <div id="libraryContent">
-                    <!-- Content will be loaded based on viewType -->
-                </div>
-            </div>
-        `);
-
-        this.attachEventListeners();
+        replace(this.container, root);
         this.loadContent();
-    }
-
-    attachEventListeners() {
-        const viewButtons = this.querySelectorAll('[data-view]');
-        viewButtons.forEach(btn => {
-            const view = btn.getAttribute('data-view');
-            this.addEventListener(btn, 'click', () => {
-                if (this.router) {
-                    this.router.navigate(`library?type=${view}`);
-                }
-            });
-        });
     }
 
     async loadContent() {
         const content = this.querySelector('#libraryContent');
         if (!content) return;
 
-        content.innerHTML = '<div class="text-center py-12 text-text-secondary-light dark:text-text-secondary-dark"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Yükleniyor...</div>';
+        replace(content, loadingState(t('common.loading')));
 
         try {
             switch (this.viewType) {
-                case 'likes':
-                    await getLikedTracks();
-                    this.renderLikedTracks();
-                    break;
                 case 'follows':
                     await getFollowedArtists();
-                    this.renderFollowedArtists();
+                    if (this.isMounted) this.renderFollowedArtists();
                     break;
                 case 'playlists':
                     await getPlaylists();
-                    this.renderPlaylists();
+                    if (this.isMounted) this.renderPlaylists();
                     break;
+                default:
+                    await getLikedTracks();
+                    if (this.isMounted) this.renderLikedTracks();
             }
         } catch (error) {
             console.error('Failed to load library content:', error);
-            content.innerHTML = '<div class="text-center py-12 text-red-500">Kütüphane yüklenemedi. Lütfen yeniden deneyin.</div>';
+            replace(content, emptyState('fa-solid fa-triangle-exclamation', t('library.loadFailed'), 'text-red-500'));
         }
     }
 
     renderLikedTracks() {
         const content = this.querySelector('#libraryContent');
-        if (!content) return;
-
         const tracks = store.likedTracks;
 
         if (tracks.length === 0) {
-            content.innerHTML = `
-                <div class="text-center py-12">
-                    <i class="fa-solid fa-heart text-4xl text-gray-400 mb-4"></i>
-                    <p class="text-text-secondary-light dark:text-text-secondary-dark">Henüz beğenilen şarkı yok</p>
-                </div>
-            `;
+            replace(content, emptyState('fa-solid fa-heart', t('library.emptyLikes')));
             return;
         }
 
-        content.innerHTML = `
-            <div class="space-y-2">
-                ${tracks.map(track => `
-                    <div class="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition cursor-pointer"
-                         data-track-id="${track.trackId}">
-                        <img src="${track.image || '/js/placeholder.svg'}"
-                             class="w-16 h-16 rounded object-cover">
-                        <div class="flex-1">
-                            <div class="font-bold">${track.trackName}</div>
-                            <div class="text-sm text-text-secondary-light dark:text-text-secondary-dark">${track.artistName || ''}</div>
-                        </div>
-                        <button class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-full text-sm">
-                            <i class="fa-solid fa-play"></i>
-                        </button>
-                    </div>
-                `).join('')}
-            </div>
-        `;
-
-        // Attach click handlers
-        content.querySelectorAll('[data-track-id]').forEach(el => {
-            this.addEventListener(el, 'click', () => {
-                const trackId = el.getAttribute('data-track-id');
-                const track = tracks.find(t => t.trackId === trackId);
-                if (track && window.openTrackDetail) {
-                    window.openTrackDetail(trackId, track.trackName, track.artistName, track.image, track.previewUrl);
-                }
-            });
-        });
+        replace(content, el('div', { className: 'space-y-2' }, tracks.map(track => el('button', {
+            className: 'w-full flex items-center gap-4 p-3 rounded-lg text-left hover:bg-gray-100 dark:hover:bg-white/5 transition-colors',
+            attrs: { type: 'button' },
+            dataset: { trackId: track.trackId },
+            on: {
+                click: () => window.openTrackDetail?.(
+                    track.trackId, track.trackName, track.artistName, track.image, track.previewUrl
+                )
+            }
+        }, [
+            img(track.image, 'w-16 h-16 rounded object-cover shrink-0', track.trackName),
+            el('span', { className: 'flex-1 min-w-0' }, [
+                el('span', { className: 'block font-bold truncate', text: track.trackName }),
+                el('span', {
+                    className: 'block text-sm text-text-secondary-light dark:text-text-secondary-dark truncate',
+                    text: track.artistName || ''
+                }),
+                track.userNote && el('span', {
+                    className: 'block text-xs text-text-secondary-light dark:text-gray-500 truncate mt-0.5',
+                    text: `📝 ${track.userNote}`
+                })
+            ]),
+            el('span', {
+                className: 'shrink-0 w-10 h-10 flex items-center justify-center bg-green-500 text-white rounded-full',
+                html: '<i class="fa-solid fa-play"></i>'
+            })
+        ]))));
     }
 
     renderFollowedArtists() {
         const content = this.querySelector('#libraryContent');
-        if (!content) return;
-
         const artists = store.followedArtists;
 
         if (artists.length === 0) {
-            content.innerHTML = `
-                <div class="text-center py-12">
-                    <i class="fa-solid fa-user text-4xl text-gray-400 mb-4"></i>
-                    <p class="text-text-secondary-light dark:text-text-secondary-dark">Henüz takip edilen sanatçı yok</p>
-                </div>
-            `;
+            replace(content, emptyState('fa-solid fa-user', t('library.emptyFollows')));
             return;
         }
 
-        content.innerHTML = `
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                ${artists.map(artist => `
-                    <div class="bg-white dark:bg-card-dark p-4 rounded-xl cursor-pointer hover:scale-105 transition shadow-sm border border-gray-100 dark:border-white/5 text-center"
-                         data-artist-id="${artist.artistId}">
-                        <img src="${artist.image || '/js/placeholder.svg'}"
-                             class="w-full aspect-square rounded-full object-cover mb-3">
-                        <div class="font-bold truncate">${artist.artistName}</div>
-                    </div>
-                `).join('')}
-            </div>
-        `;
-        content.querySelectorAll('[data-artist-id]').forEach(node => {
-            const artist = artists.find(a => a.artistId === node.dataset.artistId);
-            node.addEventListener('click', () => this.router.navigate(`search?q=${encodeURIComponent(artist.artistName)}&type=artist`));
-        });
+        replace(content, el('div', { className: GRID }, artists.map(artist => el('button', {
+            className: `${CARD} text-center`,
+            attrs: { type: 'button' },
+            dataset: { artistId: artist.artistId },
+            on: {
+                click: () => this.router?.navigate(
+                    `search?q=${encodeURIComponent(artist.artistName)}&type=artist`
+                )
+            }
+        }, [
+            img(artist.image, 'w-full aspect-square rounded-full object-cover mb-3', artist.artistName),
+            el('span', { className: 'block font-bold truncate', text: artist.artistName })
+        ]))));
     }
 
     renderPlaylists() {
         const content = this.querySelector('#libraryContent');
-        if (!content) return;
-
         const playlists = store.playlists;
 
         if (playlists.length === 0) {
-            content.innerHTML = `
-                <div class="text-center py-12">
-                    <i class="fa-solid fa-list text-4xl text-gray-400 mb-4"></i>
-                    <p class="text-text-secondary-light dark:text-text-secondary-dark">Henüz liste yok</p>
-                </div>
-            `;
+            replace(content, emptyState('fa-solid fa-list', t('library.emptyPlaylists')));
             return;
         }
 
-        content.innerHTML = `
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                ${playlists.map(playlist => `
-                    <div class="bg-white dark:bg-card-dark p-4 rounded-xl cursor-pointer hover:scale-105 transition shadow-sm border border-gray-100 dark:border-white/5"
-                         data-playlist-id="${playlist.id}">
-                        <img src="${playlist.coverImage || '/js/placeholder.svg'}"
-                             class="w-full aspect-square rounded-lg object-cover mb-3">
-                        <div class="font-bold truncate">${playlist.name}</div>
-                        <div class="text-sm text-text-secondary-light dark:text-text-secondary-dark">${playlist.trackCount ?? playlist.PlaylistTracks?.length ?? 0} şarkı</div>
-                    </div>
-                `).join('')}
-            </div>
-        `;
-        content.querySelectorAll('[data-playlist-id]').forEach(node => {
-            node.addEventListener('click', () => window.openPlaylistDetails(node.dataset.playlistId));
-        });
+        replace(content, el('div', { className: GRID }, playlists.map(playlist => el('button', {
+            className: CARD,
+            attrs: { type: 'button' },
+            dataset: { playlistId: playlist.id },
+            on: { click: () => window.openPlaylistDetails?.(playlist.id) }
+        }, [
+            img(playlist.coverImage, 'w-full aspect-square rounded-lg object-cover mb-3', playlist.name),
+            el('span', { className: 'block font-bold truncate', text: playlist.name }),
+            el('span', {
+                className: 'block text-sm text-text-secondary-light dark:text-text-secondary-dark',
+                text: `${playlist.trackCount ?? playlist.PlaylistTracks?.length ?? 0} ${t('common.songs')}`
+            })
+        ]))));
     }
 }

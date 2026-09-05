@@ -4,9 +4,9 @@
  */
 import { Component } from '../core/Component.js';
 import { store } from '../state/store.js';
-import { getLikedTracks, getFollowedArtists, getPlaylists } from '../services/library.js';
+import { getLikedTracks, getFollowedArtists, getAlbumFollows, getPlaylists } from '../services/library.js';
 import { getRatings, getAverageRating, getTopRatedTracks } from '../services/rating.js';
-import { renderStatCards, renderRecentlyAdded, renderTopRated } from '../components/Dashboard.js';
+import { renderRecentlyAdded, renderTopRated } from '../components/Dashboard.js';
 import { exportToCSV, exportStats } from '../components/Export.js';
 import { t } from '../services/i18n.js';
 import { isAuthenticated } from '../services/auth.js';
@@ -15,8 +15,11 @@ export class DashboardView extends Component {
     constructor(container, props = {}) {
         super(container, props);
         this.router = props.router;
-        this.onOpenProfileModal = props.onOpenProfileModal || (() => {});
-        this.onCreatePlaylist = props.onCreatePlaylist || (() => {});
+        // The Router only ever passes { router, queryParams }, so these fall back to
+        // the app-level entry points; without the fallback every bento card and the
+        // "new playlist" tile silently did nothing.
+        this.onOpenProfileModal = props.onOpenProfileModal || (type => window.openProfileModal?.(type));
+        this.onCreatePlaylist = props.onCreatePlaylist || (() => window.createPlaylist?.());
     }
 
     render() {
@@ -27,27 +30,26 @@ export class DashboardView extends Component {
                         <span class="inline-flex items-center gap-2 px-3.5 py-1.5 mb-7 rounded-full text-xs sm:text-sm font-semibold
                                      bg-green-500/10 text-green-400 border border-green-500/25">
                             <i class="fa-solid fa-record-vinyl" aria-hidden="true"></i>
-                            Dinleme değil, biriktirme
+                            ${t('landing.badge')}
                         </span>
 
                         <h2 class="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.08] mb-5">
-                            Müziğini<br class="hidden sm:block">
-                            <span class="spotify-green">tek yerde arşivle</span>
+                            ${t('landing.titleTop')}<br class="hidden sm:block">
+                            <span class="spotify-green">${t('landing.titleAccent')}</span>
                         </h2>
 
                         <p class="text-base sm:text-lg text-text-secondary-light dark:text-text-secondary-dark max-w-xl mx-auto mb-9">
-                            Sevdiğin şarkıları, sanatçıları, puanlarını ve kişisel notlarını
-                            düzenli bir koleksiyonda tutan kişisel müzik arşivin.
+                            ${t('landing.subtitle')}
                         </p>
 
                         <div class="flex flex-col sm:flex-row justify-center gap-3">
                             <button data-action="register" class="btn-spotify text-white font-bold px-8 py-3.5 rounded-full">
-                                Ücretsiz başla
+                                ${t('landing.ctaPrimary')}
                             </button>
                             <button data-action="login"
                                 class="font-bold px-8 py-3.5 rounded-full border border-gray-300 dark:border-white/15
                                        hover:border-green-500 hover:text-green-400 transition-colors">
-                                Giriş Yap
+                                ${t('auth.login')}
                             </button>
                         </div>
                     </div>
@@ -55,16 +57,16 @@ export class DashboardView extends Component {
                     <div class="grid gap-4 sm:grid-cols-3 text-left">
                         ${[
                     {
-                        icon: 'fa-heart', accent: 'coral', title: 'Arşivle',
-                        body: 'Beğendiğin şarkıları ve takip ettiğin sanatçıları tek koleksiyonda topla.'
+                        icon: 'fa-heart', accent: 'coral', title: t('landing.card1Title'),
+                        body: t('landing.card1Body')
                     },
                     {
-                        icon: 'fa-star', accent: 'orange', title: 'Puanla',
-                        body: 'Yarım yıldız hassasiyetiyle puan ver, zamanla neyi ne kadar sevdiğini gör.'
+                        icon: 'fa-star', accent: 'orange', title: t('landing.card2Title'),
+                        body: t('landing.card2Body')
                     },
                     {
-                        icon: 'fa-pen-nib', accent: 'teal', title: 'Not düş',
-                        body: 'Bir şarkının sana ne hatırlattığını yaz; koleksiyonun bir günlüğe dönüşsün.'
+                        icon: 'fa-pen-nib', accent: 'teal', title: t('landing.card3Title'),
+                        body: t('landing.card3Body')
                     }
                 ].map(card => `
                             <article class="relative overflow-hidden p-6 rounded-2xl bg-white dark:bg-card-dark
@@ -88,7 +90,7 @@ export class DashboardView extends Component {
 
         this.setHTML(`
             <div class="w-full max-w-6xl mx-auto animate-fade-in">
-                <h2 class="text-2xl sm:text-3xl font-bold mb-6" data-lang="library.title">Kütüphanem</h2>
+                <h2 class="text-2xl sm:text-3xl font-bold mb-6" data-lang="library.title">${t('library.title')}</h2>
 
                 <!-- Bento Grid Layout -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -100,12 +102,12 @@ export class DashboardView extends Component {
                             <div class="w-14 h-14 bg-accent-coral/20 rounded-2xl flex items-center justify-center mb-4">
                                 <i class="fa-solid fa-heart text-2xl text-accent-coral"></i>
                             </div>
-                            <h3 class="text-2xl font-bold text-accent-coral text-glow-coral" data-lang="library.likedSongs">Beğenilenler</h3>
-                            <p class="text-text-secondary-light dark:text-text-secondary-dark mt-1">En sevdiğin şarkılar</p>
+                            <h3 class="text-2xl font-bold text-accent-coral text-glow-coral" data-lang="library.likedSongs">${t('library.likedSongs')}</h3>
+                            <p class="text-text-secondary-light dark:text-text-secondary-dark mt-1">${t('library.likedSubtitle')}</p>
                         </div>
                         <div class="mt-4">
                             <p class="text-4xl font-bold" id="likedCount">${stats.totalTracks}</p>
-                            <p class="text-sm text-text-secondary-light dark:text-text-secondary-dark">şarkı</p>
+                            <p class="text-sm text-text-secondary-light dark:text-text-secondary-dark">${t('common.songs')}</p>
                         </div>
                     </div>
 
@@ -117,8 +119,8 @@ export class DashboardView extends Component {
                             <i class="fa-solid fa-user-group text-xl text-accent-purple"></i>
                         </div>
                         <div class="flex-1">
-                            <h3 class="text-lg font-bold text-accent-purple" data-lang="library.following">Takip Edilenler</h3>
-                            <p class="text-sm text-text-secondary-light dark:text-text-secondary-dark" id="followingCount">${stats.totalArtists} sanatçı</p>
+                            <h3 class="text-lg font-bold text-accent-purple" data-lang="library.following">${t('library.following')}</h3>
+                            <p class="text-sm text-text-secondary-light dark:text-text-secondary-dark" id="followingCount">${stats.totalArtists} ${t('common.artistsWord')}</p>
                         </div>
                         <i class="fa-solid fa-chevron-right text-gray-400 group-hover:text-accent-purple transition-colors"></i>
                     </div>
@@ -131,7 +133,7 @@ export class DashboardView extends Component {
                             <i class="fa-solid fa-list text-lg text-accent-teal"></i>
                         </div>
                         <div class="mt-3">
-                            <h3 class="font-bold text-accent-teal" data-lang="library.playlists">Listelerim</h3>
+                            <h3 class="font-bold text-accent-teal" data-lang="library.playlists">${t('library.playlists')}</h3>
                             <p class="text-2xl font-bold mt-1" id="playlistCount">${stats.totalPlaylists}</p>
                         </div>
                     </div>
@@ -143,7 +145,7 @@ export class DashboardView extends Component {
                             <i class="fa-solid fa-star text-lg text-accent-orange"></i>
                         </div>
                         <div class="mt-3">
-                            <h3 class="font-bold text-accent-orange" data-lang="library.averageRating">Ort. Puan</h3>
+                            <h3 class="font-bold text-accent-orange" data-lang="library.averageRating">${t('library.averageRating')}</h3>
                             <p class="text-2xl font-bold mt-1" id="statRating">${stats.avgRating}</p>
                         </div>
                     </div>
@@ -157,9 +159,8 @@ export class DashboardView extends Component {
                         <i class="fa-solid fa-plus text-xl text-gray-400 group-hover:text-green-500 transition-colors"></i>
                     </div>
                     <div>
-                        <h3 class="text-lg font-bold text-text-secondary-light dark:text-text-secondary-dark group-hover:text-text-light dark:group-hover:text-white transition-colors" data-lang="library.createPlaylist">
-                            Yeni Liste Oluştur</h3>
-                        <p class="text-sm text-text-secondary-light dark:text-text-secondary-dark">Şarkılarını organize et</p>
+                        <h3 class="text-lg font-bold text-text-secondary-light dark:text-text-secondary-dark group-hover:text-text-light dark:group-hover:text-white transition-colors" data-lang="library.createPlaylist">${t('library.createPlaylist')}</h3>
+                        <p class="text-sm text-text-secondary-light dark:text-text-secondary-dark">${t('library.organize')}</p>
                     </div>
                 </div>
 
@@ -170,11 +171,11 @@ export class DashboardView extends Component {
                         <div id="recentlyAddedContainer">
                             <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
                                 <i class="fa-solid fa-clock text-green-500"></i>
-                                Son Eklenenler
+                                ${t('library.recentlyAdded')}
                             </h3>
                             <div class="text-text-secondary-light dark:text-text-secondary-dark text-center py-8">
                                 <i class="fa-solid fa-music text-2xl mb-2"></i>
-                                <p>Henüz şarkı eklenmedi</p>
+                                <p>${t('library.emptyRecent')}</p>
                             </div>
                         </div>
                     </div>
@@ -184,11 +185,11 @@ export class DashboardView extends Component {
                         <div id="topRatedContainer">
                             <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
                                 <i class="fa-solid fa-trophy text-amber-500"></i>
-                                En Yüksek Puanlı
+                                ${t('library.topRated')}
                             </h3>
                             <div class="text-text-secondary-light dark:text-text-secondary-dark text-center py-8">
                                 <i class="fa-solid fa-star text-2xl mb-2"></i>
-                                <p>Henüz puan verilmedi</p>
+                                <p>${t('library.emptyRated')}</p>
                             </div>
                         </div>
                     </div>
@@ -200,12 +201,12 @@ export class DashboardView extends Component {
                         <button data-action="export-csv"
                             class="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-card-dark hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/5 rounded-lg transition-colors text-sm">
                             <i class="fa-solid fa-file-csv text-green-500"></i>
-                            CSV İndir
+                            ${t('export.csv')}
                         </button>
                         <button data-action="export-stats"
                             class="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-card-dark hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/5 rounded-lg transition-colors text-sm">
                             <i class="fa-solid fa-download text-blue-500"></i>
-                            Yedekle
+                            ${t('export.backup')}
                         </button>
                     </div>
                 </div>
@@ -235,18 +236,14 @@ export class DashboardView extends Component {
 
         // Export buttons
         const exportCsv = this.querySelector('[data-action="export-csv"]');
-        const exportStats = this.querySelector('[data-action="export-stats"]');
+        const exportStatsBtn = this.querySelector('[data-action="export-stats"]');
         
         if (exportCsv) {
-            this.addEventListener(exportCsv, 'click', () => {
-                if (window.exportToCSV) exportToCSV();
-            });
+            this.addEventListener(exportCsv, 'click', () => exportToCSV());
         }
-        
-        if (exportStats) {
-            this.addEventListener(exportStats, 'click', () => {
-                if (window.exportStats) exportStats();
-            });
+
+        if (exportStatsBtn) {
+            this.addEventListener(exportStatsBtn, 'click', () => exportStats());
         }
     }
 
@@ -254,6 +251,7 @@ export class DashboardView extends Component {
         return {
             totalTracks: store.likedTracks.length,
             totalArtists: store.followedArtists.length,
+            totalAlbums: store.albumFollows.length,
             totalPlaylists: store.playlists.length,
             avgRating: getAverageRating() || '–'
         };
@@ -271,7 +269,7 @@ export class DashboardView extends Component {
         const statPlaylists = this.querySelector('#statPlaylists');
 
         if (likedCount) likedCount.textContent = stats.totalTracks;
-        if (followingCount) followingCount.textContent = `${stats.totalArtists} sanatçı`;
+        if (followingCount) followingCount.textContent = `${stats.totalArtists} ${t('common.artistsWord')}`;
         if (playlistCount) playlistCount.textContent = stats.totalPlaylists;
         if (statRating) statRating.textContent = stats.avgRating;
         if (statTracks) statTracks.textContent = stats.totalTracks;
@@ -283,13 +281,14 @@ export class DashboardView extends Component {
         if (!isAuthenticated()) return;
         const recent = this.querySelector('#recentlyAddedContainer');
         const topRated = this.querySelector('#topRatedContainer');
-        const loading = '<div class="text-center py-8 text-text-secondary-light dark:text-text-secondary-dark"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Yükleniyor...</div>';
+        const loading = `<div class="text-center py-8 text-text-secondary-light dark:text-text-secondary-dark"><i class="fa-solid fa-spinner fa-spin mr-2"></i>${t('common.loading')}</div>`;
         if (recent) recent.innerHTML = loading;
         if (topRated) topRated.innerHTML = loading;
         try {
             await Promise.all([
                 getLikedTracks(),
                 getFollowedArtists(),
+                getAlbumFollows(),
                 getPlaylists(),
                 getRatings()
             ]);
@@ -299,7 +298,7 @@ export class DashboardView extends Component {
             renderTopRated();
         } catch (error) {
             console.error('Failed to load dashboard data:', error);
-            const errorState = '<div class="text-center py-8 text-red-500">Veriler yüklenemedi. Lütfen yeniden deneyin.</div>';
+            const errorState = `<div class="text-center py-8 text-red-500">${t('library.dataFailed')}</div>`;
             if (recent) recent.innerHTML = errorState;
             if (topRated) topRated.innerHTML = errorState;
         }

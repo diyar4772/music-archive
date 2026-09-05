@@ -1,5 +1,3 @@
-import { mountShell } from './components/Shell.js';
-import { initDetails } from './components/Details.js';
 /**
  * Music Archive Web - Main Application Entry Point
  * Koleksiyoner Arşivi - Web Frontend
@@ -8,20 +6,19 @@ import { initDetails } from './components/Details.js';
  */
 
 import { store } from './state/store.js';
-import { initAuth, isAuthenticated, getCurrentUser, login, register, logout as authLogout } from './services/auth.js';
-import { initSearch, setSearchType, performSearch } from './services/search.js';
+import { mountShell } from './components/Shell.js';
+import { initAuth, isAuthenticated, login, register, logout as authLogout } from './services/auth.js';
+import { initSearch, performSearch } from './services/search.js';
 // Aliased so the bare `createPlaylist` identifier keeps resolving to the global
 // modal opener defined below — importing it unaliased would silently change what
 // Navbar's onCreatePlaylist callback points at.
 import { getLikedTracks, getFollowedArtists, getPlaylists, createPlaylist as createPlaylistRequest } from './services/library.js';
 import { getRatings } from './services/rating.js';
 import { initMiniPlayer } from './components/MiniPlayer.js';
-import { initModals } from './components/Modal.js';
-import { initDashboard, showDashboard, renderStatCards, renderRecentlyAdded, renderTopRated } from './components/Dashboard.js';
-import { exportToCSV, exportStats } from './components/Export.js';
-import { debounce, showToast } from './utils.js';
-import { API_URL } from './config.js';
-import i18n, { t, changeLanguage, i18nReady } from './services/i18n.js';
+import { initModals, openModal, closeModal } from './components/Modal.js';
+import { renderRecentlyAdded, renderTopRated } from './components/Dashboard.js';
+import { showToast } from './utils.js';
+import i18n, { t, changeLanguage, i18nReady, applyTranslations } from './services/i18n.js';
 
 // Router and Views
 import { Router } from './core/Router.js';
@@ -49,8 +46,11 @@ async function initApp() {
     // Initialize auth
     initAuth();
 
-    mountShell();
-    initDetails();
+    mountShell({
+        onToggleTheme: toggleTheme,
+        onChangeLanguage: changeLanguage,
+        onConfirmCreatePlaylist: confirmCreatePlaylist
+    });
 
     // Initialize UI components
     initModals();
@@ -89,9 +89,9 @@ async function initApp() {
             onLogout: handleLogout,
             onShowDashboard: () => router?.navigate('dashboard'),
             onToggleTheme: toggleTheme,
-            onOpenProfileModal: type => window.openProfileModal(type),
-            onCreatePlaylist: () => window.createPlaylist(),
-            onOpenSettings: () => window.openSettingsModal()
+            onOpenProfileModal: openProfileModal,
+            onCreatePlaylist: createPlaylist,
+            onOpenSettings: openSettingsModal
         });
         navbar.mount();
         console.log('[App] Navbar initialized');
@@ -119,13 +119,6 @@ async function initApp() {
         initSearch();
     }
 
-    // Note: Auth UI is now handled by Navbar component
-    // updateAuthUI() is no longer needed
-
-
-    // Initialize dashboard (for backward compatibility)
-    initDashboard();
-
     // Setup global event listeners
     setupEventListeners();
 
@@ -141,9 +134,9 @@ function renderStartupError() {
     appContainer.innerHTML = `
         <section class="w-full max-w-2xl mx-auto bg-white dark:bg-card-dark rounded-2xl p-8 text-center shadow-sm">
             <i class="fa-solid fa-triangle-exclamation text-3xl text-amber-500 mb-4"></i>
-            <h2 class="text-2xl font-bold mb-2">Music Archive yüklenemedi</h2>
-            <p class="text-text-secondary-light dark:text-text-secondary-dark mb-5">Geçici bir sorun oluştu. Lütfen yeniden deneyin.</p>
-            <button id="retryBootstrap" class="btn-spotify text-white font-bold px-6 py-3 rounded-full">Yeniden Dene</button>
+            <h2 class="text-2xl font-bold mb-2">${t('app.loadFailed')}</h2>
+            <p class="text-text-secondary-light dark:text-text-secondary-dark mb-5">${t('app.loadFailedBody')}</p>
+            <button id="retryBootstrap" class="btn-spotify text-white font-bold px-6 py-3 rounded-full">${t('common.retry')}</button>
         </section>`;
     document.getElementById('retryBootstrap')?.addEventListener('click', () => window.location.reload());
 }
@@ -176,46 +169,12 @@ async function fetchUserData() {
         ]);
 
         // Refresh UI
-        renderStatCards();
         renderRecentlyAdded();
         renderTopRated();
 
     } catch (error) {
         console.error('Failed to fetch user data:', error);
-        showToast('❌ Veriler yüklenemedi');
-    }
-}
-
-/**
- * Update authentication UI (DEPRECATED - Now handled by Navbar component)
- * Kept for backward compatibility with inline handlers
- */
-function updateAuthUI() {
-    // This function is deprecated - Navbar component handles auth UI
-    // Only update if Navbar is not initialized
-    if (!navbar) {
-        const authSection = document.getElementById('authSection');
-        if (!authSection) return;
-
-        const user = getCurrentUser();
-
-        if (user) {
-            authSection.innerHTML = `
-                <button onclick="document.getElementById('profileDropdown')?.classList.toggle('hidden')" 
-                        class="flex items-center gap-2 bg-gray-800 px-3 py-1 rounded-full">
-                    <div class="bg-purple-600 w-8 h-8 rounded-full flex items-center justify-center font-bold">
-                        ${user[0].toUpperCase()}
-                    </div>
-                </button>
-            `;
-        } else {
-            authSection.innerHTML = `
-                <button onclick="window.openAuthModal?.()" 
-                        class="btn-spotify text-white font-bold px-6 py-2 rounded-full">
-                    Giriş Yap
-                </button>
-            `;
-        }
+        showToast('❌ ' + t('library.dataFailed'), 'error');
     }
 }
 
@@ -226,12 +185,16 @@ function setupEventListeners() {
     window.addEventListener('auth:session-expired', () => {
         navbar?.render();
         router?.navigate('dashboard');
-        showToast('Oturum süresi doldu. Lütfen yeniden giriş yapın.');
+        showToast(t('auth.sessionExpired'), 'warning');
     });
 
+    // A language switch has to repaint everything, not just the handful of
+    // elements carrying data-lang: most view text is produced in JavaScript.
     document.addEventListener('languagechange', () => {
-        document.documentElement.lang = i18n.language;
-        document.querySelectorAll('[data-lang]').forEach(el => { el.textContent = t(el.dataset.lang); });
+        applyTranslations(document);
+        navbar?.render();
+        searchBar?.render();
+        router?.handleRoute();
     });
 
     // Close dropdowns on outside click
@@ -295,34 +258,20 @@ function applyTheme(theme) {
     if (icon) icon.textContent = isDark ? 'dark_mode' : 'light_mode';
 }
 
-// ============ GLOBAL FUNCTIONS FOR BACKWARD COMPATIBILITY ============
-// These are needed during the transition period while inline handlers exist
+// ============ CROSS-MODULE ENTRY POINTS ============
+// Views reach these by name rather than importing app.js, which would be a
+// cycle. Nothing here is an inline HTML handler any more.
 
 window.performSearch = (query) => {
-    if (query) {
-        if (router) {
-            router.navigate(`search?q=${encodeURIComponent(query)}&type=${store.searchType}`);
-        } else {
-            performSearch(query);
-        }
-    } else {
-        performSearch();
-    }
+    if (!query) return performSearch();
+    return router
+        ? router.navigate(`search?q=${encodeURIComponent(query)}&type=${store.searchType}`)
+        : performSearch(query);
 };
 
-window.setSearchType = setSearchType;
-window.showDashboard = () => {
-    if (router) {
-        router.navigate('dashboard');
-    } else {
-        showDashboard();
-    }
-};
 window.showToast = showToast;
-window.exportToCSV = exportToCSV;
-window.exportStats = exportStats;
-window.store = store;
-window.API_URL = API_URL;
+window.openProfileModal = openProfileModal;
+window.createPlaylist = createPlaylist;
 
 // --- Auth modal ---------------------------------------------------------
 // The modal is owned here only. Mode lives in an explicit variable rather than
@@ -349,9 +298,9 @@ const updateAuthModal = () => {
     const switcher = document.getElementById('authSwitch');
     const submit = document.getElementById('authSubmit');
     const password = document.getElementById('authPassword');
-    if (title) title.textContent = isLogin ? 'Giriş Yap' : 'Kayıt Ol';
-    if (switcher) switcher.textContent = isLogin ? 'Hesabın yok mu? Kayıt ol' : 'Hesabın var mı? Giriş yap';
-    if (submit) submit.textContent = isLogin ? 'Giriş Yap' : 'Kayıt Ol';
+    if (title) title.textContent = isLogin ? t('auth.login') : t('auth.register');
+    if (switcher) switcher.textContent = isLogin ? t('auth.needAccount') : t('auth.haveAccount');
+    if (submit) submit.textContent = isLogin ? t('auth.login') : t('auth.register');
     if (password) password.autocomplete = isLogin ? 'current-password' : 'new-password';
 };
 
@@ -384,7 +333,7 @@ async function submitAuth(event) {
     setAuthError(null);
     if (!username || !password) {
         // Fail locally: no point spending a request or a rate-limit slot.
-        setAuthError('Kullanıcı adı ve parola gerekli.');
+        setAuthError(t('auth.missingFields'));
         (username ? passwordInput : usernameInput)?.focus();
         return;
     }
@@ -397,7 +346,7 @@ async function submitAuth(event) {
             : await register(username, password);
 
         if (!result.ok) {
-            setAuthError(result.error || 'İşlem başarısız. Lütfen tekrar deneyin.');
+            setAuthError(result.error || t('auth.failed'));
             return; // modal stays open
         }
 
@@ -424,8 +373,6 @@ function initAuthModal() {
     updateAuthModal();
 }
 
-// Theme toggle (needs to be defined)
-window.toggleTheme = toggleTheme;
 function toggleTheme() {
     const currentTheme = store.currentTheme || 'dark';
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
@@ -439,30 +386,33 @@ function toggleTheme() {
     }
 }
 
-// Modal functions (placeholders - should be implemented)
-window.openProfileModal = (type) => {
-    if (router) {
-        router.navigate(`library?type=${type}`);
-    }
-};
+/**
+ * Open the library view filtered to one collection.
+ * @param {'likes'|'follows'|'playlists'} type
+ */
+function openProfileModal(type) {
+    router?.navigate(`library?type=${type}`);
+}
 
-window.createPlaylist = () => {
-    // This should open create playlist modal
-    const modal = document.getElementById('createPlaylistModal');
-    if (modal) {
-        modal.classList.remove('hidden');
-    }
-};
+/** Open the create-playlist modal with the name field focused and empty. */
+function createPlaylist() {
+    const nameInput = document.getElementById('newPlaylistName');
+    if (nameInput) nameInput.value = '';
+    openModal('createPlaylistModal');
+    requestAnimationFrame(() => nameInput?.focus());
+}
 
-// The create-playlist modal still lives in index.html and its confirm button is
-// wired to the legacy handler. Route it through the modular library service so it
-// uses the current access token and the single refresh authority in api.js.
-window.confirmCreatePlaylist = async () => {
+/**
+ * Create the playlist named in the modal. Goes through the library service so
+ * it uses the current access token and the single refresh authority in api.js.
+ */
+async function confirmCreatePlaylist() {
     const nameInput = document.getElementById('newPlaylistName');
     const name = nameInput?.value.trim() || '';
     if (!name) {
         nameInput?.classList.add('ring-2', 'ring-red-500');
         setTimeout(() => nameInput?.classList.remove('ring-2', 'ring-red-500'), 2000);
+        nameInput?.focus();
         return;
     }
 
@@ -470,20 +420,16 @@ window.confirmCreatePlaylist = async () => {
     if (!created) return;
 
     if (nameInput) nameInput.value = '';
-    document.getElementById('createPlaylistModal')?.classList.add('hidden');
-    router?.navigate('dashboard');
-};
+    closeModal('createPlaylistModal');
+    router?.navigate('library?type=playlists');
+}
 
-window.changeLanguage = changeLanguage;
-window.closeSettingsModal = () => window.closeModal('settingsModal');
-window.closeCreatePlaylistModal = () => window.closeModal('createPlaylistModal');
-window.openSettingsModal = () => {
-    const modal = document.getElementById('settingsModal');
-    if (modal) {
-        document.getElementById('languageSelect').value = i18n.language;
-        modal.classList.remove('hidden');
-    }
-};
+/** Open settings with the language select showing the active language. */
+function openSettingsModal() {
+    const select = document.getElementById('languageSelect');
+    if (select) select.value = i18n.language;
+    openModal('settingsModal');
+}
 
 async function bootstrap() {
     try {

@@ -48,7 +48,10 @@ export class Component {
             console.error(`Error mounting component ${this.constructor.name}:`, error);
             console.error('Error stack:', error.stack);
             if (this.container) {
-                this.container.innerHTML = `<div class="p-4 text-red-500">Error loading ${this.constructor.name}: ${error.message}</div>`;
+                const box = document.createElement('div');
+                box.className = 'p-4 text-red-500';
+                box.textContent = `${this.constructor.name} yüklenemedi: ${error.message}`;
+                this.container.replaceChildren(box);
             }
         }
     }

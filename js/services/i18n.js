@@ -5,19 +5,6 @@
 
 const resources = {};
 const supportedLanguages = ['tr', 'en', 'ku'];
-const fallbackText = {
-    'auth.login': 'Giriş Yap',
-    'auth.register': 'Kayıt Ol',
-    'common.loading': 'Yükleniyor...',
-    'common.error': 'Bir hata oluştu',
-    'common.retry': 'Tekrar Dene',
-    'library.title': 'Kütüphanen',
-    'library.likedSongs': 'Beğenilen Şarkılar',
-    'library.following': 'Takip Edilenler',
-    'library.playlists': 'Listelerim',
-    'library.createPlaylist': 'Liste Oluştur',
-    'search.placeholder': 'Sanatçı veya şarkı ara...'
-};
 
 let currentLanguage = supportedLanguages.includes(localStorage.getItem('lang'))
     ? localStorage.getItem('lang')
@@ -42,26 +29,56 @@ async function loadTranslations() {
 
 export const i18nReady = loadTranslations();
 
+/**
+ * Translate a key, falling back to Turkish and finally to a readable form of
+ * the key itself so a missing string never renders as blank.
+ * @param {string} key - dotted path, e.g. 'library.title'
+ * @param {Object} [options] - values for {{placeholders}}
+ * @returns {string}
+ */
 export function t(key, options = {}) {
-    const translated = lookup(resources[currentLanguage], key)
-        ?? lookup(resources.tr, key)
-        ?? fallbackText[key];
+    const translated = lookup(resources[currentLanguage], key) ?? lookup(resources.tr, key);
     if (translated) return interpolate(translated, options);
 
     const readable = key.split('.').pop().replace(/([a-z])([A-Z])/g, '$1 $2');
     return readable.charAt(0).toUpperCase() + readable.slice(1);
 }
 
+/**
+ * Apply the active language to every element carrying data-lang.
+ * @param {ParentNode} [root]
+ */
+export function applyTranslations(root = document) {
+    root.querySelectorAll('[data-lang]').forEach(node => {
+        node.textContent = t(node.dataset.lang);
+    });
+    root.querySelectorAll('[data-lang-placeholder]').forEach(node => {
+        node.placeholder = t(node.dataset.langPlaceholder);
+    });
+    root.querySelectorAll('[data-lang-aria]').forEach(node => {
+        node.setAttribute('aria-label', t(node.dataset.langAria));
+    });
+    root.querySelectorAll('[data-lang-title]').forEach(node => {
+        node.title = t(node.dataset.langTitle);
+    });
+}
+
 export async function changeLanguage(language) {
-    if (!supportedLanguages.includes(language)) return;
+    if (!supportedLanguages.includes(language) || language === currentLanguage) return;
     await i18nReady;
     currentLanguage = language;
     localStorage.setItem('lang', language);
+    document.documentElement.lang = language;
     document.dispatchEvent(new CustomEvent('languagechange', { detail: { language } }));
 }
+
+export { supportedLanguages };
 
 export function getCurrentLanguage() {
     return currentLanguage;
 }
 
-export default { t, changeLanguage, get language() { return currentLanguage; } };
+// Reflect the stored language on <html> before anything renders.
+document.documentElement.lang = currentLanguage;
+
+export default { t, changeLanguage, applyTranslations, get language() { return currentLanguage; } };
