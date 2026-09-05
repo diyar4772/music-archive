@@ -1,5 +1,6 @@
+import { get } from './api.js';
 // Search Service
-import { API_URL, SEARCH_TYPES, DEBOUNCE_DELAY } from '../config.js';
+import { SEARCH_TYPES, DEBOUNCE_DELAY } from '../config.js';
 import { store } from '../state/store.js';
 import { debounce, showToast } from '../utils.js';
 
@@ -24,22 +25,9 @@ export async function performSearch(overrideQuery) {
     }
 
     try {
-        const res = await fetch(`${API_URL}/search?artist=${encodeURIComponent(query)}&type=${apiType}`);
-
-        if (!res.ok) {
-            const errorText = await res.text();
-            try {
-                const errorJson = JSON.parse(errorText);
-                throw new Error(errorJson.error || `Server Error (${res.status})`);
-            } catch (parseError) {
-                if (parseError.message.includes('Server Error')) throw parseError;
-                throw new Error(`Server Error (${res.status}): ${res.statusText}`);
-            }
-        }
-
-        return await res.json();
+        return await get(`/search?artist=${encodeURIComponent(query)}&type=${apiType}`);
     } catch (error) {
-        console.error('Search error:', error);
+        
         showToast('❌ Arama başarısız: ' + error.message);
         throw error;
     }
@@ -136,8 +124,7 @@ export async function handleAutocomplete(query) {
     try {
         const typeParam = store.searchType === 'track' ? 'track' :
             (store.searchType === 'album' ? 'album' : 'artist');
-        const res = await fetch(`${API_URL}/search?artist=${encodeURIComponent(query)}&type=${typeParam}`);
-        const results = await res.json();
+        const results = await get(`/search?artist=${encodeURIComponent(query)}&type=${typeParam}`);
 
         if (Array.isArray(results) && results.length > 0) {
             if (hasResults) {
@@ -162,7 +149,7 @@ export async function handleAutocomplete(query) {
             });
         }
     } catch (error) {
-        console.error('Autocomplete fetch error:', error);
+        list.textContent = error.message;
     }
 }
 

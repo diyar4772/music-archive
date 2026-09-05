@@ -6,6 +6,8 @@ const path = require('node:path');
 const jwt = require('jsonwebtoken');
 
 process.env.NODE_ENV = 'test';
+process.env.SPOTIFY_CLIENT_ID = 'test-only-client-id';
+process.env.SPOTIFY_CLIENT_SECRET = 'test-only-client-secret';
 process.env.SKIP_DOTENV_CONFIG = 'true';
 process.env.JWT_SECRET = 'test-only-jwt-secret';
 process.env.ADMIN_USERNAME = 'test-admin';
@@ -83,13 +85,13 @@ const adminHeaders = (username, password, clientIp) => ({
 test('health reports 503 before database readiness and 200 for controlled in-memory mode', async () => {
     const unavailable = await request('/api/health');
     assert.equal(unavailable.response.status, 503);
-    assert.deepEqual(unavailable.body, { status: 'not_ready' });
+    assert.deepEqual(unavailable.body, { status: 'not_ready', database: 'mongodb', spotify: 'configured' });
 
     await connectDatabase();
 
     const ready = await request('/api/health');
     assert.equal(ready.response.status, 200);
-    assert.deepEqual(ready.body, { status: 'ready' });
+    assert.deepEqual(ready.body, { status: 'ready', database: 'in-memory', spotify: 'configured' });
 });
 
 test('static serving exposes only required frontend assets', async () => {

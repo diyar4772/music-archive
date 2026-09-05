@@ -84,8 +84,10 @@ export class SearchView extends Component {
             this.results = await performSearch(this.query);
             this.displayResults();
         } catch (error) {
-            console.error('Search error:', error);
-            if (target) target.innerHTML = '<div class="text-center py-12 text-red-500">Arama tamamlanamadı. Lütfen yeniden deneyin.</div>';
+            if (target) {
+                target.textContent = error.message || 'Arama tamamlanamadı. Lütfen yeniden deneyin.';
+                target.classList.add('text-center', 'py-12', 'text-red-500');
+            }
             if (window.showToast) {
                 window.showToast('❌ Arama başarısız', 'error');
             }

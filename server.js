@@ -37,6 +37,9 @@ const ADMIN_PASSWORD = requireSecret('ADMIN_PASSWORD');
 // most hosts, so anything unset must behave as production.
 const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const spotifyConfigured = () => Boolean(process.env.SPOTIFY_CLIENT_ID?.trim() && process.env.SPOTIFY_CLIENT_SECRET?.trim());
+if (!spotifyConfigured()) console.warn('⚠️ SPOTIFY_CLIENT_ID/SECRET missing — search and album endpoints return 503.');
+
 const MOCK_AUTH_ENABLED = IS_DEVELOPMENT && process.env.ENABLE_MOCK_AUTH === 'true';
 
 if (MOCK_AUTH_ENABLED) {
@@ -128,7 +131,9 @@ app.use(express.json({ limit: '5mb' })); // Limit payload size
 app.get('/api/health', (req, res) => {
     const databaseReady = useInMemory || mongoose.connection.readyState === 1;
     return res.status(databaseReady ? 200 : 503).json({
-        status: databaseReady ? 'ready' : 'not_ready'
+        status: databaseReady ? 'ready' : 'not_ready',
+        database: useInMemory ? 'in-memory' : 'mongodb',
+        spotify: spotifyConfigured() ? 'configured' : 'missing'
     });
 });
 
@@ -329,20 +334,34 @@ const toggleLike = async (filter, values, LikeModel = Like) => {
 let spotifyToken = null;
 let tokenExpiration = 0;
 
-const getSpotifyToken = async () => {
-    if (spotifyToken && Date.now() < tokenExpiration) return spotifyToken;
-    try {
-        const auth = Buffer.from(`${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`).toString('base64');
-        const resp = await axios.post('https://accounts.spotify.com/api/token', 'grant_type=client_credentials', {
-            headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' }
-        });
-        spotifyToken = resp.data.access_token;
-        tokenExpiration = Date.now() + (resp.data.expires_in * 1000) - 60000;
-        return spotifyToken;
-    } catch (e) {
-        console.error('Spotify Auth Error:', e.message);
-        throw new Error('Failed to get Spotify Token');
+const sendSpotifyError = (res, error) => {
+    const status = error.response?.status;
+    if (error.code === 'SEARCH_UNAVAILABLE') {
+        return res.status(503).json({ error: 'SEARCH_UNAVAILABLE', detail: 'Spotify credentials not configured' });
     }
+    if (status === 401 || status === 403) return res.status(502).json({ error: 'SEARCH_UPSTREAM_AUTH_FAILED' });
+    if (status === 429) {
+        const retryAfter = error.response.headers?.['retry-after'];
+        if (retryAfter) res.set('Retry-After', String(retryAfter));
+        return res.status(429).json({ error: 'SEARCH_RATE_LIMITED' });
+    }
+    if (!error.response && (error.isAxiosError || ['ECONNABORTED', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNRESET'].includes(error.code))) {
+        return res.status(504).json({ error: 'SEARCH_TIMEOUT' });
+    }
+    return res.status(502).json({ error: 'SEARCH_UPSTREAM_FAILED' });
+};
+
+const getSpotifyToken = async () => {
+    if (!spotifyConfigured()) throw Object.assign(new Error('Spotify not configured'), { code: 'SEARCH_UNAVAILABLE' });
+    if (spotifyToken && Date.now() < tokenExpiration) return spotifyToken;
+    const auth = Buffer.from(`${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`).toString('base64');
+    const resp = await axios.post('https://accounts.spotify.com/api/token', 'grant_type=client_credentials', {
+        headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+        timeout: 10000
+    });
+    spotifyToken = resp.data.access_token;
+    tokenExpiration = Date.now() + (resp.data.expires_in * 1000) - 60000;
+    return spotifyToken;
 };
 
 // ============================================
@@ -799,18 +818,18 @@ app.get('/api/search', userLimiter, async (req, res) => {
 
         // Determine search type based on request
         let spotifyType = 'artist';
-        let searchLimit = 20; // Increased for better ranking
+        let searchLimit = 10; // Spotify development-mode maximum
 
         if (type === 'track') {
             spotifyType = 'track';
-            searchLimit = 20;
+            searchLimit = 10;
         } else if (type === 'album') {
             spotifyType = 'album';
-            searchLimit = 20;
+            searchLimit = 10;
         }
 
         const searchResp = await axios.get(`https://api.spotify.com/v1/search?q=${encodeURIComponent(artist)}&type=${spotifyType}&limit=${searchLimit}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${token}` }, timeout: 10000
         });
 
         if (type === 'simple') {
@@ -826,7 +845,7 @@ app.get('/api/search', userLimiter, async (req, res) => {
             while (hasMore) {
                 const albumsResp = await axios.get(
                     `https://api.spotify.com/v1/artists/${artistData.id}/albums?include_groups=album,single&limit=${limit}&offset=${offset}`,
-                    { headers: { 'Authorization': `Bearer ${token}` } }
+                    { headers: { 'Authorization': `Bearer ${token}` }, timeout: 10000 }
                 );
 
                 const items = albumsResp.data.items;
@@ -912,7 +931,7 @@ app.get('/api/search', userLimiter, async (req, res) => {
             id: a.id,
             name: a.name,
             image: a.images[0]?.url || null,
-            genres: a.genres.slice(0, 2).join(', '),
+            genres: (a.genres || []).slice(0, 2).join(', '),
             popularity: a.popularity // Keep for ranking
         }));
 
@@ -922,7 +941,7 @@ app.get('/api/search', userLimiter, async (req, res) => {
         await cacheSet(cacheKey, rankedArtists, 3600);
         res.json(rankedArtists);
     } catch (e) {
-        res.status(500).json({ error: e.message });
+        return sendSpotifyError(res, e);
     }
 });
 
@@ -931,7 +950,7 @@ app.get('/api/album/:id', generalLimiter, async (req, res) => {
     try {
         const token = await getSpotifyToken();
         const resp = await axios.get(`https://api.spotify.com/v1/albums/${req.params.id}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${token}` }, timeout: 10000
         });
 
         res.json({
@@ -948,7 +967,7 @@ app.get('/api/album/:id', generalLimiter, async (req, res) => {
             }))
         });
     } catch (e) {
-        res.status(500).json({ error: 'Failed to fetch album' });
+        return sendSpotifyError(res, e);
     }
 });
 
@@ -1792,7 +1811,7 @@ app.get('/api/dig/queue', authenticateToken, userLimiter, async (req, res) => {
                 else if (mood === 'party') { params.append('min_danceability', '0.7'); }
 
                 const recResp = await axios.get(`https://api.spotify.com/v1/recommendations?${params.toString()}`,
-                    { headers: { 'Authorization': `Bearer ${token}` } });
+                    { headers: { 'Authorization': `Bearer ${token}` }, timeout: 10000 });
 
                 tracks = recResp.data.tracks.map(t => ({
                     id: t.id, name: t.name, artist: t.artists[0]?.name || 'Unknown',
@@ -1809,8 +1828,8 @@ app.get('/api/dig/queue', authenticateToken, userLimiter, async (req, res) => {
             console.log('❄️ Cold Start - Using popular tracks');
             const terms = ['top hits 2024', 'popular songs', 'trending music'];
             const searchResp = await axios.get(
-                `https://api.spotify.com/v1/search?q=${encodeURIComponent(terms[Math.floor(Math.random() * terms.length)])}&type=track&limit=30`,
-                { headers: { 'Authorization': `Bearer ${token}` } });
+                `https://api.spotify.com/v1/search?q=${encodeURIComponent(terms[Math.floor(Math.random() * terms.length)])}&type=track&limit=10`,
+                { headers: { 'Authorization': `Bearer ${token}` }, timeout: 10000 });
             tracks = searchResp.data.tracks.items.map(t => ({
                 id: t.id, name: t.name, artist: t.artists[0]?.name || 'Unknown',
                 artistId: t.artists[0]?.id, album: t.album.name, albumId: t.album.id,
@@ -2221,7 +2240,8 @@ app.delete('/api/library/artist/:artistId', authenticateToken, async (req, res) 
 // Enhanced Search: Returns isArchived status for each track
 app.get('/api/search/enhanced', authenticateToken, userLimiter, async (req, res) => {
     try {
-        const { q, type = 'track', limit = 20 } = req.query;
+        const { q, type = 'track' } = req.query;
+        const limit = Math.min(10, Math.max(1, parseInt(req.query.limit) || 10));
         const userId = req.user.id;
 
         if (!q) {
@@ -2231,7 +2251,7 @@ app.get('/api/search/enhanced', authenticateToken, userLimiter, async (req, res)
         const token = await getSpotifyToken();
         const searchResp = await axios.get(
             `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=${type}&limit=${limit}`,
-            { headers: { 'Authorization': `Bearer ${token}` } }
+            { headers: { 'Authorization': `Bearer ${token}` }, timeout: 10000 }
         );
 
         // Get user's liked track IDs for comparison
@@ -2274,7 +2294,7 @@ app.get('/api/search/enhanced', authenticateToken, userLimiter, async (req, res)
         res.json(searchResp.data);
     } catch (e) {
         console.error('Enhanced search error:', e.message);
-        res.status(500).json({ error: 'Search failed' });
+        return sendSpotifyError(res, e);
     }
 });
 

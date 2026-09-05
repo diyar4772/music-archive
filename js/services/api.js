@@ -71,7 +71,13 @@ export async function fetchAPI(endpoint, options = {}) {
             const errorJson = JSON.parse(errorText);
             message = errorJson.error || message;
         } catch {}
-        throw new Error(message);
+        const messages = {
+            SEARCH_UNAVAILABLE: 'Arama servisi şu an kullanılamıyor',
+            SEARCH_UPSTREAM_AUTH_FAILED: 'Arama servisine bağlanılamadı',
+            SEARCH_RATE_LIMITED: 'Arama sınırına ulaşıldı. Lütfen biraz bekleyin.',
+            SEARCH_TIMEOUT: 'Arama servisi zamanında yanıt vermedi'
+        };
+        throw Object.assign(new Error(messages[message] || message), { status: response.status, code: message });
     }
 
     return response.json();
