@@ -17,7 +17,7 @@ import { rateTrack, removeRating, getTrackRating } from '../services/rating.js';
 import { playTrack, isPlaying } from './MiniPlayer.js';
 import { openModal, closeModal, showConfirmModal } from './Modal.js';
 import { showToast, formatTime } from '../utils.js';
-import { el, img, replace, emptyState, loadingState, PLACEHOLDER_IMAGE } from '../core/dom.js';
+import { el, cover, replace, emptyState, errorState, loadingState, PLACEHOLDER_IMAGE } from '../core/dom.js';
 import { t } from '../services/i18n.js';
 
 let currentTrack = null;
@@ -27,9 +27,9 @@ let coverData = null;
 const byId = id => document.getElementById(id);
 const reportError = error => showToast(`❌ ${error.message || t('common.error')}`, 'error');
 
-const PRIMARY_BUTTON = 'px-4 py-2 rounded-full bg-green-500 hover:bg-green-600 text-white text-sm font-semibold transition-colors';
-const GHOST_BUTTON = 'px-4 py-2 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-sm font-semibold transition-colors';
-const DANGER_BUTTON = 'px-4 py-2 rounded-full bg-red-500/10 text-red-500 hover:bg-red-500/20 text-sm font-semibold transition-colors';
+const PRIMARY_BUTTON = 'ma-btn ma-btn-primary ma-btn-sm';
+const GHOST_BUTTON = 'ma-btn ma-btn-secondary ma-btn-sm';
+const DANGER_BUTTON = 'ma-btn ma-btn-danger ma-btn-sm';
 
 /**
  * @param {string} label
@@ -59,11 +59,9 @@ function renderRatingControl(container, item, readout) {
             const full = current >= position;
             const half = !full && current >= position - 0.5;
             const star = el('button', {
-                className: `relative w-8 h-8 text-2xl leading-none transition-transform hover:scale-110 ${full || half ? 'text-amber-400' : 'text-gray-400 dark:text-gray-600'}`,
+                className: `star ma-starbtn${full || half ? ' is-on' : ''}`,
                 attrs: { type: 'button', 'aria-label': t('track.stars', { n: position }) },
-                html: full
-                    ? '<i class="fa-solid fa-star"></i>'
-                    : (half ? '<i class="fa-solid fa-star-half-stroke"></i>' : '<i class="fa-regular fa-star"></i>')
+                text: full ? '★' : (half ? '⯨' : '☆')
             });
             // Left half of the star sets x.5, right half sets x.0 — that is the
             // whole reason ratings are stored in 0.5 steps.
@@ -76,7 +74,8 @@ function renderRatingControl(container, item, readout) {
         }
 
         const clear = el('button', {
-            className: 'ml-2 text-xs text-text-secondary-light dark:text-gray-400 hover:text-red-500 transition-colors',
+            className: 'ma-btn ma-btn-ghost ma-btn-sm',
+            style: 'margin-left:6px',
             attrs: { type: 'button' },
             text: t('track.resetRating')
         });
@@ -131,7 +130,8 @@ async function resolvePreview(track) {
  */
 function trackRow(track, onRemove) {
     const play = el('button', {
-        className: 'w-10 h-10 shrink-0 rounded-full bg-green-500 hover:bg-green-600 text-white transition-colors',
+        className: 'mini-player-play',
+        style: 'width:32px;height:32px;font-size:12px',
         attrs: { type: 'button', 'aria-label': t('player.playAria', { name: track.name }) },
         html: '<i class="fa-solid fa-play"></i>'
     });
@@ -153,26 +153,24 @@ function trackRow(track, onRemove) {
     });
 
     const title = el('button', {
-        className: 'flex-1 min-w-0 text-left',
+        className: 'ma-row-main',
+        style: 'border:0;background:transparent;color:inherit;font:inherit;padding:0',
         attrs: { type: 'button' },
         on: { click: () => openTrackDetail(track.id, track.name, track.artist, track.image, track.preview_url) }
     }, [
-        el('span', { className: 'block font-semibold truncate', text: track.name }),
-        track.artist && el('span', { className: 'block text-sm text-text-secondary-light dark:text-text-secondary-dark truncate', text: track.artist })
+        el('span', { className: 'ma-row-title', text: track.name }),
+        track.artist && el('span', { className: 'ma-row-sub', text: track.artist })
     ]);
 
-    return el('div', {
-        className: 'flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors',
-        dataset: { trackId: track.id }
-    }, [
-        img(track.image, 'w-12 h-12 rounded object-cover shrink-0', track.name),
+    return el('div', { className: 'ma-row', dataset: { trackId: track.id } }, [
+        cover(track.image, track.name || '', 'ma-cover-sm'),
         title,
-        track.duration_ms ? el('span', { className: 'hidden sm:block text-xs text-text-secondary-light dark:text-gray-500 tabular-nums', text: formatTime(track.duration_ms) }) : null,
+        track.duration_ms ? el('span', { className: 'ma-col-dur', text: formatTime(track.duration_ms) }) : null,
         play,
         onRemove ? el('button', {
-            className: 'w-9 h-9 shrink-0 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-colors',
+            className: 'ma-iconbtn',
+            text: '✕',
             attrs: { type: 'button', 'aria-label': t('playlist.removeAria', { name: track.name }) },
-            html: '<i class="fa-solid fa-xmark"></i>',
             on: { click: event => { event.stopPropagation(); void onRemove(); } }
         }) : null
     ]);
@@ -189,7 +187,7 @@ export async function openAlbumDetail(id) {
     byId('modalTitle').textContent = t('common.loading');
     byId('modalType').textContent = t('album.title');
     byId('modalCover').src = PLACEHOLDER_IMAGE;
-    replace(body, loadingState(t('album.loading')));
+    replace(body, loadingState(5));
     openModal('detailsModal');
 
     try {
@@ -212,24 +210,27 @@ export async function openAlbumDetail(id) {
         });
         paintSave();
 
-        const ratingRow = el('div', { className: 'flex items-center gap-1' });
-        const ratingText = el('p', { className: 'text-xs text-text-secondary-light dark:text-gray-400 mt-1' });
+        const ratingRow = el('div', { className: 'star-rating' });
+        const ratingText = el('p', { style: 'font-size:12px;color:var(--ink3);margin:6px 0 0' });
         renderRatingControl(ratingRow, { ...album, itemType: 'album' }, ratingText);
 
         replace(body,
-            el('div', { className: 'flex flex-wrap items-center justify-between gap-4 pb-4 mb-2 border-b border-gray-200 dark:border-white/5' }, [
+            el('div', {
+                style: 'display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;'
+                    + 'padding:16px 0;border-bottom:1px solid var(--border)'
+            }, [
                 el('div', {}, [
-                    el('p', { className: 'text-sm font-semibold mb-1', text: t('album.rate') }),
+                    el('p', { className: 'ma-kicker', style: 'margin:0 0 8px', text: t('album.rate') }),
                     ratingRow,
                     ratingText
                 ]),
                 saveButton
             ]),
-            el('div', { className: 'space-y-1' },
+            el('div', { className: 'ma-rows', style: 'border-top:0' },
                 (album.tracks || []).map(track => trackRow({ ...track, artist: track.artist || album.artist, image: album.image })))
         );
     } catch (error) {
-        replace(body, emptyState('fa-solid fa-triangle-exclamation', error.message || t('album.loadFailed'), 'text-red-500'));
+        replace(body, errorState(t('album.loadFailed'), error.message || ''));
     }
 }
 
@@ -267,13 +268,15 @@ export function openTrackDetail(id, name, artist, image, preview) {
     byId('trackAppleMusicLink').href = `https://music.apple.com/search?term=${query}`;
 
     renderRatingControl(byId('trackDetailRating'), currentTrack, byId('trackDetailRatingText'));
-    openModal('trackDetailModal', 'trackDetailContent');
+    openModal('trackDetailModal');
 }
 
 function paintLikeButton() {
     const liked = isTrackLiked(currentTrack.id);
     byId('trackDetailLikeText').textContent = liked ? t('track.unlike') : t('track.like');
-    byId('trackDetailLikeIcon').className = liked ? 'fa-solid fa-heart text-accent-coral' : 'fa-regular fa-heart';
+    const icon = byId('trackDetailLikeIcon');
+    icon.className = liked ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
+    icon.style.color = liked ? 'var(--pink-ink)' : '';
 }
 
 /**
@@ -339,14 +342,14 @@ export async function openPlaylistDetails(playlist) {
     byId('modalTitle').textContent = t('common.loading');
     byId('modalType').textContent = t('playlist.label');
     byId('modalCover').src = PLACEHOLDER_IMAGE;
-    replace(body, loadingState(t('playlist.loading')));
+    replace(body, loadingState(5));
     openModal('detailsModal');
 
     try {
         const all = await getPlaylists();
         currentPlaylist = all.find(p => String(p.id) === playlistId);
         if (!currentPlaylist) {
-            replace(body, emptyState('fa-solid fa-triangle-exclamation', t('common.notFound'), 'text-red-500'));
+            replace(body, errorState(t('common.notFound')));
             return;
         }
 
@@ -357,7 +360,9 @@ export async function openPlaylistDetails(playlist) {
         byId('modalType').textContent = `${t('playlist.label')} · ${tracks.length} ${t('common.songs')}`;
         byId('modalCover').src = list.coverImage || PLACEHOLDER_IMAGE;
 
-        const actions = el('div', { className: 'flex flex-wrap gap-2 pb-4 mb-2 border-b border-gray-200 dark:border-white/5' }, [
+        const actions = el('div', {
+            style: 'display:flex;flex-wrap:wrap;gap:8px;padding:16px 0;border-bottom:1px solid var(--border)'
+        }, [
             button(t('playlist.changeCover'), () => {
                 coverData = null;
                 byId('coverUrlInput').value = '';
@@ -379,7 +384,7 @@ export async function openPlaylistDetails(playlist) {
         ]);
 
         replace(body, actions, tracks.length
-            ? el('div', { className: 'space-y-1' }, tracks.map(entry => trackRow(
+            ? el('div', { className: 'ma-rows', style: 'border-top:0' }, tracks.map(entry => trackRow(
                 {
                     id: entry.trackId,
                     name: entry.trackName,
@@ -393,9 +398,9 @@ export async function openPlaylistDetails(playlist) {
                     }
                 }
             )))
-            : emptyState('fa-solid fa-music', t('playlist.empty')));
+            : emptyState('≡', t('playlist.empty')));
     } catch (error) {
-        replace(body, emptyState('fa-solid fa-triangle-exclamation', error.message || t('playlist.loadFailed'), 'text-red-500'));
+        replace(body, errorState(t('playlist.loadFailed'), error.message || ''));
     }
 }
 
@@ -406,17 +411,17 @@ export async function addToPlaylistFromDetail() {
     if (!store.token) return window.openAuthModal?.();
 
     const target = byId('playlistOptions');
-    replace(target, loadingState(t('playlist.listsLoading')));
+    replace(target, loadingState(3));
     openModal('addToPlaylistModal');
 
     const lists = await getPlaylists();
     if (!lists.length) {
-        replace(target, emptyState('fa-solid fa-list', t('playlist.chooseFirst')));
+        replace(target, emptyState('≡', t('playlist.chooseFirst')));
         return;
     }
 
     replace(target, ...lists.map(list => el('button', {
-        className: 'w-full flex items-center gap-3 p-3 rounded-lg text-left hover:bg-gray-100 dark:hover:bg-white/5 transition-colors',
+        className: 'ma-row',
         attrs: { type: 'button' },
         on: {
             click: async () => {
@@ -427,10 +432,10 @@ export async function addToPlaylistFromDetail() {
             }
         }
     }, [
-        img(list.coverImage, 'w-10 h-10 rounded object-cover shrink-0', list.name),
-        el('span', { className: 'flex-1 min-w-0 font-semibold truncate', text: list.name }),
+        cover(list.coverImage, list.name || '', 'ma-cover-sm'),
+        el('span', { className: 'ma-row-main ma-row-title', text: list.name }),
         el('span', {
-            className: 'text-xs text-text-secondary-light dark:text-gray-400',
+            style: 'font-size:11px;color:var(--ink3);flex:0 0 auto',
             text: `${list.trackCount ?? list.PlaylistTracks?.length ?? 0} ${t('common.songs')}`
         })
     ])));

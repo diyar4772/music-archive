@@ -9,11 +9,11 @@
  */
 import { el } from '../core/dom.js';
 
-const TONES = {
-    success: 'border-l-4 border-green-500',
-    error: 'border-l-4 border-red-500',
-    warning: 'border-l-4 border-amber-500',
-    info: 'border-l-4 border-blue-500'
+const ICONS = {
+    success: '✓',
+    error: '!',
+    warning: '!',
+    info: '•'
 };
 
 let container = null;
@@ -21,7 +21,7 @@ let container = null;
 function ensureContainer() {
     if (container?.isConnected) return container;
     container = el('div', {
-        className: 'fixed top-4 right-4 left-4 sm:left-auto z-[9999] flex flex-col gap-2 pointer-events-none',
+        className: 'ma-toast-host',
         attrs: { id: 'toastContainer', role: 'status', 'aria-live': 'polite' }
     });
     document.body.appendChild(container);
@@ -37,29 +37,23 @@ function ensureContainer() {
  */
 export function showToast(message, type = 'info', duration = 3000) {
     const host = ensureContainer();
+    const tone = ICONS[type] ? type : 'info';
 
-    const card = el('div', {
-        className: `toast pointer-events-auto bg-white dark:bg-card-dark text-text-light dark:text-white px-4 py-3 rounded-lg shadow-lg border border-gray-200 dark:border-white/10 ${TONES[type] || TONES.info} flex items-center gap-3 sm:min-w-[280px] max-w-md transition-all duration-200 opacity-0 translate-y-2`
-    }, [
-        el('span', { className: 'flex-1 text-sm', text: message }),
-        el('button', {
-            className: 'shrink-0 text-gray-400 hover:text-text-light dark:hover:text-white transition-colors',
-            attrs: { type: 'button', 'aria-label': 'Bildirimi kapat' },
-            html: '<i class="fa-solid fa-xmark"></i>'
-        })
+    const card = el('div', { className: `ma-toast is-${tone}` }, [
+        el('span', { className: 'ma-toast-icon', attrs: { 'aria-hidden': 'true' }, text: ICONS[tone] }),
+        el('span', { style: 'flex:1 1 auto', text: message })
     ]);
 
     const dismiss = () => {
-        card.classList.add('opacity-0', 'translate-y-2');
+        card.classList.add('is-leaving');
         setTimeout(() => card.remove(), 200);
     };
 
-    card.querySelector('button').addEventListener('click', dismiss);
+    card.addEventListener('click', dismiss);
     host.appendChild(card);
-    requestAnimationFrame(() => card.classList.remove('opacity-0', 'translate-y-2'));
 
     // Keep the stack short so a burst of failures cannot cover the page.
-    while (host.children.length > 4) host.firstElementChild.remove();
+    while (host.children.length > 3) host.firstElementChild.remove();
 
     setTimeout(dismiss, duration);
     return card;
