@@ -477,6 +477,7 @@ const authenticateToken = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
+    if (authHeader && (!authHeader.startsWith('Bearer ') || !token)) return res.sendStatus(401);
     if (token) {
         try {
             const user = jwt.verify(token, JWT_SECRET);
@@ -1005,60 +1006,78 @@ app.get('/api/me', authenticateToken, async (req, res) => {
     }
 });
 
-// Follow Artist
-app.post('/api/follow', authenticateToken, async (req, res) => {
+// The library namespace is canonical. Legacy adapters preserve toggle/idempotent
+// semantics and response envelopes for existing web and mobile clients.
+const followArtistHandler = async (req, res) => {
     try {
         const { artistId, artistName, image } = req.body;
-
+        if (typeof artistId !== 'string' || !artistId.trim() || typeof artistName !== 'string' || !artistName.trim()) {
+            return res.status(400).json({ error: 'artistId and artistName are required' });
+        }
+        const filter = { userId: req.user.id, artistId };
+        let followed;
         if (useInMemory) {
-            const existsIdx = inMemoryDB.follows.findIndex(f => f.userId === req.user.id && f.artistId === artistId);
-            if (existsIdx !== -1) {
-                inMemoryDB.follows.splice(existsIdx, 1);
-                return res.json({ status: 'unfollowed' });
-            }
-            inMemoryDB.follows.push({ _id: generateId(), userId: req.user.id, artistId, artistName, image });
-            return res.json({ status: 'followed' });
+            const index = inMemoryDB.follows.findIndex(f => f.userId === filter.userId && f.artistId === artistId);
+            followed = index === -1;
+            if (followed) inMemoryDB.follows.push({ _id: generateId(), ...filter, artistName, image, createdAt: new Date() });
+            else inMemoryDB.follows.splice(index, 1);
+        } else {
+            const existing = await Follow.findOne(filter);
+            followed = !existing;
+            if (existing) await Follow.deleteOne({ _id: existing._id });
+            else await Follow.create({ ...filter, artistName, image });
         }
-
-        const exists = await Follow.findOne({ userId: req.user.id, artistId });
-        if (exists) {
-            await Follow.deleteOne({ _id: exists._id });
-            return res.json({ status: 'unfollowed' });
-        }
-        await Follow.create({ userId: req.user.id, artistId, artistName, image });
-        res.json({ status: 'followed' });
-    } catch (e) {
-        res.status(500).json({ error: 'Action failed' });
+        const status = followed ? 'followed' : 'unfollowed';
+        return res.json(req.path.startsWith('/api/library/')
+            ? { success: true, action: status, message: `${status} ${artistName}` }
+            : { status });
+    } catch {
+        return res.status(500).json({ error: 'Action failed' });
     }
-});
+};
+app.post('/api/library/follow', authenticateToken, followArtistHandler);
+app.post('/api/follow', authenticateToken, followArtistHandler);
+
+const likeTrackHandler = async (req, res) => {
+    try {
+        const library = req.path.startsWith('/api/library/');
+        const input = req.body;
+        const trackId = library ? input.spotifyId : input.trackId;
+        const trackName = library ? input.title : input.trackName;
+        if (typeof trackId !== 'string' || !trackId.trim() || (library && (typeof trackName !== 'string' || !trackName.trim()))) {
+            return res.status(400).json({ error: library ? 'spotifyId and title are required' : 'trackId is required' });
+        }
+        const filter = { userId: req.user.id, trackId };
+        const artist = library ? input.artist : input.artistName;
+        const values = { ...filter, trackName, artistId: input.artistId || null,
+            artistName: (Array.isArray(artist) ? artist[0] : artist) || 'Unknown Artist',
+            image: library ? input.albumArt : input.image, previewUrl: input.previewUrl,
+            source: input.source || 'manual', mood: input.mood || null };
+        let status;
+        if (useInMemory) {
+            const index = inMemoryDB.likes.findIndex(l => l.userId === filter.userId && l.trackId === trackId);
+            if (index === -1) {
+                inMemoryDB.likes.push({ _id: generateId(), ...values, userNote: null, noteUpdatedAt: null, createdAt: new Date() });
+                status = 'liked';
+            } else if (library) status = 'exists';
+            else { inMemoryDB.likes.splice(index, 1); status = 'unliked'; }
+        } else if (library) {
+            const result = await upsertLike(filter, values);
+            status = result.lastErrorObject?.updatedExisting ? 'exists' : 'liked';
+        } else status = await toggleLike(filter, values);
+        return res.json(library
+            ? { success: true, message: status === 'exists' ? 'Already in Library' : 'Added to Library', action: status === 'exists' ? 'exists' : 'added' }
+            : { status });
+    } catch {
+        return res.status(500).json({ error: 'Action failed' });
+    }
+};
+app.post('/api/library/like', authenticateToken, likeTrackHandler);
+app.post('/api/like', authenticateToken, likeTrackHandler);
+
+// Follow Artist
 
 // Like Track
-app.post('/api/like', authenticateToken, async (req, res) => {
-    try {
-        const { trackId, trackName, image, previewUrl } = req.body;
-        if (typeof trackId !== 'string' || !trackId.trim()) {
-            return res.status(400).json({ error: 'trackId is required' });
-        }
-
-        if (useInMemory) {
-            const existsIdx = inMemoryDB.likes.findIndex(l => l.userId === req.user.id && l.trackId === trackId);
-            if (existsIdx !== -1) {
-                inMemoryDB.likes.splice(existsIdx, 1);
-                return res.json({ status: 'unliked' });
-            }
-            inMemoryDB.likes.push({ _id: generateId(), userId: req.user.id, trackId, trackName, image, previewUrl });
-            return res.json({ status: 'liked' });
-        }
-
-        const status = await toggleLike(
-            { userId: req.user.id, trackId },
-            { userId: req.user.id, trackId, trackName, image, previewUrl }
-        );
-        res.json({ status });
-    } catch (e) {
-        res.status(500).json({ error: 'Action failed' });
-    }
-});
 
 // Follow Album
 app.post('/api/follow-album', authenticateToken, async (req, res) => {
@@ -1226,66 +1245,45 @@ app.delete('/api/rate/:itemId', authenticateToken, async (req, res) => {
     }
 });
 
-// --- Playlist Routes ---
-app.get('/api/playlists', authenticateToken, async (req, res) => {
+const listPlaylistsHandler = async (req, res) => {
     try {
-        if (useInMemory) {
-            const playlists = inMemoryDB.playlists.filter(p => p.userId === req.user.id);
-            const result = playlists.map(pl => {
-                const tracks = inMemoryDB.playlistTracks.filter(t => t.playlistId === pl._id);
-                return {
-                    id: pl._id,
-                    name: pl.name,
-                    coverImage: pl.coverImage || null,
-                    PlaylistTracks: tracks
-                };
-            });
-            return res.json(result);
-        }
-
-        const playlists = await Playlist.find({ userId: req.user.id });
-        const result = await Promise.all(playlists.map(async (pl) => {
-            const tracks = await PlaylistTrack.find({ playlistId: pl._id });
-            return {
-                id: pl._id,
-                name: pl.name,
-                coverImage: pl.coverImage || null,
-                PlaylistTracks: tracks
-            };
+        const filter = { userId: req.user.id };
+        const playlists = useInMemory ? inMemoryDB.playlists.filter(p => p.userId === filter.userId)
+            : await Playlist.find(filter).sort({ createdAt: -1 }).lean();
+        const result = await Promise.all(playlists.map(async p => {
+            const tracks = useInMemory ? inMemoryDB.playlistTracks.filter(t => t.playlistId === p._id)
+                : await PlaylistTrack.find({ playlistId: p._id }).lean();
+            return { id: p._id, name: p.name, coverImage: p.coverImage || null, createdAt: p.createdAt,
+                trackCount: tracks.length, PlaylistTracks: tracks };
         }));
-        res.json(result);
-    } catch (e) {
-        res.status(500).json({ error: 'Failed to fetch playlists' });
+        return res.json(req.path.startsWith('/api/library/') ? { playlists: result } : result);
+    } catch {
+        return res.status(500).json({ error: 'Failed to fetch playlists' });
     }
-});
-
-app.post('/api/playlists', authenticateToken, async (req, res) => {
+};
+const createPlaylistHandler = async (req, res) => {
     try {
-        let { name } = req.body;
-
-        // 🔒 SECURITY: Validate and sanitize playlist name
-        if (!name || typeof name !== 'string') {
+        if (typeof req.body.name !== 'string' || !req.body.name.trim()) {
             return res.status(400).json({ error: 'Playlist name is required' });
         }
-        name = name.trim().substring(0, 100); // Max 100 chars
-        if (name.length < 1) {
-            return res.status(400).json({ error: 'Playlist name cannot be empty' });
-        }
-        // Sanitize: remove potential XSS
-        name = name.replace(/[<>]/g, '');
-
-        if (useInMemory) {
-            const playlistId = generateId();
-            inMemoryDB.playlists.push({ _id: playlistId, userId: req.user.id, name });
-            return res.json({ id: playlistId, name });
-        }
-
-        const playlist = await Playlist.create({ userId: req.user.id, name });
-        res.json({ id: playlist._id, name: playlist.name });
-    } catch (e) {
-        res.status(500).json({ error: 'Failed to create playlist' });
+        const name = req.body.name.trim().substring(0, 100).replace(/[<>]/g, '');
+        if (!name) return res.status(400).json({ error: 'Playlist name cannot be empty' });
+        const values = { userId: req.user.id, name, coverImage: req.body.coverImage || null, createdAt: new Date() };
+        const playlist = useInMemory ? { _id: generateId(), ...values } : await Playlist.create(values);
+        if (useInMemory) inMemoryDB.playlists.push(playlist);
+        const result = { id: playlist._id, name, coverImage: playlist.coverImage, createdAt: playlist.createdAt, trackCount: 0 };
+        return res.json(req.path.startsWith('/api/library/') ? { playlist: result, message: 'Playlist created' } : result);
+    } catch {
+        return res.status(500).json({ error: 'Failed to create playlist' });
     }
-});
+};
+app.get('/api/library/playlists', authenticateToken, listPlaylistsHandler);
+app.get('/api/playlists', authenticateToken, listPlaylistsHandler);
+app.post('/api/library/playlists', authenticateToken, createPlaylistHandler);
+app.post('/api/playlists', authenticateToken, createPlaylistHandler);
+
+// --- Playlist Routes ---
+
 
 app.post('/api/playlists/:id/add', authenticateToken, async (req, res) => {
     try {
@@ -2103,85 +2101,8 @@ app.get('/api/library/artists', authenticateToken, async (req, res) => {
 });
 
 // Library: Get user's playlists
-app.get('/api/library/playlists', authenticateToken, async (req, res) => {
-    try {
-        const userId = req.user.id;
-
-        if (useInMemory) {
-            const playlists = inMemoryDB.playlists.filter(p => p.userId === userId);
-            const playlistsWithCounts = playlists.map(p => ({
-                ...p,
-                trackCount: inMemoryDB.playlistTracks.filter(pt => pt.playlistId === p._id).length
-            }));
-            return res.json({ playlists: playlistsWithCounts });
-        }
-
-        const playlists = await Playlist.find({ userId }).sort({ createdAt: -1 }).lean();
-
-        // Get track counts for each playlist
-        const playlistsWithCounts = await Promise.all(
-            playlists.map(async (p) => {
-                const trackCount = await PlaylistTrack.countDocuments({ playlistId: p._id });
-                return {
-                    id: p._id,
-                    name: p.name,
-                    coverImage: p.coverImage,
-                    trackCount,
-                    createdAt: p.createdAt
-                };
-            })
-        );
-
-        res.json({ playlists: playlistsWithCounts });
-    } catch (e) {
-        console.error('Library playlists error:', e.message);
-        res.status(500).json({ error: 'Failed to get playlists' });
-    }
-});
 
 // Library: Create new playlist
-app.post('/api/library/playlists', authenticateToken, async (req, res) => {
-    try {
-        const userId = req.user.id;
-        const { name, coverImage } = req.body;
-
-        if (!name || name.trim().length === 0) {
-            return res.status(400).json({ error: 'Playlist name is required' });
-        }
-
-        if (useInMemory) {
-            const playlist = {
-                _id: generateId(),
-                userId,
-                name: name.trim(),
-                coverImage: coverImage || null,
-                createdAt: new Date()
-            };
-            inMemoryDB.playlists.push(playlist);
-            return res.json({ playlist, message: 'Playlist created' });
-        }
-
-        const playlist = await Playlist.create({
-            userId,
-            name: name.trim(),
-            coverImage: coverImage || null
-        });
-
-        res.json({
-            playlist: {
-                id: playlist._id,
-                name: playlist.name,
-                coverImage: playlist.coverImage,
-                trackCount: 0,
-                createdAt: playlist.createdAt
-            },
-            message: 'Playlist created'
-        });
-    } catch (e) {
-        console.error('Create playlist error:', e.message);
-        res.status(500).json({ error: 'Failed to create playlist' });
-    }
-});
 
 // Library: Delete a liked track
 app.delete('/api/library/track/:trackId', authenticateToken, async (req, res) => {
@@ -2306,278 +2227,16 @@ app.get('/api/search/enhanced', authenticateToken, userLimiter, async (req, res)
 // In development: allows mock user fallback for testing
 
 // 🔧 Mobile Auth Middleware (production-safe with dev fallback)
-const mobileAuth = async (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
 
-    // 1. Always try real token first
-    if (token) {
-        try {
-            const user = jwt.verify(token, JWT_SECRET);
-            req.user = user;
-            return next();
-        } catch (err) {
-            // Token invalid - reject unless mock auth is explicitly enabled
-            if (!MOCK_AUTH_ENABLED) {
-                return res.status(401).json({
-                    success: false,
-                    error: 'Invalid or expired token. Please login again.'
-                });
-            }
-            // Mock auth on: continue to fallback
-        }
-    }
-
-    // 2. No token and no mock auth = unauthorized
-    if (!MOCK_AUTH_ENABLED) {
-        return res.status(401).json({
-            success: false,
-            error: 'Authentication required. Please login.'
-        });
-    }
-
-    // 3. Development only: Mock user fallback for testing
-    console.log('⚠️ DEV MODE: Using mock authentication');
-
-    if (useInMemory) {
-        req.user = { id: 'mock_user_001', username: 'dev_test_user' };
-        return next();
-    }
-
-    try {
-        const firstUser = await User.findOne({}).lean();
-        if (firstUser) {
-            req.user = { id: firstUser._id.toString(), username: firstUser.username };
-        } else {
-            const testUser = await User.create({
-                username: 'dev_test_user',
-                password: await bcrypt.hash('devtest123', 12)
-            });
-            req.user = { id: testUser._id.toString(), username: testUser.username };
-            console.log('📚 DEV: Created test user for API testing');
-        }
-        next();
-    } catch (err) {
-        console.error('MobileAuth fallback error:', err.message);
-        return res.status(500).json({ success: false, error: 'Authentication service error' });
-    }
-};
 
 // 🟢 POST /api/library/like - Archive/Like a song
-app.post('/api/library/like', mobileAuth, async (req, res) => {
-    try {
-        const { spotifyId, title, artist, albumArt, previewUrl, artistId, source = 'manual', mood } = req.body;
-
-        // Validation
-        if (typeof spotifyId !== 'string' || !spotifyId.trim() || typeof title !== 'string' || !title.trim()) {
-            return res.status(400).json({
-                success: false,
-                error: 'spotifyId and title are required'
-            });
-        }
-
-        // Ensure artist is a string (not an array)
-        const artistName = Array.isArray(artist) ? artist[0] : artist;
-
-        if (useInMemory) {
-            // Check if already exists
-            const existsIdx = inMemoryDB.likes.findIndex(
-                l => l.userId === req.user.id && l.trackId === spotifyId
-            );
-
-            if (existsIdx !== -1) {
-                // Already liked - return success (idempotent)
-                return res.json({
-                    success: true,
-                    message: 'Already in Library',
-                    action: 'exists'
-                });
-            }
-
-            // Add new like
-            inMemoryDB.likes.push({
-                _id: generateId(),
-                userId: req.user.id,
-                trackId: spotifyId,
-                trackName: title,
-                artistId: artistId || null,
-                artistName: artistName || 'Unknown Artist',
-                image: albumArt,
-                previewUrl: previewUrl,
-                source: source,
-                mood: mood || null,
-                userNote: null,
-                noteUpdatedAt: null,
-                createdAt: new Date()
-            });
-
-            return res.json({
-                success: true,
-                message: 'Added to Library',
-                action: 'added'
-            });
-        }
-
-        const result = await upsertLike(
-            { userId: req.user.id, trackId: spotifyId },
-            {
-                userId: req.user.id,
-                trackId: spotifyId,
-                trackName: title,
-                artistId: artistId || null,
-                artistName: artistName || 'Unknown Artist',
-                image: albumArt,
-                previewUrl: previewUrl,
-                source: source,
-                mood: mood || null
-            }
-        );
-        if (result.lastErrorObject?.updatedExisting) {
-            return res.json({
-                success: true,
-                message: 'Already in Library',
-                action: 'exists'
-            });
-        }
-
-        console.log(`📚 Library: Added "${title}" by ${artistName} for user ${req.user.username || req.user.id}`);
-
-        res.json({
-            success: true,
-            message: 'Added to Library',
-            action: 'added'
-        });
-    } catch (e) {
-        console.error('Library like error:', e.message);
-        res.status(500).json({ success: false, error: 'Failed to add to library' });
-    }
-});
 
 // 🔴 DELETE /api/library/track/:spotifyId - Remove a song from library
-app.delete('/api/library/track/:spotifyId', mobileAuth, async (req, res) => {
-    try {
-        const { spotifyId } = req.params;
-
-        if (typeof spotifyId !== 'string' || !spotifyId.trim()) {
-            return res.status(400).json({ success: false, error: 'spotifyId is required' });
-        }
-        if (useInMemory) {
-            const existsIdx = inMemoryDB.likes.findIndex(
-                l => l.userId === req.user.id && l.trackId === spotifyId
-            );
-
-            if (existsIdx === -1) {
-                return res.status(404).json({ success: false, error: 'Track not in library' });
-            }
-
-            const removed = inMemoryDB.likes.splice(existsIdx, 1)[0];
-            return res.json({
-                success: true,
-                id: spotifyId,
-                message: `Removed "${removed.trackName}" from library`
-            });
-        }
-
-        // MongoDB
-        const result = await Like.findOneAndDelete({ userId: req.user.id, trackId: spotifyId });
-
-        if (!result) {
-            return res.status(404).json({ success: false, error: 'Track not in library' });
-        }
-
-        console.log(`📚 Library: Removed "${result.trackName}" for user ${req.user.username || req.user.id}`);
-
-        res.json({
-            success: true,
-            id: spotifyId,
-            message: `Removed "${result.trackName}" from library`
-        });
-    } catch (e) {
-        console.error('Library delete error:', e.message);
-        res.status(500).json({ success: false, error: 'Failed to remove from library' });
-    }
-});
 
 // 👥 POST /api/library/follow - Follow an artist
-app.post('/api/library/follow', mobileAuth, async (req, res) => {
-    try {
-        const { artistName, artistId, image } = req.body;
-
-        if (!artistId || !artistName) {
-            return res.status(400).json({
-                success: false,
-                error: 'artistId and artistName are required'
-            });
-        }
-
-        if (useInMemory) {
-            // Check if already following
-            const existsIdx = inMemoryDB.follows.findIndex(
-                f => f.userId === req.user.id && f.artistId === artistId
-            );
-
-            if (existsIdx !== -1) {
-                // Toggle: Unfollow
-                inMemoryDB.follows.splice(existsIdx, 1);
-                return res.json({
-                    success: true,
-                    action: 'unfollowed',
-                    message: `Unfollowed ${artistName}`
-                });
-            }
-
-            // Follow
-            inMemoryDB.follows.push({
-                _id: generateId(),
-                userId: req.user.id,
-                artistId,
-                artistName,
-                image: image || null,
-                createdAt: new Date()
-            });
-
-            return res.json({
-                success: true,
-                action: 'followed',
-                message: `Now following ${artistName}`
-            });
-        }
-
-        // MongoDB - Toggle follow
-        const exists = await Follow.findOne({ userId: req.user.id, artistId });
-
-        if (exists) {
-            await Follow.deleteOne({ _id: exists._id });
-            console.log(`📚 Library: Unfollowed ${artistName} for user ${req.user.username || req.user.id}`);
-            return res.json({
-                success: true,
-                action: 'unfollowed',
-                message: `Unfollowed ${artistName}`
-            });
-        }
-
-        await Follow.create({
-            userId: req.user.id,
-            artistId,
-            artistName,
-            image: image || null
-        });
-
-        console.log(`📚 Library: Following ${artistName} for user ${req.user.username || req.user.id}`);
-
-        res.json({
-            success: true,
-            action: 'followed',
-            message: `Now following ${artistName}`
-        });
-    } catch (e) {
-        console.error('Library follow error:', e.message);
-        res.status(500).json({ success: false, error: 'Failed to follow artist' });
-    }
-});
 
 // 📝 POST /api/library/note - Add/Update a memory note to a track
-app.post('/api/library/note', mobileAuth, async (req, res) => {
+app.post('/api/library/note', authenticateToken, async (req, res) => {
     try {
         const { spotifyId, note } = req.body;
 
@@ -2634,7 +2293,7 @@ app.post('/api/library/note', mobileAuth, async (req, res) => {
 });
 
 // 🔄 POST /api/library/enrich-previews - Enrich old likes with missing preview URLs - Rate limited
-app.post('/api/library/enrich-previews', mobileAuth, userLimiter, async (req, res) => {
+app.post('/api/library/enrich-previews', authenticateToken, userLimiter, async (req, res) => {
     try {
         const userId = req.user.id;
         let enrichedCount = 0;
@@ -2748,7 +2407,7 @@ app.post('/api/library/enrich-previews', mobileAuth, userLimiter, async (req, re
 });
 
 // 📊 GET /api/library/stats - Get library statistics
-app.get('/api/library/stats', mobileAuth, async (req, res) => {
+app.get('/api/library/stats', authenticateToken, async (req, res) => {
     try {
         if (useInMemory) {
             const tracks = inMemoryDB.likes.filter(l => l.userId === req.user.id);
@@ -2803,129 +2462,11 @@ app.get('/api/library/stats', mobileAuth, async (req, res) => {
 });
 
 // 📋 GET /api/library/tracks - Get all tracks in library (with pagination)
-app.get('/api/library/tracks', mobileAuth, async (req, res) => {
-    try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 50;
-        const skip = (page - 1) * limit;
-        const sortBy = req.query.sort || 'createdAt'; // createdAt, trackName, artistName
-        const order = req.query.order === 'asc' ? 1 : -1;
-
-        if (useInMemory) {
-            let tracks = inMemoryDB.likes.filter(l => l.userId === req.user.id);
-
-            // Sort
-            tracks.sort((a, b) => {
-                const aVal = a[sortBy] || '';
-                const bVal = b[sortBy] || '';
-                return order * aVal.toString().localeCompare(bVal.toString());
-            });
-
-            const total = tracks.length;
-            tracks = tracks.slice(skip, skip + limit);
-
-            return res.json({
-                success: true,
-                tracks: tracks.map(t => ({
-                    id: t.trackId,
-                    trackId: t.trackId,
-                    title: t.trackName,
-                    artist: t.artistName,
-                    artistId: t.artistId,
-                    albumArt: t.image,
-                    previewUrl: t.previewUrl,
-                    source: t.source || 'manual',
-                    mood: t.mood,
-                    note: t.userNote,
-                    noteUpdatedAt: t.noteUpdatedAt,
-                    addedAt: t.createdAt
-                })),
-                pagination: {
-                    page,
-                    limit,
-                    total,
-                    totalPages: Math.ceil(total / limit)
-                }
-            });
-        }
-
-        // MongoDB
-        const sortObj = {};
-        sortObj[sortBy] = order;
-
-        const [tracks, total] = await Promise.all([
-            Like.find({ userId: req.user.id })
-                .sort(sortObj)
-                .skip(skip)
-                .limit(limit)
-                .lean(),
-            Like.countDocuments({ userId: req.user.id })
-        ]);
-
-        res.json({
-            success: true,
-            tracks: tracks.map(t => ({
-                id: t.trackId,
-                trackId: t.trackId,
-                title: t.trackName,
-                artist: t.artistName,
-                artistId: t.artistId,
-                albumArt: t.image,
-                previewUrl: t.previewUrl,
-                source: t.source || 'manual',
-                mood: t.mood,
-                note: t.userNote,
-                noteUpdatedAt: t.noteUpdatedAt,
-                addedAt: t.createdAt
-            })),
-            pagination: {
-                page,
-                limit,
-                total,
-                totalPages: Math.ceil(total / limit)
-            }
-        });
-    } catch (e) {
-        console.error('Library tracks error:', e.message);
-        res.status(500).json({ success: false, error: 'Failed to get tracks' });
-    }
-});
 
 // 👥 GET /api/library/artists - Get all followed artists
-app.get('/api/library/artists', mobileAuth, async (req, res) => {
-    try {
-        if (useInMemory) {
-            const artists = inMemoryDB.follows.filter(f => f.userId === req.user.id);
-            return res.json({
-                success: true,
-                artists: artists.map(a => ({
-                    id: a.artistId,
-                    name: a.artistName,
-                    image: a.image,
-                    followedAt: a.createdAt
-                }))
-            });
-        }
-
-        const artists = await Follow.find({ userId: req.user.id }).lean();
-
-        res.json({
-            success: true,
-            artists: artists.map(a => ({
-                id: a.artistId,
-                name: a.artistName,
-                image: a.image,
-                followedAt: a.createdAt
-            }))
-        });
-    } catch (e) {
-        console.error('Library artists error:', e.message);
-        res.status(500).json({ success: false, error: 'Failed to get artists' });
-    }
-});
 
 // 🔍 GET /api/library/check/:spotifyId - Check if a track is in library
-app.get('/api/library/check/:spotifyId', mobileAuth, async (req, res) => {
+app.get('/api/library/check/:spotifyId', authenticateToken, async (req, res) => {
     try {
         const { spotifyId } = req.params;
 
