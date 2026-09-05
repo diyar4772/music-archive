@@ -12,12 +12,20 @@
     "songs": "şarkı",
     "artistsWord": "sanatçı",
     "remove": "Kaldır",
-    "notFound": "Bulunamadı"
+    "notFound": "Bulunamadı",
+    "results": "{{n}} sonuç",
+    "total": "toplam",
+    "all": "Tümü"
   },
   "nav": {
     "home": "Ana sayfaya dön",
     "accountMenu": "hesap menüsü",
-    "toggleTheme": "Temayı değiştir"
+    "toggleTheme": "Temayı değiştir",
+    "dashboard": "Panel",
+    "search": "Ara",
+    "library": "Kütüphane",
+    "dig": "Dig",
+    "sections": "Bölümler"
   },
   "auth": {
     "login": "Giriş yap",
@@ -34,17 +42,22 @@
     "registerSuccess": "Kayıt başarılı"
   },
   "landing": {
-    "badge": "Dinleme değil, biriktirme",
-    "titleTop": "Müziğini",
-    "titleAccent": "tek yerde arşivle",
-    "subtitle": "Sevdiğin şarkıları, sanatçıları, puanlarını ve kişisel notlarını düzenli bir koleksiyonda tutan kişisel müzik arşivin.",
-    "ctaPrimary": "Ücretsiz başla",
+    "badge": "Kişisel müzik arşivi",
+    "titleTop": "Ne dinlediğin değil,",
+    "titleAccent": "neyi sakladığın.",
+    "subtitle": "Spotify aramayı ve kapakları veriyor. Arşiv sana ait: beğendiğini kaydet, 1–5 puanla, mood etiketle, kendi notunu yaz. Bir çalar değil, bir koleksiyon defteri.",
+    "ctaPrimary": "Arşivimi aç",
     "card1Title": "Arşivle",
     "card1Body": "Beğendiğin şarkıları ve takip ettiğin sanatçıları tek koleksiyonda topla.",
     "card2Title": "Puanla",
     "card2Body": "Yarım yıldız hassasiyetiyle puan ver, zamanla neyi ne kadar sevdiğini gör.",
     "card3Title": "Not düş",
-    "card3Body": "Bir şarkının sana ne hatırlattığını yaz; koleksiyonun bir günlüğe dönüşsün."
+    "card3Body": "Bir şarkının sana ne hatırlattığını yaz; koleksiyonun bir günlüğe dönüşsün.",
+    "ctaSecondary": "Nasıl çalışır",
+    "sampleKicker": "Arşivden bir kayıt",
+    "sampleTitle": "Kısa Gece",
+    "sampleMeta": "Mor Kadife · 2019",
+    "sampleNote": "\"Ankara'dan dönüş, sabaha karşı. Bunu unutma diye buraya yazıyorum.\""
   },
   "library": {
     "title": "Kütüphanem",
@@ -63,7 +76,19 @@
     "emptyFollows": "Henüz takip edilen sanatçı yok",
     "emptyPlaylists": "Henüz liste yok",
     "loadFailed": "Kütüphane yüklenemedi. Lütfen yeniden dene.",
-    "dataFailed": "Veriler yüklenemedi. Lütfen yeniden dene."
+    "dataFailed": "Veriler yüklenemedi. Lütfen yeniden dene.",
+    "subtitle": "Sakladıkların",
+    "colTrack": "Şarkı",
+    "colMood": "Mood",
+    "colRating": "Puan",
+    "colDuration": "Süre",
+    "emptyLikesBody": "Bir şarkı ara ve kalbe bas. Sakladığın her kayıt puan, mood ve notunla birlikte burada durur.",
+    "emptyFollowsBody": "Bir sanatçı ara ve takip et; diskografi kapsaman burada birikir.",
+    "emptyPlaylistsBody": "İlk listeni oluştur ve arşivindeki şarkıları içine diz.",
+    "startSearching": "Aramaya başla",
+    "coverage": "%{{n}} kapsama",
+    "newPlaylist": "Yeni playlist",
+    "hasNote": "Not var"
   },
   "search": {
     "placeholder": "Sanatçı, şarkı veya albüm ara…",
@@ -83,7 +108,16 @@
     "fromLibrary": "Kütüphanenden",
     "recent": "Son aramalar",
     "spotifyResults": "Spotify sonuçları",
-    "following": "Takip ediliyor"
+    "following": "Takip ediliyor",
+    "resultCount": "{{n}} sonuç",
+    "emptyTitle": "\"{{query}}\" için sonuç yok",
+    "emptyBody": "Yazımı kontrol et ya da başka bir sekmeyi dene.",
+    "startTitle": "Ne arıyorsun?",
+    "startBody": "Bir sanatçı, şarkı veya albüm adı yaz. Bulduğunu tek dokunuşla arşivine al.",
+    "unavailableTitle": "Arama servisi kullanılamıyor",
+    "unavailableBody": "Spotify bağlantısı kurulamadı. Arşivin yerinde duruyor — puanlama, not ve playlist'ler çalışmaya devam ediyor. Yalnızca yeni arama yapılamıyor.",
+    "backToLibrary": "Kütüphaneye dön",
+    "archive": "Arşive al"
   },
   "track": {
     "details": "Şarkı detayları",
@@ -165,5 +199,46 @@
   "app": {
     "loadFailed": "Music Archive yüklenemedi",
     "loadFailedBody": "Geçici bir sorun oluştu. Lütfen yeniden deneyin."
+  },
+  "dashboard": {
+    "kicker": "Panel",
+    "morning": "Günaydın, {{name}}",
+    "afternoon": "İyi günler, {{name}}",
+    "evening": "İyi akşamlar, {{name}}",
+    "summary": "Arşivde {{tracks}} şarkı · {{artists}} sanatçı",
+    "goLibrary": "Kütüphaneye git",
+    "recentWindow": "7 gün",
+    "ratedCount": "{{n}} şarkı puanlandı",
+    "tracksTotal": "{{n}} şarkı toplam",
+    "newThisMonth": "bu ay {{n}} yeni kayıt"
+  },
+  "artist": {
+    "kicker": "Sanatçı",
+    "coverage": "Diskografi kapsaması",
+    "coverageBody": "{{total}} albümün {{archived}}'u arşivinde",
+    "tickHint": "Her çizgi bir albüm · dolu = arşivde",
+    "discography": "Diskografi",
+    "inArchive": "ARŞİVDE",
+    "meta": "{{total}} albüm · arşivinde {{tracks}} şarkı",
+    "albumMeta": "{{year}} · {{tracks}} şarkı",
+    "searchOnSpotify": "Spotify'da ara →"
+  },
+  "dig": {
+    "kicker": "Dig · keşif",
+    "title": "Kazmaya devam",
+    "summary": "Kuyrukta {{left}} kayıt · bu turda {{kept}} arşivlendi",
+    "next": "Sıradaki",
+    "hint": "Öneriler takip ettiğin sanatçıların komşularından ve yüksek puanlı kayıtlarından geliyor.",
+    "keys": "Klavye: ← geç · → arşivle · boşluk önizleme",
+    "skip": "← Geç",
+    "keep": "Arşivle →",
+    "preview": "▶ 30 sn önizleme",
+    "doneTitle": "Kuyruk bitti",
+    "doneBody": "{{kept}} kayıt arşivine eklendi. Yeni öneriler birkaç saat içinde hazır olur.",
+    "reset": "Kuyruğu yenile",
+    "loadFailed": "Öneri kuyruğu yüklenemedi.",
+    "signedOut": "Dig için giriş yapman gerekiyor.",
+    "archived": "Arşive eklendi",
+    "skipped": "Geçildi"
   }
 }

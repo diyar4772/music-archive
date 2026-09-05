@@ -1331,3 +1331,31 @@ button.ma-card:hover,
     .mini-player-body { gap: 10px; height: 64px }
     .mini-player-time { display: none }
 }
+
+.ma-pill-lg {
+    height: 46px;
+    padding: 0 16px;
+}
+
+.ma-searchbar {
+    position: relative;
+}
+
+.ma-searchbar-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.ma-searchbar-types {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+    .ma-searchbar-row > .ma-searchfield { flex: 1 1 100% }
+    .ma-pill-lg { height: 38px; padding: 0 14px }
+}

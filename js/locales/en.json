@@ -12,12 +12,20 @@
     "songs": "songs",
     "artistsWord": "artists",
     "remove": "Remove",
-    "notFound": "Not found"
+    "notFound": "Not found",
+    "results": "{{n}} results",
+    "total": "total",
+    "all": "All"
   },
   "nav": {
     "home": "Back to home",
     "accountMenu": "account menu",
-    "toggleTheme": "Toggle theme"
+    "toggleTheme": "Toggle theme",
+    "dashboard": "Overview",
+    "search": "Search",
+    "library": "Library",
+    "dig": "Dig",
+    "sections": "Sections"
   },
   "auth": {
     "login": "Log in",
@@ -34,17 +42,22 @@
     "registerSuccess": "Account created"
   },
   "landing": {
-    "badge": "Not streaming — collecting",
-    "titleTop": "Archive your music",
-    "titleAccent": "all in one place",
-    "subtitle": "Your personal music archive: the songs and artists you love, your ratings and your private notes, kept in one tidy collection.",
-    "ctaPrimary": "Start free",
+    "badge": "A personal music archive",
+    "titleTop": "Not what you played,",
+    "titleAccent": "what you kept.",
+    "subtitle": "Spotify supplies the search and the artwork. The archive is yours: save what you like, rate it 1–5, tag the mood, write your own note. Not a player — a collector's notebook.",
+    "ctaPrimary": "Open my archive",
     "card1Title": "Collect",
     "card1Body": "Keep the songs you like and the artists you follow in a single collection.",
     "card2Title": "Rate",
     "card2Body": "Rate in half-star steps and watch your taste take shape over time.",
     "card3Title": "Annotate",
-    "card3Body": "Write down what a song reminds you of and let your collection become a diary."
+    "card3Body": "Write down what a song reminds you of and let your collection become a diary.",
+    "ctaSecondary": "How it works",
+    "sampleKicker": "One record from the archive",
+    "sampleTitle": "Short Night",
+    "sampleMeta": "Mor Kadife · 2019",
+    "sampleNote": "\"The drive back from Ankara, just before dawn. Writing it here so I do not forget.\""
   },
   "library": {
     "title": "My Library",
@@ -63,7 +76,19 @@
     "emptyFollows": "You are not following anyone yet",
     "emptyPlaylists": "No playlists yet",
     "loadFailed": "Could not load your library. Please try again.",
-    "dataFailed": "Could not load your data. Please try again."
+    "dataFailed": "Could not load your data. Please try again.",
+    "subtitle": "What you kept",
+    "colTrack": "Song",
+    "colMood": "Mood",
+    "colRating": "Rating",
+    "colDuration": "Length",
+    "emptyLikesBody": "Search for a song and hit the heart. Everything you keep stays here with its rating, moods and note.",
+    "emptyFollowsBody": "Search for an artist and follow them; your discography coverage builds up here.",
+    "emptyPlaylistsBody": "Create your first list and line your archived songs up inside it.",
+    "startSearching": "Start searching",
+    "coverage": "{{n}}% covered",
+    "newPlaylist": "New playlist",
+    "hasNote": "Has a note"
   },
   "search": {
     "placeholder": "Search artists, songs or albums…",
@@ -83,7 +108,16 @@
     "fromLibrary": "From your library",
     "recent": "Recent searches",
     "spotifyResults": "Spotify results",
-    "following": "Following"
+    "following": "Following",
+    "resultCount": "{{n}} results",
+    "emptyTitle": "No results for \"{{query}}\"",
+    "emptyBody": "Check the spelling or try another tab.",
+    "startTitle": "What are you looking for?",
+    "startBody": "Type an artist, song or album name. Archive what you find in one tap.",
+    "unavailableTitle": "Search is unavailable",
+    "unavailableBody": "Spotify could not be reached. Your archive is untouched — ratings, notes and playlists keep working. Only new searches are off.",
+    "backToLibrary": "Back to library",
+    "archive": "Add to archive"
   },
   "track": {
     "details": "Song details",
@@ -165,5 +199,46 @@
   "app": {
     "loadFailed": "Music Archive could not load",
     "loadFailedBody": "Something went wrong. Please try again."
+  },
+  "dashboard": {
+    "kicker": "Overview",
+    "morning": "Good morning, {{name}}",
+    "afternoon": "Good afternoon, {{name}}",
+    "evening": "Good evening, {{name}}",
+    "summary": "{{tracks}} songs · {{artists}} artists archived",
+    "goLibrary": "Go to library",
+    "recentWindow": "7 days",
+    "ratedCount": "{{n}} songs rated",
+    "tracksTotal": "{{n}} songs in total",
+    "newThisMonth": "{{n}} new this month"
+  },
+  "artist": {
+    "kicker": "Artist",
+    "coverage": "Discography coverage",
+    "coverageBody": "{{archived}} of {{total}} albums archived",
+    "tickHint": "Each bar is an album · filled = archived",
+    "discography": "Discography",
+    "inArchive": "ARCHIVED",
+    "meta": "{{total}} albums · {{tracks}} songs archived",
+    "albumMeta": "{{year}} · {{tracks}} songs",
+    "searchOnSpotify": "Search on Spotify →"
+  },
+  "dig": {
+    "kicker": "Dig · discovery",
+    "title": "Keep digging",
+    "summary": "{{left}} left in the queue · {{kept}} archived this round",
+    "next": "Up next",
+    "hint": "Suggestions come from the neighbours of the artists you follow and from your highest-rated records.",
+    "keys": "Keys: ← skip · → archive · space preview",
+    "skip": "← Skip",
+    "keep": "Archive →",
+    "preview": "▶ 30s preview",
+    "doneTitle": "Queue finished",
+    "doneBody": "{{kept}} records went into your archive. New suggestions are ready in a few hours.",
+    "reset": "Refresh the queue",
+    "loadFailed": "The suggestion queue could not be loaded.",
+    "signedOut": "Sign in to use Dig.",
+    "archived": "Added to the archive",
+    "skipped": "Skipped"
   }
 }

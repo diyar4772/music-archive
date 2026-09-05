@@ -1,13 +1,34 @@
 /**
- * Navbar Component
- * Top navigation bar with logo, theme toggle, and auth section
+ * Header.
+ *
+ * The sticky bar from the design canvas: brand mark, section nav, language
+ * switcher, theme toggle and the account menu. Everything is built as DOM
+ * nodes — the username is text the account holder chose, never markup.
  */
 import { Component } from '../core/Component.js';
 import { store } from '../state/store.js';
 import { isAuthenticated, getCurrentUser, logout as authLogout } from '../services/auth.js';
-import { t, applyTranslations } from '../services/i18n.js';
-import { el, replace } from '../core/dom.js';
+import i18n, { t, changeLanguage } from '../services/i18n.js';
+import { el, initialOf } from '../core/dom.js';
 import { showToast } from '../utils.js';
+
+const LANGUAGES = ['tr', 'en', 'ku'];
+
+const SECTIONS = [
+    { id: 'dashboard', key: 'nav.dashboard' },
+    { id: 'search', key: 'nav.search' },
+    { id: 'library', key: 'nav.library' },
+    { id: 'dig', key: 'nav.dig' }
+];
+
+const MENU_ITEMS = [
+    { action: 'likes', key: 'library.likedSongs', icon: 'fa-solid fa-heart', color: 'var(--pink-ink)' },
+    { action: 'follows', key: 'library.following', icon: 'fa-solid fa-user', color: 'var(--violet-ink)' },
+    { action: 'playlists', key: 'library.playlists', icon: 'fa-solid fa-list', color: 'var(--cyan-ink)' },
+    { action: 'create-playlist', key: 'library.createPlaylist', icon: 'fa-solid fa-plus', color: 'var(--ink3)' },
+    { action: 'settings', key: 'settings.title', icon: 'fa-solid fa-gear', color: 'var(--ink3)' },
+    { action: 'logout', key: 'common.logout', icon: 'fa-solid fa-arrow-right-from-bracket', color: 'var(--err-ink)' }
+];
 
 export class Navbar extends Component {
     constructor(container, props = {}) {
@@ -18,170 +39,143 @@ export class Navbar extends Component {
         this.onOpenProfileModal = props.onOpenProfileModal || (() => {});
         this.onCreatePlaylist = props.onCreatePlaylist || (() => {});
         this.onOpenSettings = props.onOpenSettings || (() => {});
+        this.menuOpen = false;
+        this.onDocumentClick = event => {
+            if (this.menuOpen && !event.target.closest('.ma-account')) this.closeMenu();
+        };
+    }
+
+    /** @returns {string} the route the header should highlight */
+    activeSection() {
+        const route = (location.hash.replace(/^#\/?/, '').split('?')[0] || 'dashboard');
+        return SECTIONS.some(s => s.id === route) ? route : 'dashboard';
     }
 
     render() {
-        const user = getCurrentUser();
         const isAuth = isAuthenticated();
+        const user = getCurrentUser();
+        const active = this.activeSection();
+        const isDark = (store.currentTheme || 'dark') !== 'light';
 
-        this.setHTML(`
-            <div class="w-full max-w-6xl flex justify-between items-center gap-4 mb-8 relative z-50">
-                <button type="button" data-lang-aria="nav.home" id="homeButton"
-                    class="group flex items-center gap-3 cursor-pointer">
-                    <span aria-hidden="true"
-                        class="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br from-green-500 to-emerald-400 flex items-center justify-center shadow-glow-purple transition-transform group-hover:scale-105">
-                        <i class="fa-solid fa-compact-disc text-white text-lg"></i>
-                    </span>
-                    <h1 class="text-lg sm:text-2xl md:text-3xl font-extrabold tracking-tight whitespace-nowrap">
-                        Music <span class="spotify-green">Archive</span>
-                    </h1>
-                </button>
+        const header = el('header', { className: 'ma-header' }, [
+            el('div', { className: 'ma-header-inner' }, [
+                el('button', {
+                    className: 'ma-brand',
+                    attrs: { type: 'button', 'aria-label': t('nav.home') },
+                    on: { click: () => this.onShowDashboard() }
+                }, [
+                    el('span', { className: 'ma-mark', attrs: { 'aria-hidden': 'true' } }),
+                    el('span', { className: 'ma-brand-name', text: 'Music Archive' })
+                ]),
 
-                <div class="flex items-center gap-2 sm:gap-3">
-                    <!-- Theme Toggle Button -->
-                    <button id="themeToggle" type="button"
-                        class="w-10 h-10 rounded-full bg-gray-100 dark:bg-surface-elevated hover:bg-gray-200 dark:hover:bg-surface-hover border border-gray-200 dark:border-white/5 flex items-center justify-center text-text-light dark:text-white transition-colors"
-                        data-lang-title="nav.toggleTheme" data-lang-aria="nav.toggleTheme">
-                        <span id="themeIconMaterial" class="material-icons" aria-hidden="true">brightness_6</span>
-                    </button>
+                el('nav', { className: 'ma-nav', attrs: { 'aria-label': t('nav.sections') } },
+                    SECTIONS.map(section => el('button', {
+                        className: `ma-navbtn${section.id === active ? ' is-active' : ''}`,
+                        text: t(section.key),
+                        attrs: {
+                            type: 'button',
+                            'aria-current': section.id === active ? 'page' : null
+                        },
+                        on: { click: () => this.goTo(section.id) }
+                    }))),
 
-                    <div id="authSection" class="relative"></div>
-                </div>
+                el('div', { className: 'ma-header-tools' }, [
+                    el('div', { className: 'ma-seg', attrs: { role: 'group', 'aria-label': t('settings.language') } },
+                        LANGUAGES.map(code => el('button', {
+                            className: `ma-segbtn${code === i18n.language ? ' is-active' : ''}`,
+                            text: code.toUpperCase(),
+                            attrs: { type: 'button', 'aria-pressed': String(code === i18n.language) },
+                            on: { click: () => changeLanguage(code) }
+                        }))),
 
-                <div id="profileDropdown"
-                    class="hidden absolute right-0 top-12 bg-white dark:bg-card-dark w-56 rounded-lg shadow-xl z-50 border border-gray-200 dark:border-white/5">
-                    <button data-action="likes"
-                        class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 border-b border-gray-200 dark:border-white/5 flex justify-between items-center transition-colors">
-                        <span data-lang="library.likedSongs"></span> 
-                        <i class="fa-solid fa-heart text-accent-coral"></i>
-                    </button>
-                    <button data-action="follows"
-                        class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 border-b border-gray-200 dark:border-white/5 flex justify-between items-center transition-colors">
-                        <span data-lang="library.following"></span> 
-                        <i class="fa-solid fa-user text-accent-purple"></i>
-                    </button>
-                    <button data-action="playlists"
-                        class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 border-b border-gray-200 dark:border-white/5 flex justify-between items-center transition-colors">
-                        <span data-lang="library.playlists"></span> 
-                        <i class="fa-solid fa-music text-accent-teal"></i>
-                    </button>
-                    <button data-action="create-playlist"
-                        class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 border-b border-gray-200 dark:border-white/5 flex justify-between items-center transition-colors">
-                        <span data-lang="library.createPlaylist"></span> 
-                        <i class="fa-solid fa-plus"></i>
-                    </button>
-                    <button data-action="settings"
-                        class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 border-b border-gray-200 dark:border-white/5 flex justify-between items-center transition-colors">
-                        <span data-lang="settings.title"></span> 
-                        <i class="fa-solid fa-gear text-gray-400"></i>
-                    </button>
-                    <button data-action="logout"
-                        class="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-white/5 text-red-400 transition-colors">
-                        <span data-lang="common.logout"></span>
-                    </button>
-                </div>
-            </div>
-        `);
+                    el('button', {
+                        className: 'ma-iconbtn',
+                        attrs: { type: 'button', title: t('nav.toggleTheme'), 'aria-label': t('nav.toggleTheme') },
+                        on: { click: () => this.onToggleTheme() }
+                    }, [el('i', { className: isDark ? 'fa-solid fa-moon' : 'fa-solid fa-sun' })]),
 
-        this.updateAuthUI(isAuth, user);
-        this.attachEventListeners();
-        applyTranslations(this.container);
+                    isAuth && user ? this.accountControl(user) : el('button', {
+                        className: 'ma-btn ma-btn-primary ma-btn-sm',
+                        text: t('auth.login'),
+                        attrs: { type: 'button' },
+                        on: { click: () => window.openAuthModal?.() }
+                    })
+                ])
+            ])
+        ]);
+
+        this.container.replaceChildren(header);
     }
 
-    updateAuthUI(isAuth, user) {
-        const authSection = this.querySelector('#authSection');
-        if (!authSection) return;
-
-        if (isAuth && user) {
-            // `user` is a username the account holder chose; it is text, never markup.
-            replace(authSection, el('button', {
-                className: 'flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-gray-100 dark:bg-surface-elevated border border-gray-200 dark:border-white/5 hover:bg-gray-200 dark:hover:bg-surface-hover transition-colors',
+    /**
+     * @param {string} user - the account's username
+     * @returns {HTMLElement}
+     */
+    accountControl(user) {
+        return el('div', { className: 'ma-account', style: 'position:relative' }, [
+            el('button', {
+                className: 'ma-iconbtn',
+                style: 'width:auto;padding:0 8px 0 4px;gap:8px;color:var(--ink)',
                 attrs: {
                     type: 'button',
-                    id: 'profileButton',
-                    'aria-haspopup': 'true',
+                    'aria-haspopup': 'menu',
+                    'aria-expanded': String(this.menuOpen),
                     'aria-label': `${user} — ${t('nav.accountMenu')}`
-                }
+                },
+                on: { click: event => { event.stopPropagation(); this.toggleMenu(); } }
             }, [
                 el('span', {
-                    className: 'bg-gradient-to-br from-green-500 to-emerald-400 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold',
-                    attrs: { 'aria-hidden': 'true' },
-                    text: user.slice(0, 1).toUpperCase()
+                    className: 'ma-avatar ma-avatar-xs ma-avatar-brand',
+                    text: initialOf(user),
+                    attrs: { 'aria-hidden': 'true' }
                 }),
-                el('span', { className: 'hidden sm:inline text-sm font-semibold max-w-[10rem] truncate', text: user })
-            ]));
-        } else {
-            replace(authSection, el('button', {
-                className: 'btn-spotify text-white font-bold text-sm sm:text-base px-4 sm:px-6 py-2 rounded-full whitespace-nowrap',
-                attrs: { type: 'button', id: 'loginButton' },
-                text: t('auth.login')
-            }));
-        }
-
-        // Re-attach event listeners
-        this.attachAuthListeners();
+                el('span', { style: 'font-size:12px;color:var(--ink2)', text: '▾' })
+            ]),
+            this.menuOpen ? this.accountMenu(user) : null
+        ]);
     }
 
-    attachEventListeners() {
-        const homeButton = this.querySelector('#homeButton');
-        if (homeButton) {
-            this.addEventListener(homeButton, 'click', () => this.onShowDashboard());
-        }
-
-        // Theme toggle
-        const themeToggle = this.querySelector('#themeToggle');
-        if (themeToggle) {
-            this.addEventListener(themeToggle, 'click', () => {
-                this.onToggleTheme();
-            });
-        }
-
-        // Profile dropdown buttons
-        const dropdownButtons = this.querySelectorAll('#profileDropdown button[data-action]');
-        dropdownButtons.forEach(btn => {
-            const action = btn.getAttribute('data-action');
-            this.addEventListener(btn, 'click', (e) => {
-                e.stopPropagation();
-                this.handleDropdownAction(action);
-            });
-        });
-
-        // Close dropdown on outside click
-        document.addEventListener('click', (e) => {
-            if (!this.container?.contains(e.target)) {
-                const dropdown = this.querySelector('#profileDropdown');
-                if (dropdown) {
-                    dropdown.classList.add('hidden');
-                }
-            }
-        });
+    /**
+     * @param {string} user
+     * @returns {HTMLElement}
+     */
+    accountMenu(user) {
+        return el('div', { className: 'ma-menu', attrs: { role: 'menu' } }, [
+            el('div', { className: 'ma-menu-head' }, [
+                el('div', { style: 'font-size:13px;font-weight:600', text: user }),
+                el('div', { className: 'ma-kicker', style: 'margin-top:4px', text: t('nav.accountMenu') })
+            ]),
+            ...MENU_ITEMS.map(item => el('button', {
+                className: `ma-menu-item${item.action === 'logout' ? ' is-danger' : ''}`,
+                attrs: { type: 'button', role: 'menuitem' },
+                on: { click: event => { event.stopPropagation(); this.handleMenuAction(item.action); } }
+            }, [
+                el('span', { text: t(item.key) }),
+                el('i', { className: item.icon, style: `color:${item.color}`, attrs: { 'aria-hidden': 'true' } })
+            ]))
+        ]);
     }
 
-    attachAuthListeners() {
-        const profileButton = this.querySelector('#profileButton');
-        const loginButton = this.querySelector('#loginButton');
-
-        if (profileButton) {
-            this.addEventListener(profileButton, 'click', (e) => {
-                e.stopPropagation();
-                const dropdown = this.querySelector('#profileDropdown');
-                if (dropdown) {
-                    dropdown.classList.toggle('hidden');
-                }
-            });
-        }
-
-        if (loginButton) {
-            this.addEventListener(loginButton, 'click', () => window.openAuthModal?.());
-        }
+    /** @param {string} section */
+    goTo(section) {
+        this.closeMenu();
+        window.router?.navigate(section === 'dashboard' ? 'dashboard' : section);
     }
 
-    handleDropdownAction(action) {
-        const dropdown = this.querySelector('#profileDropdown');
-        if (dropdown) {
-            dropdown.classList.add('hidden');
-        }
+    toggleMenu() {
+        this.menuOpen = !this.menuOpen;
+        this.render();
+    }
 
+    closeMenu() {
+        if (!this.menuOpen) return;
+        this.menuOpen = false;
+        this.render();
+    }
+
+    /** @param {string} action */
+    handleMenuAction(action) {
+        this.closeMenu();
         switch (action) {
             case 'likes':
             case 'follows':
@@ -195,7 +189,7 @@ export class Navbar extends Component {
                 this.onOpenSettings();
                 break;
             case 'logout':
-                this.handleLogout();
+                void this.handleLogout();
                 break;
         }
     }
@@ -204,28 +198,21 @@ export class Navbar extends Component {
         try {
             await authLogout();
             this.onLogout();
-            this.updateAuthUI(false, null);
+            this.render();
         } catch (error) {
             console.error('Logout error:', error);
-            showToast(`❌ ${t('common.error')}`, 'error');
+            showToast(t('common.error'), 'error');
         }
     }
 
     onMount() {
-        // Subscribe to auth state changes
-        this.unsubscribeUser = store.subscribe('user', (user) => {
-            this.updateAuthUI(!!user, user);
-        });
-
-        // Initial render
-        const isAuth = isAuthenticated();
-        const user = getCurrentUser();
-        this.updateAuthUI(isAuth, user);
+        // The account control changes shape when the session does.
+        this.unsubscribeUser = store.subscribe('user', () => this.render());
+        document.addEventListener('click', this.onDocumentClick);
     }
 
     onUnmount() {
-        if (this.unsubscribeUser) {
-            this.unsubscribeUser();
-        }
+        this.unsubscribeUser?.();
+        document.removeEventListener('click', this.onDocumentClick);
     }
 }

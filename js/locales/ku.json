@@ -12,12 +12,20 @@
     "songs": "stran",
     "artistsWord": "hunermend",
     "remove": "Rake",
-    "notFound": "Nehat dîtin"
+    "notFound": "Nehat dîtin",
+    "results": "{{n}} encam",
+    "total": "bi giştî",
+    "all": "Hemû"
   },
   "nav": {
     "home": "Vegere rûpela sereke",
     "accountMenu": "menuya hesabê",
-    "toggleTheme": "Temayê biguherîne"
+    "toggleTheme": "Temayê biguherîne",
+    "dashboard": "Panel",
+    "search": "Bigere",
+    "library": "Pirtûkxane",
+    "dig": "Dig",
+    "sections": "Beş"
   },
   "auth": {
     "login": "Têkeve",
@@ -34,17 +42,22 @@
     "registerSuccess": "Hesab hate çêkirin"
   },
   "landing": {
-    "badge": "Ne guhdarî, berhevkirin",
-    "titleTop": "Muzîka xwe",
-    "titleAccent": "li yek cihî arşîv bike",
-    "subtitle": "Arşîva muzîkê ya kesane: stran û hunermendên ku tu jê hez dikî, nirxandin û notên te, di berhevokek rêkûpêk de.",
-    "ctaPrimary": "Belaş dest pê bike",
+    "badge": "Arşîva muzîkê ya kesane",
+    "titleTop": "Ne ya ku guhdarî kirî,",
+    "titleAccent": "ya ku parastî.",
+    "subtitle": "Spotify lêgerîn û bergan dide. Arşîv ya te ye: ya ku jê hez dikî tomar bike, ji 1 heta 5 nirxîne, mood nîşan bike, nota xwe binivîse. Ne lêdanek — defterek berhevkirinê.",
+    "ctaPrimary": "Arşîva min veke",
     "card1Title": "Berhev bike",
     "card1Body": "Stranên ku jê hez dikî û hunermendên ku dişopînî di yek berhevokê de bicivîne.",
     "card2Title": "Nirxîne",
     "card2Body": "Bi nîv stêrkan nirxîne û bi demê re bibîne tu ji çi çiqas hez dikî.",
     "card3Title": "Not bike",
-    "card3Body": "Binivîse ka stranek çi tîne bîra te; bila berhevoka te bibe rojnivîsk."
+    "card3Body": "Binivîse ka stranek çi tîne bîra te; bila berhevoka te bibe rojnivîsk.",
+    "ctaSecondary": "Çawa dixebite",
+    "sampleKicker": "Ji arşîvê tomarek",
+    "sampleTitle": "Şeva Kurt",
+    "sampleMeta": "Mor Kadife · 2019",
+    "sampleNote": "\"Vegera ji Enqerê, berbi sibehê. Ez vir dinivîsim da ku ji bîr nekim.\""
   },
   "library": {
     "title": "Pirtûkxaneya min",
@@ -63,7 +76,19 @@
     "emptyFollows": "Tu hîn kesî naşopînî",
     "emptyPlaylists": "Hîn lîste tune ne",
     "loadFailed": "Pirtûkxane nehat barkirin. Ji kerema xwe dîsa biceribîne.",
-    "dataFailed": "Dane nehatin barkirin. Ji kerema xwe dîsa biceribîne."
+    "dataFailed": "Dane nehatin barkirin. Ji kerema xwe dîsa biceribîne.",
+    "subtitle": "Yên ku parastine",
+    "colTrack": "Stran",
+    "colMood": "Mood",
+    "colRating": "Nirx",
+    "colDuration": "Dem",
+    "emptyLikesBody": "Li stranekê bigere û dilê wê bitikîne. Her tomara ku diparêzî bi nirx, mood û nota xwe re li vir dimîne.",
+    "emptyFollowsBody": "Li hunermendekê bigere û bişopîne; berfirehiya dîskografiya te li vir kom dibe.",
+    "emptyPlaylistsBody": "Lîsteya xwe ya yekem çêke û stranên arşîva xwe tê de rêz bike.",
+    "startSearching": "Dest bi lêgerînê bike",
+    "coverage": "%{{n}} berfirehî",
+    "newPlaylist": "Lîsteya nû",
+    "hasNote": "Not heye"
   },
   "search": {
     "placeholder": "Li hunermend, stran an albûmê bigere…",
@@ -83,7 +108,16 @@
     "fromLibrary": "Ji pirtûkxaneya te",
     "recent": "Lêgerînên dawî",
     "spotifyResults": "Encamên Spotify",
-    "following": "Tê şopandin"
+    "following": "Tê şopandin",
+    "resultCount": "{{n}} encam",
+    "emptyTitle": "Ji bo \"{{query}}\" encam tune",
+    "emptyBody": "Nivîsandinê kontrol bike an tabek din biceribîne.",
+    "startTitle": "Tu li çi digerî?",
+    "startBody": "Navê hunermend, stran an albûmekê binivîse. Ya ku dibînî bi yek tikandinê arşîv bike.",
+    "unavailableTitle": "Xizmeta lêgerînê tune ye",
+    "unavailableBody": "Girêdana Spotify pêk nehat. Arşîva te li cihê xwe ye — nirxandin, not û lîste dixebitin. Tenê lêgerîna nû nayê kirin.",
+    "backToLibrary": "Vegere pirtûkxaneyê",
+    "archive": "Arşîv bike"
   },
   "track": {
     "details": "Hûrgiliyên stranê",
@@ -165,5 +199,46 @@
   "app": {
     "loadFailed": "Music Archive nehat barkirin",
     "loadFailedBody": "Pirsgirêkek demkî çêbû. Ji kerema xwe dîsa biceribîne."
+  },
+  "dashboard": {
+    "kicker": "Panel",
+    "morning": "Sibeh baş, {{name}}",
+    "afternoon": "Roj baş, {{name}}",
+    "evening": "Êvar baş, {{name}}",
+    "summary": "Di arşîvê de {{tracks}} stran · {{artists}} hunermend",
+    "goLibrary": "Here pirtûkxaneyê",
+    "recentWindow": "7 roj",
+    "ratedCount": "{{n}} stran hatin nirxandin",
+    "tracksTotal": "bi giştî {{n}} stran",
+    "newThisMonth": "vê mehê {{n}} tomarên nû"
+  },
+  "artist": {
+    "kicker": "Hunermend",
+    "coverage": "Berfirehiya dîskografiyê",
+    "coverageBody": "{{archived}} ji {{total}} albûman di arşîvê de",
+    "tickHint": "Her rêzik albûmek e · tijî = di arşîvê de",
+    "discography": "Dîskografî",
+    "inArchive": "DI ARŞÎVÊ DE",
+    "meta": "{{total}} albûm · di arşîvê de {{tracks}} stran",
+    "albumMeta": "{{year}} · {{tracks}} stran",
+    "searchOnSpotify": "Li Spotify bigere →"
+  },
+  "dig": {
+    "kicker": "Dig · keşf",
+    "title": "Kolandinê bidomîne",
+    "summary": "Di rêzê de {{left}} tomar · vê gerê {{kept}} hatin arşîvkirin",
+    "next": "Ya bê",
+    "hint": "Pêşniyar ji cîranên hunermendên ku tu dişopînî û ji tomarên te yên bi nirxê bilind tên.",
+    "keys": "Klavye: ← derbas · → arşîv · valahî pêşdîtin",
+    "skip": "← Derbas",
+    "keep": "Arşîv bike →",
+    "preview": "▶ 30 çirke pêşdîtin",
+    "doneTitle": "Rêz qediya",
+    "doneBody": "{{kept}} tomar li arşîva te zêde bûn. Pêşniyarên nû di nav çend saetan de amade dibin.",
+    "reset": "Rêzê nû bike",
+    "loadFailed": "Rêza pêşniyaran nehat barkirin.",
+    "signedOut": "Ji bo Dig divê tu têkevî.",
+    "archived": "Li arşîvê hate zêdekirin",
+    "skipped": "Hate derbaskirin"
   }
 }

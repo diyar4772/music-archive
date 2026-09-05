@@ -1,169 +1,140 @@
 /**
- * Search Bar Component
- * Handles search input, autocomplete, and search type filters
+ * Search bar.
+ *
+ * In the redesign the field belongs to the search screen rather than the page
+ * chrome, so SearchView mounts this into its own header block. The element ids
+ * `searchInput` and `autocompleteList` are kept because services/search.js
+ * addresses them by id.
  */
 import { Component } from '../core/Component.js';
 import { store } from '../state/store.js';
-import { setSearchType, performSearch, handleAutocomplete } from '../services/search.js';
+import { setSearchType, handleAutocomplete } from '../services/search.js';
 import { debounce } from '../utils.js';
+import { el, kicker } from '../core/dom.js';
 import { t } from '../services/i18n.js';
+
+const TYPES = [
+    { id: 'artist', key: 'search.artists' },
+    { id: 'track', key: 'search.tracks' },
+    { id: 'album', key: 'search.albums' }
+];
 
 export class SearchBar extends Component {
     constructor(container, props = {}) {
         super(container, props);
         this.router = props.router;
         this.onSearch = props.onSearch || (() => {});
+        this.initialQuery = props.query || '';
     }
 
     render() {
         const currentType = store.searchType || 'artist';
+        const debouncedAutocomplete = debounce(value => handleAutocomplete(value), 300);
 
-        this.setHTML(`
-            <div class="w-full max-w-2xl mb-10 relative z-40">
-                <div class="flex gap-2 relative">
-                    <div class="relative flex-1">
-                        <i aria-hidden="true"
-                           class="fa-solid fa-magnifying-glass absolute left-5 top-1/2 -translate-y-1/2 text-text-secondary-light dark:text-text-secondary-dark pointer-events-none"></i>
-                        <input type="text"
-                               id="searchInput"
-                               name="search"
-                               aria-label="${t('search.aria')}"
-                               placeholder="${t('search.placeholder')}"
-                               class="w-full pl-12 pr-5 py-3.5 rounded-full bg-white dark:bg-card-dark border border-gray-200 dark:border-white/10 focus:border-green-500 focus:ring-2 focus:ring-green-500/40 text-text-light dark:text-white outline-none shadow-card dark:shadow-card-dark transition"
-                               autocomplete="off"
-                               data-form-type="other"
-                               data-lpignore="true">
-                    </div>
-                    <button id="searchButton" type="button" aria-label="${t('common.search')}"
-                            class="btn-spotify text-white font-bold px-6 py-3.5 rounded-full shrink-0">
-                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-                    </button>
-                </div>
-                <div id="autocompleteList" class="autocomplete-list hidden"></div>
-
-                <!-- Filter Chips -->
-                <div class="flex gap-2 mt-4 justify-center flex-wrap" role="group" aria-label="${t('search.typeGroup')}">
-                    <button data-type="artist" type="button"
-                            id="type-artist"
-                            class="px-4 py-1.5 bg-white dark:bg-card-dark border border-gray-200 dark:border-white/10 rounded-full text-sm font-semibold hover:border-green-500/50 transition ${currentType === 'artist' ? 'text-green-500 border-green-500/60' : ''}">
-                        ${t('search.artists')}
-                    </button>
-                    <button data-type="track" type="button"
-                            id="type-track"
-                            class="px-4 py-1.5 bg-white dark:bg-card-dark border border-gray-200 dark:border-white/10 rounded-full text-sm font-semibold hover:border-green-500/50 transition ${currentType === 'track' ? 'text-green-500 border-green-500/60' : ''}">
-                        ${t('search.tracks')}
-                    </button>
-                    <button data-type="album" type="button"
-                            id="type-album"
-                            class="px-4 py-1.5 bg-white dark:bg-card-dark border border-gray-200 dark:border-white/10 rounded-full text-sm font-semibold hover:border-green-500/50 transition ${currentType === 'album' ? 'text-green-500 border-green-500/60' : ''}">
-                        ${t('search.albums')}
-                    </button>
-                </div>
-            </div>
-        `);
-
-        this.attachEventListeners();
-        this.updateSearchTypeUI(currentType);
-    }
-
-    attachEventListeners() {
-        const searchInput = this.querySelector('#searchInput');
-        const searchButton = this.querySelector('#searchButton');
-        const typeButtons = this.querySelectorAll('[data-type]');
-
-        // Search input events
-        if (searchInput) {
-            // Debounced autocomplete
-            const debouncedAutocomplete = debounce((value) => {
-                handleAutocomplete(value);
-            }, 300);
-
-            this.addEventListener(searchInput, 'input', (e) => {
-                debouncedAutocomplete(e.target.value);
-            });
-
-            this.addEventListener(searchInput, 'keypress', (e) => {
-                if (e.key === 'Enter') {
-                    this.handleSearch();
-                }
-            });
-        }
-
-        // Search button
-        if (searchButton) {
-            this.addEventListener(searchButton, 'click', () => {
-                this.handleSearch();
-            });
-        }
-
-        // Search type buttons
-        typeButtons.forEach(btn => {
-            const type = btn.getAttribute('data-type');
-            this.addEventListener(btn, 'click', () => {
-                this.handleTypeChange(type);
-            });
-        });
-
-        // Close autocomplete on outside click
-        document.addEventListener('click', (e) => {
-            if (!this.container?.contains(e.target)) {
-                const autocompleteList = this.querySelector('#autocompleteList');
-                if (autocompleteList) {
-                    autocompleteList.classList.add('hidden');
+        const input = el('input', {
+            attrs: {
+                type: 'text',
+                id: 'searchInput',
+                name: 'search',
+                autocomplete: 'off',
+                'data-form-type': 'other',
+                'data-lpignore': 'true',
+                'aria-label': t('search.aria'),
+                placeholder: t('search.placeholder')
+            },
+            on: {
+                input: event => {
+                    this.paintClearButton(event.target.value);
+                    debouncedAutocomplete(event.target.value);
+                },
+                keydown: event => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        this.handleSearch();
+                    }
                 }
             }
         });
+        input.value = this.initialQuery;
+
+        const clearButton = el('button', {
+            className: 'ma-btn ma-btn-ghost',
+            style: 'height:auto;padding:0;color:var(--ink3)',
+            text: '✕',
+            attrs: { type: 'button', id: 'searchClear', 'aria-label': t('common.close') },
+            on: { click: () => this.clearQuery() }
+        });
+        clearButton.hidden = !this.initialQuery;
+
+        this.container.replaceChildren(el('div', { className: 'ma-searchbar' }, [
+            kicker(t('common.search')),
+            el('div', { className: 'ma-searchbar-row' }, [
+                el('div', { className: 'ma-searchfield' }, [
+                    el('span', { style: 'color:var(--ink3);font-size:15px', attrs: { 'aria-hidden': 'true' }, text: '⌕' }),
+                    input,
+                    clearButton
+                ]),
+                el('div', {
+                    className: 'ma-searchbar-types',
+                    attrs: { role: 'group', 'aria-label': t('search.typeGroup') }
+                }, TYPES.map(type => el('button', {
+                    className: `ma-pill ma-pill-lg${type.id === currentType ? ' is-active' : ''}`,
+                    text: t(type.key),
+                    attrs: {
+                        type: 'button',
+                        id: `type-${type.id}`,
+                        'data-type': type.id,
+                        'aria-pressed': String(type.id === currentType)
+                    },
+                    on: { click: () => this.handleTypeChange(type.id) }
+                })))
+            ]),
+            el('div', { attrs: { id: 'autocompleteList' }, className: 'autocomplete-list hidden' })
+        ]));
+    }
+
+    /** @param {string} value */
+    paintClearButton(value) {
+        const clear = this.querySelector('#searchClear');
+        if (clear) clear.hidden = !value;
+    }
+
+    clearQuery() {
+        const input = this.querySelector('#searchInput');
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
+        this.paintClearButton('');
+        this.querySelector('#autocompleteList')?.classList.add('hidden');
     }
 
     handleSearch() {
-        const searchInput = this.querySelector('#searchInput');
-        if (!searchInput) return;
-
-        const query = searchInput.value.trim();
+        const input = this.querySelector('#searchInput');
+        const query = input?.value.trim();
         if (!query) return;
 
-        // Navigate to search view if router is available
-        if (this.router) {
-            this.router.navigate(`search?q=${encodeURIComponent(query)}&type=${store.searchType}`);
-        } else {
-            // Fallback to direct search
-            performSearch(query);
-        }
-
-        // Hide autocomplete
-        const autocompleteList = this.querySelector('#autocompleteList');
-        if (autocompleteList) {
-            autocompleteList.classList.add('hidden');
-        }
+        this.querySelector('#autocompleteList')?.classList.add('hidden');
+        this.onSearch(query);
     }
 
+    /** @param {string} type */
     handleTypeChange(type) {
+        // Read the field before setSearchType, because the store subscription
+        // re-renders this component and rebuilds the input from initialQuery.
+        const query = this.querySelector('#searchInput')?.value.trim() || '';
+        this.initialQuery = query;
         setSearchType(type);
-        this.updateSearchTypeUI(type);
-    }
-
-    updateSearchTypeUI(activeType) {
-        const typeButtons = this.querySelectorAll('[data-type]');
-        typeButtons.forEach(btn => {
-            const type = btn.getAttribute('data-type');
-            if (type === activeType) {
-                btn.classList.add('text-green-500');
-            } else {
-                btn.classList.remove('text-green-500');
-            }
-        });
+        // Switching the type re-runs the current query, which is what a filter
+        // chip is for; without it the pill changed colour and nothing else.
+        if (query) this.onSearch(query);
     }
 
     onMount() {
-        // Subscribe to search type changes
-        this.unsubscribeSearchType = store.subscribe('searchType', (type) => {
-            this.updateSearchTypeUI(type);
-        });
+        this.unsubscribeSearchType = store.subscribe('searchType', () => this.render());
     }
 
     onUnmount() {
-        if (this.unsubscribeSearchType) {
-            this.unsubscribeSearchType();
-        }
+        this.unsubscribeSearchType?.();
     }
 }

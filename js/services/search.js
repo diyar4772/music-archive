@@ -3,7 +3,7 @@ import { get } from './api.js';
 import { SEARCH_TYPES, DEBOUNCE_DELAY } from '../config.js';
 import { store } from '../state/store.js';
 import { debounce, showToast } from '../utils.js';
-import { el, img, replace } from '../core/dom.js';
+import { el, avatar, cover, replace } from '../core/dom.js';
 import { t } from './i18n.js';
 
 /**
@@ -42,17 +42,12 @@ export async function performSearch(overrideQuery, searchType = store.searchType
 export function setSearchType(type) {
     store.setSearchType(type);
 
-    // Update UI
-    const buttons = {
-        artist: document.getElementById('type-artist'),
-        track: document.getElementById('type-track'),
-        album: document.getElementById('type-album')
-    };
-
-    Object.entries(buttons).forEach(([key, btn]) => {
-        if (btn) {
-            btn.classList.toggle('text-green-500', key === type);
-        }
+    // Paint the filter pills. SearchBar also re-renders from its store
+    // subscription; this keeps the older `initSearch()` path in step.
+    document.querySelectorAll('[data-type]').forEach(button => {
+        const isActive = button.dataset.type === type;
+        button.classList.toggle('is-active', isActive);
+        button.setAttribute('aria-pressed', String(isActive));
     });
 }
 
@@ -80,10 +75,7 @@ export async function handleAutocomplete(query) {
     ).slice(0, 3);
 
     if (localMatches.length > 0) {
-        const header = document.createElement('div');
-        header.className = 'px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider bg-[#303030]';
-        header.textContent = t('search.fromLibrary');
-        list.appendChild(header);
+        list.appendChild(suggestionHeading(t('search.fromLibrary')));
 
         localMatches.forEach(artist => {
             const div = createAutocompleteItem({
@@ -104,18 +96,17 @@ export async function handleAutocomplete(query) {
     ).slice(0, 3);
 
     if (historyMatches.length > 0) {
-        const header = document.createElement('div');
-        header.className = 'px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider bg-[#303030]';
-        header.textContent = t('search.recent');
-        list.appendChild(header);
+        list.appendChild(suggestionHeading(t('search.recent')));
 
         historyMatches.forEach(term => {
             list.appendChild(el('button', {
-                className: 'autocomplete-item w-full flex items-center gap-3 p-3 text-left cursor-pointer transition',
+                className: 'autocomplete-item',
+                style: 'display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border:0;'
+                    + 'background:transparent;color:var(--ink);font-size:13px;text-align:left;cursor:pointer',
                 attrs: { type: 'button' },
                 on: { click: () => selectAutocompleteItem(term) }
             }, [
-                el('i', { className: 'fa-solid fa-clock text-gray-400' }),
+                el('i', { className: 'fa-solid fa-clock', style: 'color:var(--ink3)' }),
                 el('span', { text: term })
             ]));
         });
@@ -129,12 +120,7 @@ export async function handleAutocomplete(query) {
         const results = await get(`/search?artist=${encodeURIComponent(query)}&type=${typeParam}`);
 
         if (Array.isArray(results) && results.length > 0) {
-            if (hasResults) {
-                const header = document.createElement('div');
-                header.className = 'px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider bg-[#303030]';
-                header.textContent = t('search.spotifyResults');
-                list.appendChild(header);
-            }
+            if (hasResults) list.appendChild(suggestionHeading(t('search.spotifyResults')));
 
             results.slice(0, 5).forEach(item => {
                 // Skip if already shown locally
@@ -152,28 +138,47 @@ export async function handleAutocomplete(query) {
         }
     } catch (error) {
         replace(list, el('div', {
-            className: 'p-3 text-sm text-red-500',
+            style: 'padding:12px;font-size:13px;color:var(--err-ink)',
             text: error.message || t('search.suggestFailed')
         }));
     }
 }
 
 /**
+ * @param {string} label
+ * @returns {HTMLElement} a section heading inside the suggestion list
+ */
+function suggestionHeading(label) {
+    return el('div', {
+        className: 'ma-kicker',
+        style: 'padding:10px 12px 6px',
+        text: label
+    });
+}
+
+/**
  * Create autocomplete item element
  */
 function createAutocompleteItem({ name, image, subtitle, isLocal, isRounded = true, onClick }) {
+    const art = isRounded ? avatar(image, name, 'ma-avatar-sm') : cover(image, name, 'ma-cover-sm');
+    art.style.width = '36px';
+    art.style.height = '36px';
+
     return el('button', {
-        className: `autocomplete-item w-full flex items-center gap-3 p-3 text-left cursor-pointer transition ${isLocal ? 'border-l-4 border-green-500 bg-black/5 dark:bg-white/5' : ''}`,
+        className: 'autocomplete-item',
+        style: 'display:flex;align-items:center;gap:12px;width:100%;padding:8px 12px;border:0;'
+            + `background:transparent;color:var(--ink);text-align:left;cursor:pointer;${
+                isLocal ? 'box-shadow:inset 2px 0 0 var(--pink)' : ''}`,
         attrs: { type: 'button' },
         on: { click: onClick }
     }, [
-        img(image, `w-10 h-10 shrink-0 ${isRounded ? 'rounded-full' : 'rounded'} object-cover`, name),
-        el('span', { className: 'min-w-0' }, [
-            el('span', { className: 'flex items-center gap-1 font-bold text-sm' }, [
-                el('span', { className: 'truncate', text: name }),
-                isLocal ? el('i', { className: 'fa-solid fa-heart text-green-500 text-xs' }) : null
+        art,
+        el('span', { style: 'min-width:0' }, [
+            el('span', { style: 'display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600' }, [
+                el('span', { className: 'ma-truncate', text: name }),
+                isLocal ? el('i', { className: 'fa-solid fa-heart', style: 'color:var(--pink-ink);font-size:10px' }) : null
             ]),
-            el('span', { className: 'block text-xs text-gray-400 truncate', text: subtitle })
+            el('span', { className: 'ma-truncate', style: 'display:block;font-size:11px;color:var(--ink3)', text: subtitle })
         ])
     ]);
 }
