@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Girişi - Music Library</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen text-white p-6 flex items-center justify-center">
+    <main class="glass p-8 rounded-2xl w-full max-w-sm">
+        <div class="text-center mb-6">
+            <div class="w-16 h-16 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl" aria-hidden="true">
+                🛡️
+            </div>
+            <h1 class="text-2xl font-bold">Admin Girişi</h1>
+            <p class="text-gray-400 text-sm">Yönetim paneline erişmek için giriş yapın</p>
+        </div>
+        <form id="adminLoginForm">
+            <label for="adminUser" class="block text-sm text-gray-300 mb-1">Kullanıcı adı</label>
+            <input type="text" id="adminUser" name="username" autocomplete="username" required maxlength="100"
+                class="w-full bg-white/10 border border-white/20 p-3 rounded-lg mb-3 text-white focus:outline-none focus:border-blue-500">
+            <label for="adminPass" class="block text-sm text-gray-300 mb-1">Şifre</label>
+            <input type="password" id="adminPass" name="password" autocomplete="current-password" required maxlength="200"
+                class="w-full bg-white/10 border border-white/20 p-3 rounded-lg mb-4 text-white focus:outline-none focus:border-blue-500">
+            <button id="loginButton" type="submit"
+                class="w-full bg-gradient-to-r from-blue-500 to-purple-600 py-3 rounded-lg font-bold hover:opacity-90 transition disabled:opacity-50">
+                Giriş Yap
+            </button>
+            <p id="loginError" role="alert" class="text-red-400 text-sm text-center mt-3 hidden"></p>
+        </form>
+    </main>
+    <script src="/admin-assets/login.js" defer></script>
+</body>
+</html>

@@ -64,7 +64,7 @@ module.exports = [
     },
     {
         // Browser application code: ES modules, no Node globals.
-        files: ['js/**/*.js'],
+        files: ['js/**/*.js', 'admin/**/*.js'],
         ignores: ['js/theme-config.js'],
         languageOptions: {
             ecmaVersion: 2023,

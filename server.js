@@ -180,6 +180,7 @@ app.get(['/', '/index.html'], (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 app.use('/js', express.static(path.join(__dirname, 'js'), { index: false }));
+app.use('/admin-assets', express.static(path.join(__dirname, 'admin'), { index: false }));
 app.use(express.json({ limit: '5mb' })); // Limit payload size
 
 app.get('/api/health', (req, res) => {
@@ -1518,38 +1519,97 @@ const timingSafeStringEqual = (provided, expected) => {
         providedBuffer.length === expectedBuffer.length;
 };
 
+const ADMIN_COOKIE_NAME = 'ma_admin';
+const ADMIN_SESSION_SECONDS = 30 * 60;
+
+const readCookie = (req, name) => {
+    const header = req.headers.cookie;
+    if (!header) return undefined;
+
+    for (const part of header.split(';')) {
+        const separator = part.indexOf('=');
+        if (separator === -1) continue;
+        if (part.slice(0, separator).trim() !== name) continue;
+        try {
+            return decodeURIComponent(part.slice(separator + 1).trim());
+        } catch (_error) {
+            return undefined;
+        }
+    }
+    return undefined;
+};
+
+const serializeAdminCookie = (token, maxAge, secure = IS_PRODUCTION) => [
+    `${ADMIN_COOKIE_NAME}=${encodeURIComponent(token)}`,
+    'HttpOnly',
+    'SameSite=Strict',
+    'Path=/',
+    `Max-Age=${maxAge}`,
+    ...(secure ? ['Secure'] : [])
+].join('; ');
+
+const verifyAdminToken = (token) => {
+    if (!token) return null;
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        return decoded.isAdmin === true && decoded.typ === 'admin' ? decoded : null;
+    } catch (_error) {
+        return null;
+    }
+};
+
 const authenticateAdmin = (req, res, next) => {
     const authHeader = req.headers['authorization'];
 
-    // Check for Basic Auth (admin:password)
-    if (authHeader && authHeader.startsWith('Basic ')) {
-        const base64Credentials = authHeader.split(' ')[1];
-        const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
-        const [username, password] = credentials.split(':');
-
-        const usernameMatches = timingSafeStringEqual(username, ADMIN_USERNAME);
-        const passwordMatches = timingSafeStringEqual(password, ADMIN_PASSWORD);
-        if (usernameMatches && passwordMatches) {
-            return next();
-        }
-    }
-
-    // Check for JWT with admin flag
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.split(' ')[1];
-        try {
-            const decoded = jwt.verify(token, JWT_SECRET);
-            if (decoded.isAdmin) {
-                req.user = decoded;
-                return next();
-            }
-        } catch (e) { }
+    // The browser credential is HttpOnly; JavaScript never receives the root
+    // password or the short-lived token. Bearer remains for programmatic clients.
+    const cookieAdmin = verifyAdminToken(readCookie(req, ADMIN_COOKIE_NAME));
+    const bearerAdmin = authHeader?.startsWith('Bearer ')
+        ? verifyAdminToken(authHeader.slice('Bearer '.length))
+        : null;
+    const admin = cookieAdmin || bearerAdmin;
+    if (admin) {
+        req.user = admin;
+        return next();
     }
 
     res.status(403).json({ error: 'Admin access required' });
 };
 
-app.use(['/api/admin', '/admin', '/admin.html'], adminLimiter);
+const adminLoginValidation = [
+    body('username').isString().isLength({ min: 1, max: 100 }),
+    body('password').isString().isLength({ min: 1, max: 200 })
+];
+
+app.post('/api/admin/login', adminLimiter, adminLoginValidation, (req, res) => {
+    if (!validationResult(req).isEmpty()) {
+        return res.status(400).json({ error: 'Invalid admin credentials' });
+    }
+
+    const usernameMatches = timingSafeStringEqual(req.body.username, ADMIN_USERNAME);
+    const passwordMatches = timingSafeStringEqual(req.body.password, ADMIN_PASSWORD);
+    if (!usernameMatches || !passwordMatches) {
+        return res.status(403).json({ error: 'Invalid admin credentials' });
+    }
+
+    const token = jwt.sign({ isAdmin: true, typ: 'admin' }, JWT_SECRET, {
+        expiresIn: ADMIN_SESSION_SECONDS
+    });
+    res.setHeader('Set-Cookie', serializeAdminCookie(token, ADMIN_SESSION_SECONDS));
+    return res.json({ status: 'authenticated' });
+});
+
+app.post('/api/admin/logout', (_req, res) => {
+    res.setHeader('Set-Cookie', serializeAdminCookie('', 0));
+    res.json({ status: 'logged_out' });
+});
+
+app.get('/admin/login', (req, res) => {
+    if (verifyAdminToken(readCookie(req, ADMIN_COOKIE_NAME))) {
+        return res.redirect('/admin');
+    }
+    return res.sendFile(path.join(__dirname, 'admin', 'login.html'));
+});
 
 // 📊 Get all users with stats (with search and sorting)
 app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
@@ -2630,6 +2690,7 @@ module.exports = {
             inMemoryDB,
             models: { User, Like, Rating, LoginHistory },
             timingSafeStringEqual,
+            serializeAdminCookie,
             toggleLike,
             upsertLike
         }

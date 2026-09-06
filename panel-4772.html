@@ -99,31 +99,8 @@
 </head>
 
 <body class="min-h-screen text-white p-6">
-    <!-- Login Modal -->
-    <div id="loginModal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-        <div class="glass p-8 rounded-2xl w-full max-w-sm">
-            <div class="text-center mb-6">
-                <div
-                    class="w-16 h-16 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fa-solid fa-shield-halved text-2xl"></i>
-                </div>
-                <h2 class="text-2xl font-bold">Admin Girişi</h2>
-                <p class="text-gray-400 text-sm">Yönetim paneline erişmek için giriş yapın</p>
-            </div>
-            <input type="text" id="adminUser" placeholder="Admin Kullanıcı Adı" value="admin"
-                class="w-full bg-white/10 border border-white/20 p-3 rounded-lg mb-3 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500">
-            <input type="password" id="adminPass" placeholder="Admin Şifresi"
-                class="w-full bg-white/10 border border-white/20 p-3 rounded-lg mb-4 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500">
-            <button onclick="login()"
-                class="w-full bg-gradient-to-r from-blue-500 to-purple-600 py-3 rounded-lg font-bold hover:opacity-90 transition">
-                <i class="fa-solid fa-right-to-bracket mr-2"></i>Giriş Yap
-            </button>
-            <p id="loginError" class="text-red-400 text-sm text-center mt-3 hidden"></p>
-        </div>
-    </div>
-
     <!-- Main Content -->
-    <div id="mainContent" class="hidden max-w-7xl mx-auto">
+    <div id="mainContent" class="max-w-7xl mx-auto">
         <!-- Header -->
         <div class="flex justify-between items-center mb-8">
             <div>
@@ -131,10 +108,10 @@
                 <p class="text-gray-400">Music Library Yönetim Sistemi</p>
             </div>
             <div class="flex gap-3">
-                <button onclick="loadStats()" class="glass px-4 py-2 rounded-lg hover:bg-white/10 transition">
+                <button data-action="refresh" class="glass px-4 py-2 rounded-lg hover:bg-white/10 transition">
                     <i class="fa-solid fa-rotate mr-2"></i>Yenile
                 </button>
-                <button onclick="logout()"
+                <button data-action="logout"
                     class="bg-red-500/20 border border-red-500/50 px-4 py-2 rounded-lg text-red-400 hover:bg-red-500/30 transition">
                     <i class="fa-solid fa-power-off mr-2"></i>Çıkış
                 </button>
@@ -172,15 +149,15 @@
 
         <!-- Tab Navigation -->
         <div class="flex gap-2 mb-6">
-            <button onclick="switchTab('users')" id="tabUsers"
+            <button data-action="switch-tab" data-tab="users" id="tabUsers"
                 class="tab-btn glass px-6 py-3 rounded-lg font-bold transition active">
                 <i class="fa-solid fa-users mr-2"></i>Kullanıcılar
             </button>
-            <button onclick="switchTab('test')" id="tabTest"
+            <button data-action="switch-tab" data-tab="test" id="tabTest"
                 class="tab-btn glass px-6 py-3 rounded-lg font-bold transition">
                 <i class="fa-solid fa-flask mr-2"></i>Test & Debug
             </button>
-            <button onclick="switchTab('preview')" id="tabPreview"
+            <button data-action="switch-tab" data-tab="preview" id="tabPreview"
                 class="tab-btn glass px-6 py-3 rounded-lg font-bold transition">
                 <i class="fa-solid fa-play mr-2"></i>Şarkı Preview
             </button>
@@ -201,7 +178,7 @@
                             <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                             <input type="text" id="userSearchInput" placeholder="Kullanıcı ara..."
                                 class="bg-white/10 border border-white/20 pl-10 pr-4 py-2 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 w-64"
-                                oninput="debounceSearch()">
+                                data-action="search-users">
                         </div>
                     </div>
                 </div>
@@ -210,32 +187,32 @@
                         <thead class="bg-white/5">
                             <tr class="text-left text-gray-400 text-sm">
                                 <th class="p-4 cursor-pointer hover:text-white transition"
-                                    onclick="sortUsers('username')">
+                                    data-action="sort-users" data-field="username">
                                     Kullanıcı <i class="fa-solid fa-sort ml-1 sort-icon" data-field="username"></i>
                                 </th>
                                 <th class="p-4 cursor-pointer hover:text-white transition"
-                                    onclick="sortUsers('createdAt')">
+                                    data-action="sort-users" data-field="createdAt">
                                     Kayıt Tarihi <i class="fa-solid fa-sort-down ml-1 sort-icon text-green-400"
                                         data-field="createdAt"></i>
                                 </th>
                                 <th class="p-4 cursor-pointer hover:text-white transition"
-                                    onclick="sortUsers('lastLogin')">
+                                    data-action="sort-users" data-field="lastLogin">
                                     Son Giriş <i class="fa-solid fa-sort ml-1 sort-icon" data-field="lastLogin"></i>
                                 </th>
                                 <th class="p-4 cursor-pointer hover:text-white transition"
-                                    onclick="sortUsers('loginCount')">
+                                    data-action="sort-users" data-field="loginCount">
                                     Giriş Sayısı <i class="fa-solid fa-sort ml-1 sort-icon" data-field="loginCount"></i>
                                 </th>
                                 <th class="p-4 cursor-pointer hover:text-white transition"
-                                    onclick="sortUsers('likesCount')">
+                                    data-action="sort-users" data-field="likesCount">
                                     Beğeniler <i class="fa-solid fa-sort ml-1 sort-icon" data-field="likesCount"></i>
                                 </th>
                                 <th class="p-4 cursor-pointer hover:text-white transition"
-                                    onclick="sortUsers('followsCount')">
+                                    data-action="sort-users" data-field="followsCount">
                                     Takipler <i class="fa-solid fa-sort ml-1 sort-icon" data-field="followsCount"></i>
                                 </th>
                                 <th class="p-4 cursor-pointer hover:text-white transition"
-                                    onclick="sortUsers('playlistsCount')">
+                                    data-action="sort-users" data-field="playlistsCount">
                                     Playlistler <i class="fa-solid fa-sort ml-1 sort-icon"
                                         data-field="playlistsCount"></i>
                                 </th>
@@ -261,11 +238,11 @@
                         <i class="fa-solid fa-server text-blue-400"></i>API Durumu
                     </h3>
                     <div class="space-y-3 mb-4">
-                        <button onclick="testAPI()"
+                        <button data-action="test-api"
                             class="w-full bg-blue-500/20 border border-blue-500/50 py-3 rounded-lg hover:bg-blue-500/30 transition">
                             <i class="fa-solid fa-plug mr-2"></i>API Bağlantısını Test Et
                         </button>
-                        <button onclick="testSpotify()"
+                        <button data-action="test-spotify"
                             class="w-full bg-green-500/20 border border-green-500/50 py-3 rounded-lg hover:bg-green-500/30 transition">
                             <i class="fa-brands fa-spotify mr-2"></i>Spotify API Test Et
                         </button>
@@ -290,7 +267,7 @@
                             <option value="album">Albüm</option>
                         </select>
                     </div>
-                    <button onclick="testSearch()"
+                    <button data-action="test-search"
                         class="w-full bg-purple-500/20 border border-purple-500/50 py-3 rounded-lg hover:bg-purple-500/30 transition mb-4">
                         <i class="fa-solid fa-magnifying-glass mr-2"></i>Ara
                     </button>
@@ -322,11 +299,11 @@
                         <i class="fa-solid fa-bolt text-orange-400"></i>Hızlı İşlemler
                     </h3>
                     <div class="space-y-3">
-                        <button onclick="runAllTests()"
+                        <button data-action="run-tests"
                             class="w-full bg-gradient-to-r from-orange-500 to-red-500 py-3 rounded-lg font-bold hover:opacity-90 transition">
                             <i class="fa-solid fa-play mr-2"></i>Tüm Testleri Çalıştır
                         </button>
-                        <button onclick="window.open('/', '_blank')"
+                        <button data-action="open-home"
                             class="w-full bg-white/10 border border-white/20 py-3 rounded-lg hover:bg-white/20 transition">
                             <i class="fa-solid fa-external-link mr-2"></i>Ana Sayfayı Aç
                         </button>
@@ -348,7 +325,7 @@
                 <div class="flex gap-2 mb-4">
                     <input type="text" id="previewSearchQuery" placeholder="Şarkı ara..." value="Get Lucky"
                         class="flex-1 bg-white/10 border border-white/20 p-3 rounded-lg text-white placeholder-gray-400">
-                    <button onclick="searchForPreview()"
+                    <button data-action="search-preview"
                         class="bg-green-500 px-6 py-3 rounded-lg font-bold hover:bg-green-600 transition">
                         <i class="fa-solid fa-search mr-2"></i>Ara
                     </button>
@@ -367,7 +344,7 @@
                 <div
                     class="bg-gradient-to-r from-green-600/30 to-emerald-600/30 p-4 flex justify-between items-center sticky top-0">
                     <h3 class="text-xl font-bold" id="detailUsername">Kullanıcı Detayları</h3>
-                    <button onclick="closeUserDetail()" class="text-gray-400 hover:text-white">
+                    <button data-action="close-user-detail" class="text-gray-400 hover:text-white">
                         <i class="fa-solid fa-times text-xl"></i>
                     </button>
                 </div>
@@ -378,634 +355,7 @@
         </div>
     </div>
 
-    <script>
-        let authHeader = '';
-
-        // 🔒 SECURITY: Session timeout (30 minutes)
-        const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
-        let lastActivity = Date.now();
-        let sessionCheckInterval = null;
-
-        function resetActivityTimer() {
-            lastActivity = Date.now();
-            sessionStorage.setItem('adminLastActivity', lastActivity);
-        }
-
-        function checkSessionTimeout() {
-            const storedActivity = sessionStorage.getItem('adminLastActivity');
-            if (storedActivity) {
-                lastActivity = parseInt(storedActivity);
-            }
-
-            if (authHeader && (Date.now() - lastActivity > SESSION_TIMEOUT_MS)) {
-                alert('Oturum süresi doldu. Lütfen tekrar giriş yapın.');
-                logout();
-            }
-        }
-
-        // Track user activity
-        ['mousemove', 'keypress', 'click', 'scroll'].forEach(event => {
-            document.addEventListener(event, resetActivityTimer, { passive: true });
-        });
-
-        function login() {
-            const user = document.getElementById('adminUser').value;
-            const pass = document.getElementById('adminPass').value;
-
-            authHeader = 'Basic ' + btoa(user + ':' + pass);
-
-            // Test auth by fetching stats
-            fetch('/api/admin/stats', { headers: { 'Authorization': authHeader } })
-                .then(r => {
-                    if (r.ok) {
-                        // 🔒 Store in sessionStorage (cleared on tab close)
-                        sessionStorage.setItem('adminAuth', authHeader);
-                        resetActivityTimer();
-
-                        // Start session timeout checker
-                        if (sessionCheckInterval) clearInterval(sessionCheckInterval);
-                        sessionCheckInterval = setInterval(checkSessionTimeout, 60000); // Check every minute
-
-                        document.getElementById('loginModal').classList.add('hidden');
-                        document.getElementById('mainContent').classList.remove('hidden');
-                        loadStats();
-                        loadUsers();
-                    } else {
-                        document.getElementById('loginError').textContent = 'Geçersiz kullanıcı adı veya şifre';
-                        document.getElementById('loginError').classList.remove('hidden');
-                    }
-                })
-                .catch(() => {
-                    document.getElementById('loginError').textContent = 'Sunucuya bağlanılamıyor';
-                    document.getElementById('loginError').classList.remove('hidden');
-                });
-        }
-
-        function logout() {
-            authHeader = '';
-            // 🔒 Clear session data
-            sessionStorage.removeItem('adminAuth');
-            sessionStorage.removeItem('adminLastActivity');
-            if (sessionCheckInterval) {
-                clearInterval(sessionCheckInterval);
-                sessionCheckInterval = null;
-            }
-            document.getElementById('loginModal').classList.remove('hidden');
-            document.getElementById('mainContent').classList.add('hidden');
-            document.getElementById('adminPass').value = '';
-        }
-
-        // 🔒 Auto-restore session on page load (only if within timeout)
-        (function restoreSession() {
-            const savedAuth = sessionStorage.getItem('adminAuth');
-            const savedActivity = sessionStorage.getItem('adminLastActivity');
-
-            if (savedAuth && savedActivity) {
-                const timeSinceActivity = Date.now() - parseInt(savedActivity);
-                if (timeSinceActivity < SESSION_TIMEOUT_MS) {
-                    authHeader = savedAuth;
-                    lastActivity = parseInt(savedActivity);
-
-                    // Verify auth is still valid
-                    fetch('/api/admin/stats', { headers: { 'Authorization': authHeader } })
-                        .then(r => {
-                            if (r.ok) {
-                                document.getElementById('loginModal').classList.add('hidden');
-                                document.getElementById('mainContent').classList.remove('hidden');
-                                sessionCheckInterval = setInterval(checkSessionTimeout, 60000);
-                                loadStats();
-                                loadUsers();
-                            } else {
-                                logout();
-                            }
-                        })
-                        .catch(() => logout());
-                } else {
-                    // Session expired
-                    logout();
-                }
-            }
-        })();
-
-        // Search and Sort State
-        let currentSearch = '';
-        let currentSortBy = 'createdAt';
-        let currentSortOrder = 'desc';
-        let searchTimeout = null;
-
-        function debounceSearch() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                currentSearch = document.getElementById('userSearchInput').value;
-                loadUsers();
-            }, 300);
-        }
-
-        function sortUsers(field) {
-            if (currentSortBy === field) {
-                currentSortOrder = currentSortOrder === 'desc' ? 'asc' : 'desc';
-            } else {
-                currentSortBy = field;
-                currentSortOrder = 'desc';
-            }
-            updateSortIcons();
-            loadUsers();
-        }
-
-        function updateSortIcons() {
-            document.querySelectorAll('.sort-icon').forEach(icon => {
-                const field = icon.dataset.field;
-                if (field === currentSortBy) {
-                    icon.className = `fa-solid fa-sort-${currentSortOrder === 'desc' ? 'down' : 'up'} ml-1 sort-icon text-green-400`;
-                } else {
-                    icon.className = 'fa-solid fa-sort ml-1 sort-icon';
-                }
-                icon.dataset.field = field;
-            });
-        }
-
-        async function loadStats() {
-            try {
-                const res = await fetch('/api/admin/stats', { headers: { 'Authorization': authHeader } });
-                const data = await res.json();
-
-                document.getElementById('statUsers').textContent = data.totalUsers || 0;
-                document.getElementById('statLikes').textContent = data.totalLikes || 0;
-                document.getElementById('statFollows').textContent = data.totalFollows || 0;
-                document.getElementById('statAlbums').textContent = data.totalAlbumFollows || 0;
-                document.getElementById('statPlaylists').textContent = data.totalPlaylists || 0;
-            } catch (e) {
-                console.error('Stats load error:', e);
-            }
-        }
-
-        async function loadUsers() {
-            try {
-                const params = new URLSearchParams();
-                if (currentSearch) params.append('search', currentSearch);
-                params.append('sortBy', currentSortBy);
-                params.append('sortOrder', currentSortOrder);
-
-                const res = await fetch(`/api/admin/users?${params.toString()}`, { headers: { 'Authorization': authHeader } });
-                const data = await res.json();
-
-                const tbody = document.getElementById('usersTable');
-                document.getElementById('userCount').textContent = `(${data.total || 0})`;
-
-                if (!data.users || data.users.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-500">${currentSearch ? 'Kullanıcı bulunamadı' : 'Henüz kullanıcı yok'}</td></tr>`;
-                    return;
-                }
-
-                tbody.innerHTML = data.users.map(user => `
-                    <tr class="user-row transition cursor-pointer" onclick="viewUserDetail('${user.id}')">
-                        <td class="p-4">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center font-bold">
-                                    ${user.username[0].toUpperCase()}
-                                </div>
-                                <div>
-                                    <p class="font-bold">${escapeHtml(user.username)}</p>
-                                    ${user.isAdmin ? '<span class="text-xs bg-red-500/30 text-red-400 px-2 py-0.5 rounded">Admin</span>' : ''}
-                                </div>
-                            </div>
-                        </td>
-                        <td class="p-4 text-gray-400 text-sm">${formatDate(user.createdAt)}</td>
-                        <td class="p-4 text-gray-400 text-sm">${user.lastLogin ? formatDate(user.lastLogin) : 'Hiç giriş yapmadı'}</td>
-                        <td class="p-4">${user.loginCount || 0}</td>
-                        <td class="p-4"><span class="bg-pink-500/20 text-pink-400 px-2 py-1 rounded">${user.likesCount || 0}</span></td>
-                        <td class="p-4"><span class="bg-green-500/20 text-green-400 px-2 py-1 rounded">${user.followsCount || 0}</span></td>
-                        <td class="p-4"><span class="bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded">${user.playlistsCount || 0}</span></td>
-                        <td class="p-4">
-                            <button onclick="event.stopPropagation(); deleteUser('${user.id}', '${escapeHtml(user.username)}')" 
-                                class="text-red-400 hover:text-red-300 p-2" title="Kullanıcıyı Sil">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `).join('');
-            } catch (e) {
-                console.error('Users load error:', e);
-                document.getElementById('usersTable').innerHTML = '<tr><td colspan="8" class="p-8 text-center text-red-400">Kullanıcılar yüklenemedi</td></tr>';
-            }
-        }
-
-        async function viewUserDetail(userId) {
-            try {
-                // Fetch user details and login history in parallel
-                const [userRes, loginsRes] = await Promise.all([
-                    fetch(`/api/admin/users/${userId}`, { headers: { 'Authorization': authHeader } }),
-                    fetch(`/api/admin/users/${userId}/logins`, { headers: { 'Authorization': authHeader } })
-                ]);
-
-                const data = await userRes.json();
-                const loginsData = await loginsRes.json();
-
-                document.getElementById('detailUsername').textContent = `📊 ${data.user.username} - Detaylar`;
-
-                const loginHistoryHtml = loginsData.loginHistory?.length ? `
-                    <div class="glass p-4 rounded-xl">
-                        <h4 class="font-bold text-lg mb-3"><i class="fa-solid fa-clock-rotate-left text-orange-400 mr-2"></i>Giriş Geçmişi (Son 10)</h4>
-                        <div class="space-y-1 max-h-40 overflow-y-auto">
-                            ${loginsData.loginHistory.map((h, i) => `
-                                <p class="text-sm ${i === 0 ? 'text-green-400' : 'text-gray-400'}">
-                                    ${i === 0 ? '<i class="fa-solid fa-circle text-xs mr-2"></i>' : '<i class="fa-regular fa-circle text-xs mr-2"></i>'}
-                                    ${formatDate(h.loginAt)}
-                                </p>
-                            `).join('')}
-                        </div>
-                    </div>
-                ` : `
-                    <div class="glass p-4 rounded-xl">
-                        <h4 class="font-bold text-lg mb-3"><i class="fa-solid fa-clock-rotate-left text-orange-400 mr-2"></i>Giriş Geçmişi</h4>
-                        <p class="text-gray-500 text-sm">Henüz giriş kaydı yok</p>
-                    </div>
-                `;
-
-                const content = document.getElementById('userDetailContent');
-                content.innerHTML = `
-                    <div class="grid md:grid-cols-3 gap-6 mb-6">
-                        <div class="glass p-4 rounded-xl">
-                            <h4 class="font-bold text-lg mb-3"><i class="fa-solid fa-user text-blue-400 mr-2"></i>Kullanıcı Bilgileri</h4>
-                            <p class="text-gray-400">ID: <span class="text-white">${data.user.id}</span></p>
-                            <p class="text-gray-400">Kullanıcı Adı: <span class="text-white">${escapeHtml(data.user.username)}</span></p>
-                            <p class="text-gray-400">Kayıt: <span class="text-white">${formatDate(data.user.createdAt)}</span></p>
-                            <p class="text-gray-400">Son Giriş: <span class="text-white">${data.user.lastLogin ? formatDate(data.user.lastLogin) : 'Hiç'}</span></p>
-                            <p class="text-gray-400">Toplam Giriş: <span class="text-white">${data.user.loginCount || 0}</span></p>
-                        </div>
-                        <div class="glass p-4 rounded-xl">
-                            <h4 class="font-bold text-lg mb-3"><i class="fa-solid fa-chart-bar text-green-400 mr-2"></i>İstatistikler</h4>
-                            <p class="text-gray-400">Beğenilen Şarkılar: <span class="text-pink-400 font-bold">${data.likes?.length || 0}</span></p>
-                            <p class="text-gray-400">Takip Edilen Sanatçılar: <span class="text-green-400 font-bold">${data.follows?.length || 0}</span></p>
-                            <p class="text-gray-400">Takip Edilen Albümler: <span class="text-purple-400 font-bold">${data.albumFollows?.length || 0}</span></p>
-                            <p class="text-gray-400">Playlistler: <span class="text-yellow-400 font-bold">${data.playlists?.length || 0}</span></p>
-                        </div>
-                        ${loginHistoryHtml}
-                    </div>
-                    
-                    ${data.likes?.length ? `
-                    <div class="mb-6">
-                        <h4 class="font-bold text-lg mb-3"><i class="fa-solid fa-heart text-pink-400 mr-2"></i>Beğenilen Şarkılar (${data.likes.length})</h4>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            ${data.likes.slice(0, 8).map(l => `
-                                <div class="glass p-3 rounded-lg flex items-center gap-3">
-                                    <img src="${l.image || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded object-cover">
-                                    <span class="text-sm truncate">${escapeHtml(l.trackName || 'Unknown')}</span>
-                                </div>
-                            `).join('')}
-                            ${data.likes.length > 8 ? `<div class="glass p-3 rounded-lg flex items-center justify-center text-gray-400">+${data.likes.length - 8} daha</div>` : ''}
-                        </div>
-                    </div>
-                    ` : ''}
-                    
-                    ${data.follows?.length ? `
-                    <div class="mb-6">
-                        <h4 class="font-bold text-lg mb-3"><i class="fa-solid fa-user-plus text-green-400 mr-2"></i>Takip Edilen Sanatçılar (${data.follows.length})</h4>
-                        <div class="flex flex-wrap gap-3">
-                            ${data.follows.map(f => `
-                                <div class="glass px-4 py-2 rounded-full flex items-center gap-2">
-                                    <img src="${f.image || 'https://via.placeholder.com/24'}" class="w-6 h-6 rounded-full object-cover">
-                                    <span>${escapeHtml(f.artistName || 'Unknown')}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                    ` : ''}
-                    
-                    ${data.playlists?.length ? `
-                    <div>
-                        <h4 class="font-bold text-lg mb-3"><i class="fa-solid fa-list-ul text-yellow-400 mr-2"></i>Playlistler (${data.playlists.length})</h4>
-                        <div class="grid md:grid-cols-2 gap-4">
-                            ${data.playlists.map(p => `
-                                <div class="glass p-4 rounded-xl">
-                                    <p class="font-bold">${escapeHtml(p.name)}</p>
-                                    <p class="text-sm text-gray-400">${p.tracks?.length || 0} şarkı</p>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                    ` : ''}
-                `;
-
-                document.getElementById('userDetailModal').classList.remove('hidden');
-            } catch (e) {
-                console.error('User detail error:', e);
-                alert('Kullanıcı detayları yüklenemedi');
-            }
-        }
-
-        function closeUserDetail() {
-            document.getElementById('userDetailModal').classList.add('hidden');
-        }
-
-        async function deleteUser(userId, username) {
-            if (!confirm(`"${username}" kullanıcısını silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz ve tüm kullanıcı verileri silinecektir!`)) {
-                return;
-            }
-
-            try {
-                const res = await fetch(`/api/admin/users/${userId}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': authHeader }
-                });
-
-                if (res.ok) {
-                    alert(`"${username}" kullanıcısı başarıyla silindi`);
-                    loadStats();
-                    loadUsers();
-                } else {
-                    const data = await res.json();
-                    alert('Hata: ' + (data.error || 'Kullanıcı silinemedi'));
-                }
-            } catch (e) {
-                console.error('Delete error:', e);
-                alert('Kullanıcı silinirken bir hata oluştu');
-            }
-        }
-
-        function formatDate(dateStr) {
-            if (!dateStr) return '-';
-            const date = new Date(dateStr);
-            return date.toLocaleDateString('tr-TR', {
-                year: 'numeric', month: 'short', day: 'numeric',
-                hour: '2-digit', minute: '2-digit'
-            });
-        }
-
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        // Enter key for login
-        document.getElementById('adminPass').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') login();
-        });
-
-        // ========== TAB SYSTEM ==========
-        function switchTab(tabName) {
-            // Hide all content
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            // Deactivate all tabs
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-
-            // Show selected content
-            document.getElementById('content' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.remove('hidden');
-            // Activate selected tab
-            document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
-        }
-
-        // ========== TEST FUNCTIONS ==========
-        function logTest(elementId, message, type = 'info') {
-            const el = document.getElementById(elementId);
-            const time = new Date().toLocaleTimeString();
-            const color = type === 'ok' ? 'text-green-400' : type === 'error' ? 'text-red-400' : type === 'warn' ? 'text-yellow-400' : 'text-gray-300';
-            el.innerHTML += `<div class="${color}">[${time}] ${message}</div>`;
-            el.scrollTop = el.scrollHeight;
-        }
-
-        async function testAPI() {
-            document.getElementById('apiTestResult').innerHTML = '';
-            logTest('apiTestResult', 'API bağlantısı test ediliyor...');
-            try {
-                const start = Date.now();
-                const res = await fetch('/api/search?artist=test&type=artist');
-                const time = Date.now() - start;
-
-                if (res.ok) {
-                    logTest('apiTestResult', `✅ API çalışıyor (${time}ms)`, 'ok');
-                    document.getElementById('serverStatus').textContent = 'Çalışıyor';
-                    document.getElementById('serverStatus').className = 'text-green-400';
-                } else {
-                    logTest('apiTestResult', `⚠️ API yanıt verdi ama hata: ${res.status}`, 'warn');
-                }
-            } catch (e) {
-                logTest('apiTestResult', `❌ API bağlantı hatası: ${e.message}`, 'error');
-                document.getElementById('serverStatus').textContent = 'Hata';
-                document.getElementById('serverStatus').className = 'text-red-400';
-            }
-        }
-
-        async function testSpotify() {
-            logTest('apiTestResult', 'Spotify API test ediliyor...');
-            try {
-                const res = await fetch('/api/search?artist=Daft%20Punk&type=track');
-                const data = await res.json();
-
-                if (Array.isArray(data) && data.length > 0) {
-                    logTest('apiTestResult', `✅ Spotify API çalışıyor. ${data.length} sonuç bulundu.`, 'ok');
-                    const withPreview = data.filter(t => t.preview_url);
-                    logTest('apiTestResult', `   └─ Preview URL'li: ${withPreview.length}/${data.length}`, withPreview.length > 0 ? 'ok' : 'warn');
-                    document.getElementById('dbType').textContent = 'MongoDB/In-Memory';
-                } else {
-                    logTest('apiTestResult', '⚠️ Spotify sonuç döndürmedi', 'warn');
-                }
-            } catch (e) {
-                logTest('apiTestResult', `❌ Spotify API hatası: ${e.message}`, 'error');
-            }
-        }
-
-        async function testSearch() {
-            const query = document.getElementById('testSearchQuery').value;
-            const type = document.getElementById('testSearchType').value;
-
-            document.getElementById('searchTestResult').innerHTML = '';
-            logTest('searchTestResult', `Aranıyor: "${query}" (${type})`);
-
-            try {
-                const res = await fetch(`/api/search?artist=${encodeURIComponent(query)}&type=${type}`);
-                const data = await res.json();
-
-                if (Array.isArray(data)) {
-                    logTest('searchTestResult', `✅ ${data.length} sonuç bulundu`, 'ok');
-                    data.slice(0, 5).forEach(item => {
-                        const name = item.name || item.trackName || 'Unknown';
-                        const hasPreview = item.preview_url ? '🎵' : '';
-                        logTest('searchTestResult', `   └─ ${name} ${hasPreview}`);
-                    });
-                } else if (data.name) {
-                    logTest('searchTestResult', `✅ Sanatçı: ${data.name}`, 'ok');
-                    logTest('searchTestResult', `   └─ Albüm sayısı: ${data.albums?.length || 0}`);
-                }
-            } catch (e) {
-                logTest('searchTestResult', `❌ Arama hatası: ${e.message}`, 'error');
-            }
-        }
-
-        async function runAllTests() {
-            const resultEl = document.getElementById('allTestsResult');
-            resultEl.classList.remove('hidden');
-            resultEl.innerHTML = '';
-
-            logTest('allTestsResult', '🧪 Tüm testler başlıyor...');
-
-            const results = [];
-
-            // Test 1: API
-            try {
-                const res = await fetch('/api/search?artist=test&type=artist');
-                results.push({ name: 'API Bağlantısı', ok: res.ok });
-            } catch (e) {
-                results.push({ name: 'API Bağlantısı', ok: false });
-            }
-
-            // Test 2: Spotify
-            try {
-                const res = await fetch('/api/search?artist=test&type=track');
-                const data = await res.json();
-                results.push({ name: 'Spotify API', ok: Array.isArray(data) });
-            } catch (e) {
-                results.push({ name: 'Spotify API', ok: false });
-            }
-
-            // Test 3: Admin API
-            try {
-                const res = await fetch('/api/admin/stats', { headers: { 'Authorization': authHeader } });
-                results.push({ name: 'Admin API', ok: res.ok });
-            } catch (e) {
-                results.push({ name: 'Admin API', ok: false });
-            }
-
-            // Summary
-            logTest('allTestsResult', '─────────────────────');
-            results.forEach(r => {
-                logTest('allTestsResult', `${r.ok ? '✅' : '❌'} ${r.name}`, r.ok ? 'ok' : 'error');
-            });
-
-            const passCount = results.filter(r => r.ok).length;
-            logTest('allTestsResult', '─────────────────────');
-            logTest('allTestsResult', `Sonuç: ${passCount}/${results.length} test geçti`, passCount === results.length ? 'ok' : 'warn');
-        }
-
-        // ========== PREVIEW PLAYER ==========
-        let currentAudio = null;
-        let playingTrackId = null;
-
-        async function searchForPreview() {
-            const query = document.getElementById('previewSearchQuery').value;
-            const resultEl = document.getElementById('previewSearchResult');
-            const listEl = document.getElementById('previewTrackList');
-
-            resultEl.textContent = 'Aranıyor...';
-            listEl.innerHTML = '';
-
-            try {
-                const res = await fetch(`/api/search?artist=${encodeURIComponent(query)}&type=track`);
-                const data = await res.json();
-
-                const withPreview = data.filter(t => t.preview_url);
-                resultEl.innerHTML = `Bulunan: <span class="text-white">${data.length}</span> şarkı, <span class="text-green-400">${withPreview.length}</span> preview var`;
-
-                withPreview.slice(0, 8).forEach(track => {
-                    const div = document.createElement('div');
-                    div.className = 'flex items-center gap-4 p-4 glass rounded-xl hover:bg-white/10 cursor-pointer transition';
-                    div.onclick = () => playPreview(track.id, track.preview_url, track.name, track.image, track.artist);
-                    div.innerHTML = `
-                        <img src="${track.image || 'https://via.placeholder.com/48'}" class="w-12 h-12 rounded object-cover">
-                        <div class="flex-1 min-w-0">
-                            <p class="font-bold truncate">${escapeHtml(track.name)}</p>
-                            <p class="text-sm text-gray-400">${escapeHtml(track.artist)}</p>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs text-gray-500">${Math.round((track.duration_ms || 30000) / 1000)}s</span>
-                            <i class="fa-solid fa-play text-green-400 text-xl"></i>
-                        </div>
-                    `;
-                    listEl.appendChild(div);
-                });
-
-                if (withPreview.length === 0) {
-                    listEl.innerHTML = '<p class="text-center text-gray-500 py-8">Bu arama için preview bulunamadı. Başka bir şarkı deneyin.</p>';
-                }
-            } catch (e) {
-                resultEl.innerHTML = `<span class="text-red-400">Hata: ${e.message}</span>`;
-            }
-        }
-
-        function playPreview(id, url, name, image, artist) {
-            if (!url) {
-                alert('Bu şarkı için preview URL yok');
-                return;
-            }
-
-            const miniPlayer = document.getElementById('adminMiniPlayer');
-            const isCurrentTrack = currentAudio && playingTrackId === id;
-
-            if (isCurrentTrack) {
-                if (currentAudio.paused) {
-                    currentAudio.play();
-                    updatePlayerIcon(true);
-                } else {
-                    currentAudio.pause();
-                    updatePlayerIcon(false);
-                }
-            } else {
-                if (currentAudio) {
-                    currentAudio.pause();
-                }
-
-                currentAudio = new Audio(url);
-                currentAudio.volume = 0.5;
-                playingTrackId = id;
-
-                document.getElementById('playerImage').src = image || 'https://via.placeholder.com/56';
-                document.getElementById('playerTitle').textContent = name || 'Unknown';
-                document.getElementById('playerArtist').textContent = artist || '';
-                miniPlayer.classList.add('active');
-
-                currentAudio.play().catch(e => {
-                    alert('Audio yüklenemedi: ' + e.message);
-                    closePlayer();
-                });
-                updatePlayerIcon(true);
-
-                currentAudio.ontimeupdate = () => {
-                    const progress = (currentAudio.currentTime / currentAudio.duration) * 100;
-                    document.getElementById('playerProgress').style.width = progress + '%';
-                    document.getElementById('playerTime').textContent = `${formatTime(currentAudio.currentTime)} / ${formatTime(currentAudio.duration || 30)}`;
-                };
-
-                currentAudio.onended = () => {
-                    playingTrackId = null;
-                    updatePlayerIcon(false);
-                    document.getElementById('playerProgress').style.width = '0%';
-                };
-            }
-        }
-
-        function togglePlayer() {
-            if (!currentAudio) return;
-            if (currentAudio.paused) {
-                currentAudio.play();
-                updatePlayerIcon(true);
-            } else {
-                currentAudio.pause();
-                updatePlayerIcon(false);
-            }
-        }
-
-        function closePlayer() {
-            if (currentAudio) {
-                currentAudio.pause();
-                currentAudio = null;
-            }
-            playingTrackId = null;
-            document.getElementById('adminMiniPlayer').classList.remove('active');
-        }
-
-        function updatePlayerIcon(playing) {
-            document.getElementById('playerIcon').className = `fa-solid ${playing ? 'fa-pause' : 'fa-play'} text-black text-xl`;
-        }
-
-        function formatTime(seconds) {
-            if (isNaN(seconds)) return '0:00';
-            const mins = Math.floor(seconds / 60);
-            const secs = Math.floor(seconds % 60);
-            return `${mins}:${secs.toString().padStart(2, '0')}`;
-        }
-    </script>
+    <script src="/admin-assets/panel.js" defer></script>
 
     <!-- Admin Mini Player -->
     <div id="adminMiniPlayer" class="admin-mini-player">
@@ -1020,11 +370,11 @@
             </div>
             <div class="flex items-center gap-4">
                 <span id="playerTime" class="text-xs text-gray-400 w-24 text-center">0:00 / 0:30</span>
-                <button onclick="togglePlayer()"
+                <button data-action="toggle-player"
                     class="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center hover:scale-105 transition">
                     <i id="playerIcon" class="fa-solid fa-play text-black text-xl"></i>
                 </button>
-                <button onclick="closePlayer()" class="text-gray-400 hover:text-white p-2">
+                <button data-action="close-player" class="text-gray-400 hover:text-white p-2">
                     <i class="fa-solid fa-xmark text-xl"></i>
                 </button>
             </div>

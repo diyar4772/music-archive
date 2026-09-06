@@ -77,10 +77,12 @@ const bearerHeaders = (token, clientIp) => ({
     ...(clientIp && { 'x-forwarded-for': clientIp })
 });
 
-const adminHeaders = (username, password, clientIp) => ({
-    authorization: `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`,
+const adminBearerHeaders = (clientIp) => ({
+    authorization: `Bearer ${jwt.sign({ isAdmin: true, typ: 'admin' }, process.env.JWT_SECRET, { expiresIn: '30m' })}`,
     ...(clientIp && { 'x-forwarded-for': clientIp })
 });
+
+const cookieValue = (response) => response.headers.get('set-cookie')?.split(';', 1)[0];
 
 test('health reports 503 before database readiness and 200 for controlled in-memory mode', async () => {
     const unavailable = await request('/api/health');
@@ -102,6 +104,13 @@ test('static serving exposes only required frontend assets', async () => {
     const frontendModule = await request('/js/app.js');
     assert.equal(frontendModule.response.status, 200);
     assert.match(frontendModule.response.headers.get('content-type'), /javascript/);
+
+    for (const asset of ['/admin-assets/login.js', '/admin-assets/panel.js']) {
+        const result = await request(asset);
+        assert.equal(result.response.status, 200, asset);
+        assert.match(result.response.headers.get('content-type'), /javascript/);
+        assert.doesNotMatch(result.body, /ADMIN_(?:USERNAME|PASSWORD)|adminAuth|sessionStorage/);
+    }
 
     for (const sourcePath of [
         '/server.js',
@@ -527,7 +536,7 @@ test('admin deletion cascades all user-owned records', async () => {
 
     const deleted = await request(`/api/admin/users/${decoded.id}`, {
         method: 'DELETE',
-        headers: adminHeaders('test-admin', 'test-only-admin-password', '203.0.113.43')
+        headers: adminBearerHeaders('203.0.113.43')
     });
     assert.equal(deleted.response.status, 200);
     assert.equal(_test.inMemoryDB.ratings.some(item => item.userId === decoded.id), false);
@@ -539,27 +548,78 @@ test('admin deletion cascades all user-owned records', async () => {
     assert.equal(_test.inMemoryDB.playlistTracks.some(item => item.playlistId === playlistId), false);
 });
 
-test('admin authentication safely rejects mismatches and is rate limited', async () => {
+test('admin login issues a constrained HttpOnly session and logout revokes the browser cookie', async () => {
+    const malformed = await postJson('/api/admin/login', {
+        username: { $ne: null }, password: ['not', 'a', 'string']
+    }, { 'x-forwarded-for': '203.0.113.44' });
+    assert.equal(malformed.response.status, 400);
+    assert.equal(malformed.response.headers.get('set-cookie'), null);
+
+    const rejected = await postJson('/api/admin/login', {
+        username: 'test-admin', password: 'wrong-password'
+    }, { 'x-forwarded-for': '203.0.113.45' });
+    assert.equal(rejected.response.status, 403);
+    assert.equal(rejected.response.headers.get('set-cookie'), null);
+
+    const login = await postJson('/api/admin/login', {
+        username: 'test-admin', password: 'test-only-admin-password'
+    }, { 'x-forwarded-for': '203.0.113.46' });
+    assert.equal(login.response.status, 200);
+    assert.deepEqual(login.body, { status: 'authenticated' });
+
+    const setCookie = login.response.headers.get('set-cookie');
+    assert.match(setCookie, /^ma_admin=/);
+    assert.match(setCookie, /; HttpOnly/);
+    assert.match(setCookie, /; SameSite=Strict/);
+    assert.match(setCookie, /; Path=\//);
+    assert.match(setCookie, /; Max-Age=1800/);
+    assert.doesNotMatch(setCookie, /; Secure/);
+    assert.match(_test.serializeAdminCookie('token', 1800, true), /; Secure$/);
+
+    const token = decodeURIComponent(cookieValue(login.response).slice('ma_admin='.length));
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    assert.equal(decoded.isAdmin, true);
+    assert.equal(decoded.typ, 'admin');
+    assert.equal(decoded.exp - decoded.iat, 30 * 60);
+
     const valid = await request('/api/admin/stats', {
-        headers: adminHeaders('test-admin', 'test-only-admin-password', '203.0.113.44')
+        headers: { cookie: cookieValue(login.response) }
     });
     assert.equal(valid.response.status, 200);
 
-    const wrongUsername = await request('/api/admin/stats', {
-        headers: adminHeaders('x', 'test-only-admin-password', '203.0.113.45')
+    const logout = await request('/api/admin/logout', {
+        method: 'POST', headers: { cookie: cookieValue(login.response) }
     });
-    assert.equal(wrongUsername.response.status, 403);
+    assert.equal(logout.response.status, 200);
+    assert.match(logout.response.headers.get('set-cookie'), /^ma_admin=;/);
+    assert.match(logout.response.headers.get('set-cookie'), /Max-Age=0/);
+});
 
-    const wrongPassword = await request('/api/admin/stats', {
-        headers: adminHeaders('test-admin', 'x', '203.0.113.46')
-    });
-    assert.equal(wrongPassword.response.status, 403);
+test('admin authentication rejects Basic, ordinary, mistyped and expired tokens and limits login attempts', async () => {
+    const basic = Buffer.from('test-admin:test-only-admin-password').toString('base64');
+    assert.equal((await request('/api/admin/stats', {
+        headers: { authorization: `Basic ${basic}` }
+    })).response.status, 403);
+
+    for (const token of [
+        jwt.sign({ id: 'ordinary-user' }, process.env.JWT_SECRET, { expiresIn: '30m' }),
+        jwt.sign({ isAdmin: true }, process.env.JWT_SECRET, { expiresIn: '30m' }),
+        jwt.sign({ isAdmin: true, typ: 'admin' }, process.env.JWT_SECRET, { expiresIn: -1 })
+    ]) {
+        assert.equal((await request('/api/admin/stats', {
+            headers: { cookie: `ma_admin=${encodeURIComponent(token)}` }
+        })).response.status, 403);
+    }
+
+    assert.equal((await request('/api/admin/stats', {
+        headers: adminBearerHeaders('203.0.113.47')
+    })).response.status, 200);
 
     let limited;
     for (let attempt = 0; attempt < 11; attempt += 1) {
-        limited = await request('/api/admin/stats', {
-            headers: adminHeaders('test-admin', 'wrong-password', '203.0.113.47')
-        });
+        limited = await postJson('/api/admin/login', {
+            username: 'test-admin', password: 'wrong-password'
+        }, { 'x-forwarded-for': '203.0.113.48' });
     }
     assert.equal(limited.response.status, 429);
     assert.deepEqual(limited.body, {
@@ -774,6 +834,12 @@ test('no shipped markup carries inline event handlers', async () => {
             /\son(?:click|change|input|submit|load|error|keypress|keydown|mouseover)\s*=\s*["']/i,
             `${source} still contains an inline event attribute`
         );
+    }
+
+    for (const file of ['panel-4772.html', 'admin/login.html']) {
+        const markup = fs.readFileSync(path.resolve(__dirname, '..', file), 'utf8');
+        assert.doesNotMatch(markup, /\son(?:click|change|input|submit|load|error|keypress|keydown|mouseover)\s*=\s*["']/i, file);
+        assert.doesNotMatch(markup, /<script(?![^>]*\bsrc=)[^>]*>/i, `${file} still contains an inline script`);
     }
 });
 
