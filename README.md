@@ -2,7 +2,8 @@
 
 A personal music **archive**, not a streaming player. The point is not "what did you
 listen to?" but "what did you keep?" — you build a collection of tracks, albums and
-artists, rate them, tag them by mood, and watch your discography coverage fill in.
+artists, rate them, tag them by mood, keep a dated journal of what each one left with
+you, and watch your discography coverage fill in.
 
 Spotify supplies the metadata; the archive is yours.
 
@@ -60,6 +61,31 @@ An unset `NODE_ENV` applies production protections and refuses an unavailable
 database. `/api/health` reports database readiness and Spotify configuration.
 Spotify is required for catalog search, not for authentication or the studio.
 
+### Müzik Defteri (the listening journal)
+
+A track's notes are a history, not a field. Open a track and write; the next
+time you write, the new entry lands **above** the old one instead of replacing
+it, and each entry keeps the rating the track had on the day it was written:
+
+```
+2026 · ★3    Loved the piano intro, the rest passed me by.
+2027 · ★4.5  Played it all summer. It means something else now.
+```
+
+Entries can be corrected (the date and the recorded score stay) and deleted one
+at a time. **Removing a track from the archive does not erase its journal** —
+that history is the reason to come back. The archive list shows an entry count
+per track, and the dashboard's *Defterden* panel shows the latest entries.
+
+Notes written before this existed lived in a single overwritable field
+(`Like.userNote`). That field is untouched; a one-off, repeat-safe migration
+copies each old note into the journal, dated from when it was last saved:
+
+```bash
+npm run migrate:notes -- --dry-run   # count first
+npm run migrate:notes
+```
+
 ### Instrument studio (experimental)
 
 Open **Stüdyo**, connect a Web MIDI input or explicitly select **Ekran piyanosu
@@ -101,6 +127,16 @@ Start Chrome with an isolated profile and `--remote-debugging-port=9227`, then:
 
 ```bash
 STUDIO_TEST_URL=http://127.0.0.1:3109 npm run test:browser
+```
+
+`npm run test:journal` drives the same isolated setup for the journal: it
+registers a throwaway account, writes, edits and deletes entries through the
+real controls, checks the refusal path shows a translated message, and then
+sweeps every screen clicking each rendered control — failing on an uncaught
+exception and reporting any control that changed nothing at all.
+
+```bash
+JOURNAL_TEST_URL=http://127.0.0.1:3110 npm run test:journal
 ```
 
 The browser test creates disposable accounts and actual MIDI simulation takes,

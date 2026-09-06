@@ -196,6 +196,33 @@ Like, Rating, Playlist, Follow sayısı 0
 
 ---
 
+## 9. Yeni koleksiyon — `JournalEntry` (Müzik Defteri, uygulandı)
+
+```js
+{ userId, trackId, trackName, artistName, image,
+  body, rating, editedAt, createdAt, updatedAt }
+```
+İndeksler: `{userId, trackId, createdAt:-1}` · `{userId, createdAt:-1}`
+
+| Alan | Kural |
+|---|---|
+| `body` | 1–2000 karakter, `trim` sonrası zorunlu |
+| `rating` | Yazıldığı andaki `Rating` değerinin **kopyası**; `null` olabilir. Geriye dönük doldurulmaz. |
+| `trackName` · `artistName` · `image` | Denormalize. Şarkı arşivden çıkarılsa da kaydın kimin hakkında olduğu okunabilsin diye. |
+| `editedAt` | `null` = hiç düzenlenmedi. Düzenleme `createdAt`'i değiştirmez. |
+
+**Neden ayrı koleksiyon, `Like` içine gömülü dizi değil:** not sayısı kullanıcı
+ve şarkı başına sınırsıza yakın büyür (şarkı başına 500 tavanı var), ve defter
+şarkı arşivden çıkarıldıktan sonra da yaşar — gömülü dizi `Like` silinince
+giderdi. Kayıt notlarının (§1 `Recording.notes`) gömülü olmasının sebebi tersine
+işliyor: onlar her zaman kaydın kendisiyle okunur ve kayıt silinince gitmelidir.
+
+**Mevcut `Like.userNote` alanı silinmedi** (§0/1). Eski tek notu deftere taşıyan
+göç: `scripts/migrate-notes.mjs` (`npm run migrate:notes`), tekrar çalıştırmaya
+karşı korumalı, `userNote`'u yerinde bırakır.
+
+---
+
 ## 8. Toplam değişiklik özeti
 
 | Koleksiyon | Yeni alan | Yeni indeks |

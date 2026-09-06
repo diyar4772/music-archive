@@ -195,13 +195,20 @@ function mountShellMarkup() {
                     <span id="trackDetailRatingText" class="ma-shell-43"></span>
                 </div>
 
+                <!-- Müzik Defteri: a composer on top, the history underneath.
+                     Saving adds an entry; it never overwrites the last one. -->
                 <div class="ma-drawer-section-head">
-                    <span class="ma-kicker" data-lang="track.note"></span>
-                    <button type="button" id="trackNoteSaveBtn" class="ma-btn ma-btn-ghost ma-btn-sm hidden" data-testid="track-note-save"
-                        data-lang="common.save"></button>
+                    <span class="ma-kicker" data-lang="journal.title"></span>
+                    <span id="trackJournalCount" class="ma-journal-count"></span>
                 </div>
                 <textarea id="trackDetailNote" class="ma-shell-44 ma-textarea" data-testid="track-note"
-                    data-lang-placeholder="track.notePlaceholder"></textarea>
+                    data-lang-placeholder="journal.placeholder"></textarea>
+                <div class="ma-journal-compose">
+                    <span class="ma-journal-hint" data-lang="journal.hint"></span>
+                    <button type="button" id="trackNoteSaveBtn" class="ma-btn ma-btn-primary ma-btn-sm hidden" data-testid="track-note-save"
+                        data-lang="journal.save"></button>
+                </div>
+                <div id="trackJournalList" class="ma-journal"></div>
 
                 <div class="ma-shell-45 ma-kicker" data-lang="track.addToPlaylist"></div>
                 <button type="button" id="trackDetailAddBtn" class="ma-shell-46 ma-btn ma-btn-secondary" data-testid="track-add-to-playlist"

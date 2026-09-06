@@ -7,10 +7,12 @@
         "start": "node server.js",
         "dev": "node --watch server.js",
         "audit": "node scripts/audit.mjs",
+        "migrate:notes": "node scripts/migrate-notes.mjs",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
         "test": "node --test test/*.test.js",
         "test:browser": "node test/browser/studio-smoke.mjs",
+        "test:journal": "node test/browser/journal.mjs",
         "check": "npm run lint && npm test"
     },
     "engines": {

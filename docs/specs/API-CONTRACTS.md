@@ -357,3 +357,74 @@ Her yeni uç için **en az** şu testler (`test/studio-api.test.js` ve
 
 `import`/`export` için ayrıca: dışa aktar → ikinci hesaba içe aktar → veri
 birebir eşleşiyor mu; bozuk kayıt içeren yedek kısmi başarıyla dönüyor mu.
+
+---
+
+## 11. Müzik Defteri — şarkı başına not geçmişi
+
+**Uygulandı:** 7 Eylül 2026 · **Kod:** `server/journal.js` · **Model:** `DATA-MODEL.md` §9
+
+Eski davranış `Like.userNote` idi: tek alan, her kayıt öncekini siliyordu.
+Defter bunun yerine **ekler**. `userNote` alanı kaldırılmadı (mobil istemci
+okuyor olabilir, §0 kuralı); yeni yazım yolu ona dokunmaz.
+
+**Yetki:** `authenticateToken`. Kalıcı DB **şart değildir** — arşiv uçları gibi
+bellek içi geliştirme modunda da çalışır (stüdyo uçlarından ayrılan tek nokta;
+sebebi: defter, kaydedilmiş bir performans iddiası taşımaz).
+Her yanıtta `Cache-Control: no-store`.
+
+### 11.1 `GET /api/library/journal`
+
+| Parametre | Kural |
+|---|---|
+| `trackId` | isteğe bağlı; verilirse yalnız o şarkının notları |
+| `limit` | 1–100, varsayılan 20. Aralık dışı → **400** `journal_range_invalid` (sessizce kırpılmaz) |
+| `offset` | 0–100000, varsayılan 0 |
+
+**Yanıt 200:** `{ entries: [...], total, limit, offset }` — `createdAt` azalan.
+
+```json
+{ "id": "…", "trackId": "…", "trackName": "…", "artistName": "…", "image": null,
+  "body": "2027: Bu yaz sürekli dinledim.", "rating": 4.5,
+  "createdAt": "2027-08-02T20:11:00.000Z", "editedAt": null }
+```
+
+### 11.2 `POST /api/library/journal`
+
+```json
+{ "trackId": "…", "body": "…", "trackName": "…", "artistName": "…", "image": "…" }
+```
+
+- `body` 1–2000 karakter (`trim` sonrası). Boş → 400 `journal_body_required`,
+  uzun → 400 `journal_body_too_long`.
+- `trackId` zorunlu, ≤ 200 karakter → 400 `journal_track_required`.
+- `trackName` / `artistName` / `image` **isteğe bağlı**; gönderilmezse arşiv
+  satırından (`Like`) doldurulur. Şarkı arşivde olmak zorunda değildir.
+- `rating` **istemciden alınmaz**: sunucu o anki `Rating` kaydını okuyup
+  kopyalar. Sonradan puan değişmesi eski kayıtları değiştirmez.
+- Şarkı başına 500 not; aşarsa **409** `journal_limit_exceeded`.
+- Hız sınırı: dakikada 60 yazma (`journalLimiter`) → **429** `rate_limited`.
+  `userLimiter` kullanılmaz; o sınır Spotify kotası içindir ve üçüncü nota
+  "çok fazla arama isteği" cevabı verirdi.
+
+**Yanıt 201:** `{ entry }`
+
+### 11.3 `PATCH /api/library/journal/:id`
+
+`{ "body": "…" }` — yalnız metin değişir. `createdAt` ve `rating` **korunur**;
+`editedAt` damgalanır. Başkasının kaydı → **404** (§2.1).
+
+### 11.4 `DELETE /api/library/journal/:id`
+
+**Yanıt 200:** `{ success: true }` · ikinci silme → **404**
+`journal_entry_not_found`. Diğer notlar etkilenmez.
+
+### 11.5 Bağlı değişiklikler
+
+- `GET /api/me` → her `likes[]` satırına `noteCount` ve `lastNoteAt` eklendi
+  (alan **eklemek** güvenlidir, §0/5). Tek `aggregate` ile, satır başına sorgu yok.
+- **Arşivden çıkarmak notları silmez.** `DELETE /api/library/track/:trackId`
+  yalnız `Like` satırını kaldırır; defter kalır. Geçmişi silen tek yol 11.4'tür.
+- Hata gövdeleri §1 kuralına uyar: `{ error: "insan cümlesi", code: "snake_case" }`.
+  İstemci `code` → `journal.*` çeviri anahtarı eşlemesini
+  `js/services/journal.js` içinde tutar.

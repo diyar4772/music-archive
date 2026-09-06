@@ -259,6 +259,24 @@ sayıları gösterir; reddedilen kayıt varsa listesi açılabilir bir bölümde
 
 ---
 
+## 11.5 Müzik Defteri — şarkı çekmecesi (uygulandı, 7 Eylül 2026)
+
+| Kontrol | Anahtar | Pasiflik | Onay | Hata |
+|---|---|---|---|---|
+| `track-note` | `journal.placeholder` | — | — | — |
+| `track-note-save` | `journal.save` | Alan boş/yalnız boşlukken **gizli**; istek sürerken pasif | — | Toast (çevrilmiş `code`), yazılan metin alanda kalır |
+| `track-journal-edit` | `journal.edit` | — | — | — |
+| `track-journal-save` | `common.save` | İstek sürerken pasif | — | Toast; düzenleme alanı açık kalır |
+| `track-journal-cancel` | `common.cancel` | — | — | — |
+| `track-journal-delete` | `journal.delete` | — | **Evet** — `Modal.js` onayı (`journal.deleteTitle` / `journal.deleteBody`) | Toast; kayıt listede kalır |
+| `dashboard-journal-entry` | — (satır) | — | — | Panel `journal.loadFailed` gösterir, pano çökmez |
+
+Boş defter `States.empty`, oturumsuz okuyucu `States.signedOut`, yükleme
+`States.loading`, başarısız okuma `States.error` (tekrar dene) ile karşılanır —
+dört durumun dördü de kaplı.
+
+---
+
 ## 12. Denetim kontrolü
 
 Codex her sprint sonunda şu listeyi doldurur:

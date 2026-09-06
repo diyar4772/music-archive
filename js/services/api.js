@@ -68,9 +68,13 @@ export async function fetchAPI(endpoint, options = {}) {
     if (!response.ok) {
         const errorText = await response.text();
         let message = `Server Error (${response.status}): ${response.statusText}`;
+        // Newer endpoints send a machine-readable `code` beside the human
+        // sentence (API-CONTRACTS §1); older ones put the code in `error`.
+        let code = null;
         try {
             const errorJson = JSON.parse(errorText);
             message = errorJson.error || message;
+            code = errorJson.code || null;
         } catch {}
         const messages = {
             SEARCH_UNAVAILABLE: t('states.searchUnavailable'),
@@ -78,7 +82,7 @@ export async function fetchAPI(endpoint, options = {}) {
             SEARCH_RATE_LIMITED: t('search.rateLimited'),
             SEARCH_TIMEOUT: t('search.timeout')
         };
-        throw Object.assign(new Error(messages[message] || message), { status: response.status, code: message });
+        throw Object.assign(new Error(messages[message] || message), { status: response.status, code: code || message });
     }
 
     return response.json();
@@ -118,4 +122,14 @@ export async function del(endpoint) {
 
 export function put(endpoint, data) {
     return fetchAPI(endpoint, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+/**
+ * PATCH request helper — a partial update of an existing record.
+ * @param {string} endpoint - API endpoint
+ * @param {Object} data - the fields to change
+ * @returns {Promise<any>} Response data
+ */
+export function patch(endpoint, data) {
+    return fetchAPI(endpoint, { method: 'PATCH', body: JSON.stringify(data) });
 }

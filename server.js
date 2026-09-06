@@ -11,6 +11,7 @@ const { body, validationResult } = require('express-validator');
 const crypto = require('crypto');
 const path = require('path');
 const { registerStudioRoutes, Recording, Piece } = require('./server/studio');
+const { registerJournalRoutes, journalSummary } = require('./server/journal');
 
 if (process.env.SKIP_DOTENV_CONFIG !== 'true') {
     dotenv.config();
@@ -130,6 +131,21 @@ const userLimiter = rateLimit({
     legacyHeaders: false
 });
 
+// Journal writes are cheap and local, so they get their own budget: sharing
+// the Spotify limiter would have answered a third note in a minute with
+// "too many search requests".
+const journalLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000,
+    max: 60,
+    keyGenerator: (req) => {
+        if (req.user?.id) return `journal:${req.user.id}`;
+        return `ip:${ipKeyGenerator(req.ip)}`;
+    },
+    message: { error: 'Çok hızlı yazıldı. Bir dakika sonra tekrar deneyin.', code: 'rate_limited' },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
 // 📱 MOBILE: Enhanced CORS for React Native (Expo) access
 const corsOptions = {
     origin: function (origin, callback) {
@@ -187,6 +203,7 @@ const inMemoryDB = {
     playlists: [],
     playlistTracks: [],
     ratings: [],
+    journal: [],
     nextId: 1
 };
 
@@ -1034,6 +1051,17 @@ app.get('/api/album/:id', generalLimiter, async (req, res) => {
 // Get User Data
 app.get('/api/me', authenticateToken, async (req, res) => {
     try {
+        // Journal counts travel with the archive rows so the list can show a
+        // note badge without asking the server once per track.
+        const journal = await journalSummary(req.user.id);
+        const withNotes = like => ({
+            trackId: like.trackId, trackName: like.trackName, artistName: like.artistName || 'Unknown Artist',
+            image: like.image, previewUrl: like.previewUrl, mood: like.mood || null,
+            userNote: like.userNote, noteUpdatedAt: like.noteUpdatedAt, createdAt: like.createdAt,
+            noteCount: journal[like.trackId]?.noteCount || 0,
+            lastNoteAt: journal[like.trackId]?.lastNoteAt || null
+        });
+
         if (useInMemory) {
             const follows = inMemoryDB.follows.filter(f => f.userId === req.user.id);
             const likes = inMemoryDB.likes.filter(l => l.userId === req.user.id);
@@ -1041,7 +1069,7 @@ app.get('/api/me', authenticateToken, async (req, res) => {
             const ratings = inMemoryDB.ratings.filter(r => r.userId === req.user.id);
             return res.json({
                 follows: follows.map(f => ({ artistId: f.artistId, artistName: f.artistName, image: f.image })),
-                likes: likes.map(l => ({ trackId: l.trackId, trackName: l.trackName, artistName: l.artistName || 'Unknown Artist', image: l.image, previewUrl: l.previewUrl, mood: l.mood || null, userNote: l.userNote, noteUpdatedAt: l.noteUpdatedAt, createdAt: l.createdAt })),
+                likes: likes.map(withNotes),
                 albumFollows: albumFollows.map(a => ({ albumId: a.albumId, albumName: a.albumName, image: a.image, artistName: a.artistName })),
                 ratings: ratings.map(r => ({ itemId: r.itemId, itemType: r.itemType, itemName: r.itemName, artistName: r.artistName, image: r.image, rating: r.rating }))
             });
@@ -1054,7 +1082,7 @@ app.get('/api/me', authenticateToken, async (req, res) => {
 
         res.json({
             follows: follows.map(f => ({ artistId: f.artistId, artistName: f.artistName, image: f.image })),
-            likes: likes.map(l => ({ trackId: l.trackId, trackName: l.trackName, artistName: l.artistName || 'Unknown Artist', image: l.image, previewUrl: l.previewUrl, mood: l.mood || null, userNote: l.userNote, noteUpdatedAt: l.noteUpdatedAt, createdAt: l.createdAt })),
+            likes: likes.map(withNotes),
             albumFollows: albumFollows.map(a => ({ albumId: a.albumId, albumName: a.albumName, image: a.image, artistName: a.artistName })),
             ratings: ratings.map(r => ({ itemId: r.itemId, itemType: r.itemType, itemName: r.itemName, artistName: r.artistName, image: r.image, rating: r.rating }))
         });
@@ -2550,6 +2578,16 @@ const HOST = process.env.HOST || '0.0.0.0';
 registerStudioRoutes(app, {
     authenticateToken, User, Like,
     canPersist: () => !useInMemory && mongoose.connection.readyState === 1
+});
+
+// Müzik Defteri — see server/journal.js. Reads are unthrottled so opening a
+// track never hits the limiter; writes share the per-user budget.
+registerJournalRoutes(app, {
+    authenticateToken, Rating, Like,
+    isInMemory: () => useInMemory,
+    memory: inMemoryDB,
+    generateId,
+    writeLimiter: journalLimiter
 });
 
 app.use('/api', (req, res) => {

@@ -917,6 +917,10 @@ button.ma-card:hover,
 }
 
 .ma-row-title {
+    /* Rows build these as spans in some views and divs in others; without an
+       explicit box the title and the subtitle ran together on one line, and
+       the ellipsis below could not apply to an inline element either. */
+    display: block;
     font-size: var(--text-14);
     font-weight: 500;
     overflow: hidden;
@@ -925,6 +929,7 @@ button.ma-card:hover,
 }
 
 .ma-row-sub {
+    display: block;
     font-size: var(--text-12);
     color: var(--ink3);
     margin-top: var(--space-1);
@@ -2102,4 +2107,83 @@ button, .ma-btn, .ma-iconbtn, .ma-segbtn, .ma-pill, .ma-menu-item, input:not([ty
     .ma-header { position: relative; }
     .ma-nav { justify-content: flex-start; }
     .ma-navbtn { flex-shrink: 0; }
+}
+
+/* Müzik Defteri — the journal in the track drawer. The composer sits on top,
+   the history reads downwards from today, and each entry keeps the score it
+   carried on the day it was written. */
+.ma-journal-count {
+    font-size: var(--text-11);
+    color: var(--ink3);
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+.ma-journal-compose {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-12);
+    margin-top: var(--space-8);
+}
+
+.ma-journal-hint {
+    font-size: var(--text-11);
+    color: var(--ink3);
+}
+
+.ma-journal {
+    margin-top: var(--space-16);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-10);
+}
+
+.ma-journal-entry {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-12);
+    background: var(--card);
+    padding: var(--space-12) var(--space-14);
+}
+
+.ma-journal-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-8);
+    font-size: var(--text-11);
+    color: var(--ink3);
+}
+
+.ma-journal-date {
+    font-weight: 600;
+    color: var(--ink2);
+}
+
+.ma-journal-score {
+    color: var(--violet-ink);
+}
+
+.ma-journal-flag {
+    font-style: italic;
+}
+
+.ma-journal-actions {
+    display: flex;
+    gap: var(--space-6);
+    margin-left: auto;
+}
+
+.ma-journal-body {
+    margin: var(--space-8) 0 0;
+    font-size: var(--text-13);
+    line-height: 1.55;
+    color: var(--ink);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.ma-journal-editor {
+    width: 100%;
+    margin-bottom: var(--space-8);
 }

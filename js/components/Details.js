@@ -1,4 +1,4 @@
-import { loading, empty, error as errorState, denied } from './States.js';
+import { loading, empty, error as errorState, denied, signedOut } from './States.js';
 /**
  * Detail modals: album, track and playlist.
  *
@@ -7,7 +7,7 @@ import { loading, empty, error as errorState, denied } from './States.js';
  * one place that renders all three.
  */
 import { performSearch } from '../services/search.js';
-import { get, post, put } from '../services/api.js';
+import { get, put } from '../services/api.js';
 import { store } from '../state/store.js';
 import {
     getPlaylists, likeTrack, unlikeTrack, isTrackLiked,
@@ -15,15 +15,21 @@ import {
     toggleAlbumFollow, isAlbumFollowed
 } from '../services/library.js';
 import { rateTrack, removeRating, getTrackRating } from '../services/rating.js';
+import { listJournal, addJournalEntry, updateJournalEntry, deleteJournalEntry } from '../services/journal.js';
 import { playTrack, isPlaying } from './MiniPlayer.js';
 import { openModal, closeModal, showConfirmModal } from './Modal.js';
-import { showToast, formatTime } from '../utils.js';
+import { showToast, formatTime, formatDate } from '../utils.js';
 import { el, cover, replace, PLACEHOLDER_IMAGE } from '../core/dom.js';
 import { t } from '../services/i18n.js';
 
 let currentTrack = null;
 let currentPlaylist = null;
 let coverData = null;
+
+// The open track's journal. `journalRequest` grows on every load so a slow
+// answer for a track the user has already left cannot paint over the new one.
+let journalEntries = [];
+let journalRequest = 0;
 
 const byId = id => document.getElementById(id);
 const reportError = error => showToast(`❌ ${error.message || t('common.error')}`, 'error');
@@ -67,10 +73,16 @@ function renderRatingControl(container, item, readout) {
                 text: full ? '★' : (half ? '⯨' : '☆')
             });
             // Left half of the star sets x.5, right half sets x.0 — that is the
-            // whole reason ratings are stored in 0.5 steps.
+            // whole reason ratings are stored in 0.5 steps. A keyboard
+            // activation carries no pointer position (`detail` is 0), and
+            // reading clientX anyway put every Enter press on the half star,
+            // so a keyboard user could never award a whole one.
             star.addEventListener('click', event => {
                 const rect = star.getBoundingClientRect();
-                const score = event.clientX - rect.left < rect.width / 2 ? position - 0.5 : position;
+                const fromPointer = event.detail > 0;
+                const score = fromPointer && event.clientX - rect.left < rect.width / 2
+                    ? position - 0.5
+                    : position;
                 void applyScore(score === current ? 0 : score);
             });
             stars.push(star);
@@ -260,8 +272,9 @@ export function openTrackDetail(id, name, artist, image, preview) {
     byId('trackDetailName').textContent = currentTrack.name;
     byId('trackDetailArtist').textContent = currentTrack.artist;
     byId('trackDetailImage').src = currentTrack.image || PLACEHOLDER_IMAGE;
-    byId('trackDetailNote').value = stored?.userNote || '';
+    byId('trackDetailNote').value = '';
     byId('trackNoteSaveBtn').classList.add('hidden');
+    void loadJournal();
 
     paintLikeButton();
 
@@ -311,25 +324,178 @@ export async function toggleLikeFromDetail() {
     if (ok) paintLikeButton();
 }
 
+// ------------------------------------------------- müzik defteri (journal) ----
+
 /**
- * Persist the personal note on the open track.
+ * Load the open track's journal. Signed-out readers are told why the section
+ * is empty rather than being shown an empty list.
  */
-export async function saveTrackNote() {
-    const field = byId('trackDetailNote');
+async function loadJournal() {
+    const list = byId('trackJournalList');
+    if (!list) return;
+
+    const request = (journalRequest += 1);
+    journalEntries = [];
+    paintJournalCount(0);
+
+    if (!store.token) {
+        replace(list, signedOut());
+        return;
+    }
+
+    replace(list, loading({ rows: 2 }));
     try {
-        await post('/library/note', { spotifyId: currentTrack.id, note: field.value });
-        const stored = store.likedTracks.find(t => t.trackId === currentTrack.id);
-        if (stored) stored.userNote = field.value;
-        byId('trackNoteSaveBtn').classList.add('hidden');
-        showToast(`📝 ${t('track.noteSaved')}`, 'success');
+        const entries = await listJournal(currentTrack.id);
+        if (request !== journalRequest) return;
+        journalEntries = entries;
+        renderJournal();
     } catch (error) {
-        reportError(error);
+        if (request !== journalRequest) return;
+        replace(list, errorState({ error, title: t('journal.loadFailed'), retry: () => void loadJournal() }));
     }
 }
 
-/** Reveal the note save button once the textarea changes. */
+/** @param {number} total */
+function paintJournalCount(total) {
+    const node = byId('trackJournalCount');
+    if (node) node.textContent = total ? t('journal.count', { n: total }) : '';
+}
+
+function renderJournal() {
+    const list = byId('trackJournalList');
+    if (!list) return;
+
+    paintJournalCount(journalEntries.length);
+    if (!journalEntries.length) {
+        replace(list, empty({ icon: '✎', title: t('journal.empty'), body: t('journal.emptyBody') }));
+        return;
+    }
+    replace(list, ...journalEntries.map(entry => journalRow(entry)));
+}
+
+/**
+ * One entry: the date it was written, the score the track carried that day,
+ * and the text. Editing fixes a typo; it never changes the date or the score.
+ * @param {{id: string, body: string, rating: number|null, createdAt: string, editedAt: string|null}} entry
+ * @returns {HTMLElement}
+ */
+function journalRow(entry) {
+    const node = el('article', {
+        className: 'ma-journal-entry',
+        testid: 'track-journal-entry',
+        dataset: { entryId: entry.id }
+    });
+
+    function paintRead() {
+        replace(node,
+            el('div', { className: 'ma-journal-meta' }, [
+                el('span', { className: 'ma-journal-date', text: formatDate(entry.createdAt) }),
+                entry.rating ? el('span', { className: 'ma-journal-score', text: `★ ${entry.rating}` }) : null,
+                entry.editedAt ? el('span', { className: 'ma-journal-flag', text: t('journal.edited') }) : null,
+                el('div', { className: 'ma-journal-actions' }, [
+                    button('track-journal-edit', t('journal.edit'), paintEdit, GHOST_BUTTON),
+                    button('track-journal-delete', t('journal.delete'), askDelete, GHOST_BUTTON)
+                ])
+            ]),
+            el('p', { className: 'ma-journal-body', text: entry.body })
+        );
+    }
+
+    function paintEdit() {
+        const field = el('textarea', {
+            className: 'ma-textarea ma-journal-editor',
+            testid: 'track-journal-body',
+            attrs: { rows: '3' }
+        });
+        field.value = entry.body;
+
+        const save = button('track-journal-save', t('common.save'), async () => {
+            const body = field.value.trim();
+            if (!body) {
+                showToast(`❌ ${t('journal.errorEmpty')}`, 'error');
+                return;
+            }
+            save.disabled = true;
+            try {
+                const updated = await updateJournalEntry(entry.id, body);
+                Object.assign(entry, updated);
+                paintRead();
+                showToast(`📝 ${t('journal.updated')}`, 'success');
+            } catch (error) {
+                reportError(error);
+                save.disabled = false;
+            }
+        });
+
+        replace(node,
+            field,
+            el('div', { className: 'ma-journal-actions' }, [
+                save,
+                button('track-journal-cancel', t('common.cancel'), paintRead, GHOST_BUTTON)
+            ])
+        );
+        field.focus();
+    }
+
+    function askDelete() {
+        showConfirmModal({
+            title: t('journal.deleteTitle'),
+            message: t('journal.deleteBody'),
+            confirmText: t('journal.delete'),
+            onConfirm: async () => {
+                try {
+                    await deleteJournalEntry(entry.id, entry.trackId);
+                    journalEntries = journalEntries.filter(item => item.id !== entry.id);
+                    renderJournal();
+                    showToast(`🗑️ ${t('journal.deleted')}`);
+                } catch (error) {
+                    reportError(error);
+                }
+            }
+        });
+    }
+
+    paintRead();
+    return node;
+}
+
+/**
+ * Add one entry to the open track's journal. Earlier entries are left alone —
+ * the point of the defter is that today's note sits next to last year's.
+ */
+export async function saveTrackNote() {
+    if (!store.token) {
+        window.openAuthModal?.();
+        return;
+    }
+
+    const field = byId('trackDetailNote');
+    const save = byId('trackNoteSaveBtn');
+    const body = field.value.trim();
+    if (!body) {
+        showToast(`❌ ${t('journal.errorEmpty')}`, 'error');
+        return;
+    }
+
+    save.disabled = true;
+    try {
+        const entry = await addJournalEntry(currentTrack, body);
+        journalEntries = [entry, ...journalEntries];
+        field.value = '';
+        save.classList.add('hidden');
+        renderJournal();
+        showToast(`📝 ${t('journal.saved')}`, 'success');
+    } catch (error) {
+        reportError(error);
+    } finally {
+        save.disabled = false;
+    }
+}
+
+/** Offer the save button only while there is something to save. */
 export function showNoteSaveBtn() {
-    byId('trackNoteSaveBtn').classList.remove('hidden');
+    const field = byId('trackDetailNote');
+    byId('trackNoteSaveBtn').classList.toggle('hidden', !field.value.trim());
 }
 
 // ------------------------------------------------------------- playlist ----

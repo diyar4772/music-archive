@@ -10,7 +10,7 @@ import { Component } from '../core/Component.js';
 import { store } from '../state/store.js';
 import { getLikedTracks, getFollowedArtists, getAlbumFollows, getPlaylists } from '../services/library.js';
 import { getRatings, getAverageRating } from '../services/rating.js';
-import { renderRecentlyAdded, renderTopRated } from '../components/Dashboard.js';
+import { renderRecentlyAdded, renderTopRated, renderRecentJournal } from '../components/Dashboard.js';
 import { exportToCSV, exportStats } from '../components/Export.js';
 import { el, cover, avatar, kicker } from '../core/dom.js';
 import { t } from '../services/i18n.js';
@@ -126,6 +126,10 @@ export class DashboardView extends Component {
             el('div', { className: 'ma-grid ma-grid-2 ma-mt-16', }, [
                 this.panel('recentlyAddedContainer', t('library.recentlyAdded'), t('dashboard.recentWindow')),
                 this.panel('topRatedContainer', t('library.topRated'), '5 ★')
+            ]),
+
+            el('div', { className: 'ma-mt-16' }, [
+                this.panel('journalContainer', t('journal.recent'), t('journal.recentWindow'))
             ]),
 
             el('div', { className: 'ma-display-flex ma-justify-flex-end ma-gap-8 ma-mt-20 ma-wrap-wrap' }, [
@@ -326,6 +330,7 @@ export class DashboardView extends Component {
     paintPanels() {
         renderRecentlyAdded();
         renderTopRated();
+        void renderRecentJournal();
     }
 
     async loadData() {
@@ -355,6 +360,9 @@ export class DashboardView extends Component {
         this.unsubscribeLikes = store.subscribe('likedTracks', () => {
             this.updateStats();
             renderRecentlyAdded();
+            // Writing a journal entry updates the archive row's note count, so
+            // this is also how a note written in the drawer reaches the panel.
+            void renderRecentJournal();
         });
         this.unsubscribeArtists = store.subscribe('followedArtists', () => this.updateStats());
         this.unsubscribePlaylists = store.subscribe('playlists', () => this.updateStats());

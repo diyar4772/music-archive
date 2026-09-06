@@ -54,6 +54,16 @@ tokenları ve dil kapsamının tamamlanması → Faz 3'ün kalan kayıt araçlar
 mikrofon. Ayrıntılı envanter, test kanıtları ve cihaz adımları:
 `docs/reports/MIDI_STUDIO_2026-09-05.md`.
 
+7 Eylül 2026 — **Müzik Defteri** eklendi (`Idea.txt` §1). Şarkı başına tek
+değiştirilebilir not yerine eklemeli not geçmişi: `server/journal.js` yeni
+`JournalEntry` koleksiyonunu ve dört ucu taşıyor, her kayıt yazıldığı günkü
+puanı kopyalıyor, arşivden çıkarmak notları silmiyor. Çekmece, arşiv rozeti ve
+panodaki "Defterden" paneli üç dilde. Yol üstünde iki eski hata düzeltildi:
+klavyeyle tam yıldız verilemiyordu (hep yarım puan) ve pano satırlarında başlık
+ile alt başlık yan yana yapışıyordu. 70 birim testi, 28 tarayıcı kontrolü ve
+173 butonluk tarama geçti; Mongo yolu yalnız CI'da koşuyor. Ayrıntı:
+`docs/reports/JOURNAL_2026-09-07.md`.
+
 ## Plan ve spec seti — 6 Eylül 2026
 
 Sonraki tur iki plana bölündü. `docs/plans/CLAUDE-PLAN-2026-09-05.md` tasarım,

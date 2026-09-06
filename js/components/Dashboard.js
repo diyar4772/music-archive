@@ -4,6 +4,7 @@
 // built as DOM nodes rather than interpolated markup.
 import { store } from '../state/store.js';
 import { getAverageRating, getTopRatedTracks, getTrackRating } from '../services/rating.js';
+import { listRecentJournal } from '../services/journal.js';
 import { formatDate } from '../utils.js';
 import { el, cover, stars, replace } from '../core/dom.js';
 import { t } from '../services/i18n.js';
@@ -89,6 +90,51 @@ export function renderRecentlyAdded() {
             text: track.createdAt ? formatDate(track.createdAt) : ''
         })
     )));
+}
+
+/**
+ * Render the five most recent journal entries — the archive's "you were here"
+ * line. It is the reason to come back, so it gets its own panel rather than
+ * being buried one drawer deep.
+ */
+export async function renderRecentJournal() {
+    const container = document.getElementById('journalContainer');
+    if (!container) return;
+
+    try {
+        const entries = await listRecentJournal(5);
+        if (!document.getElementById('journalContainer')) return;
+        if (entries.length === 0) {
+            replace(container, panelEmpty(t('journal.recentEmpty')));
+            return;
+        }
+
+        replace(container, ...entries.map(entry => el('button', {
+            className: 'ma-row ma-row-inset',
+            testid: 'dashboard-journal-entry',
+            attrs: { type: 'button' },
+            dataset: { entryId: entry.id },
+            on: {
+                click: () => window.openTrackDetail?.(
+                    entry.trackId, entry.trackName, entry.artistName, entry.image
+                )
+            }
+        }, [
+            cover(entry.image, entry.trackName || '', 'ma-cover-sm'),
+            el('span', { className: 'ma-row-main' }, [
+                el('span', { className: 'ma-row-title', text: entry.trackName || t('journal.title') }),
+                el('span', { className: 'ma-row-sub ma-truncate', text: entry.body })
+            ]),
+            el('span', {
+                className: 'ma-text-11 ma-color-ink3 ma-flex-0-0-auto',
+                text: formatDate(entry.createdAt)
+            })
+        ])));
+    } catch {
+        // The panel is secondary; a failed journal read must not replace the
+        // dashboard with an error screen.
+        replace(container, panelEmpty(t('journal.loadFailed')));
+    }
 }
 
 /**

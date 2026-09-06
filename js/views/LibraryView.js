@@ -125,13 +125,14 @@ export class LibraryView extends Component {
     }
 
     /**
-     * @param {Object} track - a stored like: trackId, trackName, artistName, image, mood, userNote
+     * @param {Object} track - a stored like: trackId, trackName, artistName, image, mood, noteCount
      * @returns {HTMLElement}
      */
     trackRow(track) {
         const open = () => window.openTrackDetail?.(
             track.trackId, track.trackName, track.artistName, track.image, track.previewUrl
         );
+        const notes = track.noteCount || 0;
 
         return el('div', { className: 'ma-row', testid: 'library-track-row', dataset: { trackId: track.trackId } }, [
             cover(track.image, track.trackName || '', 'ma-cover-sm', {
@@ -150,11 +151,13 @@ export class LibraryView extends Component {
             el('div', { className: 'ma-col-mood' }, track.mood ? [el('span', { className: 'ma-tag', text: track.mood })] : []),
             el('div', { className: 'ma-col-stars' }, [stars(getTrackRating(track.trackId))]),
             el('div', { className: 'ma-col-actions' }, [
-                track.userNote ? el('button', {
+                // The badge counts journal entries, so a track you have come
+                // back to three times reads differently from one you noted once.
+                notes ? el('button', {
                     className: 'ma-iconbtn ma-w-28 ma-h-28 ma-color-violet-ink',
-                    text: '✎',
+                    text: notes > 1 ? `✎${notes}` : '✎',
                     testid: 'library-track-note',
-                    attrs: { type: 'button', title: t('library.hasNote'), 'aria-label': t('library.hasNote') },
+                    attrs: { type: 'button', title: t('journal.count', { n: notes }), 'aria-label': t('journal.count', { n: notes }) },
                     on: { click: open }
                 }) : null,
                 el('button', {

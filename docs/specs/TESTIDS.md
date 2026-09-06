@@ -92,6 +92,7 @@ Durum bloğunun **türü** `data-state` ile okunur: `loading` · `empty` · `err
 | `dashboard-open-likes` · `dashboard-open-follows` · `dashboard-open-playlists` | Bento kartları | ✅ |
 | `dashboard-export-csv` · `dashboard-export-backup` | Dışa aktarma | ✅ |
 | `dashboard-track` | Panel satırı (son eklenen / en yüksek puan) | ✅ |
+| `dashboard-journal-entry` | Defter panelindeki not satırı | ✅ |
 
 ### 2.4 Arşiv (Kütüphane)
 
@@ -100,7 +101,7 @@ Durum bloğunun **türü** `data-state` ile okunur: `loading` · `empty` · `err
 | `library-tab-likes` · `library-tab-follows` · `library-tab-playlists` | Sekmeler (`library-tab-${tab.id}`) | ✅ |
 | `library-track-row` | Bir arşiv satırı (kapsam seçici) | ✅ |
 | `library-track-cover` · `library-track-open` | Kapak · satır gövdesi | ✅ |
-| `library-track-note` · `library-track-unlike` | Not rozeti · arşivden çıkar | ✅ |
+| `library-track-note` · `library-track-unlike` | Defter rozeti (not sayısı) · arşivden çıkar | ✅ |
 | `library-artist` · `library-playlist` | Sanatçı kartı · çalma listesi kutusu | ✅ |
 | `library-new-playlist` · `library-create-playlist` | Yeni liste kutusu · boş durum eylemi | ✅ |
 | `library-start-searching` | Boş arşiv → aramaya git | ✅ |
@@ -132,7 +133,10 @@ Durum bloğunun **türü** `data-state` ile okunur: `loading` · `empty` · `err
 | `track-row` · `track-row-play` · `track-row-open` · `track-row-remove` | Diyalog içi parça satırı | ✅ |
 | `track-detail-close` | Çekmeceyi kapat | ✅ |
 | `track-play` · `track-like` | Önizleme · arşive al/çıkar | ✅ |
-| `track-note` · `track-note-save` | Kişisel not · kaydet | ✅ |
+| `track-note` · `track-note-save` | Müzik Defteri yazma alanı · deftere ekle | ✅ |
+| `track-journal-entry` | Bir defter kaydı (kapsam seçici) | ✅ |
+| `track-journal-edit` · `track-journal-delete` | Kaydı düzenle · sil | ✅ |
+| `track-journal-body` · `track-journal-save` · `track-journal-cancel` | Düzenleme alanı · kaydet · vazgeç | ✅ |
 | `track-add-to-playlist` | Listeye ekle | ✅ |
 | `rating-star-1` … `rating-star-5` (`rating-star-${position}`) · `rating-clear` | Yıldızlar · puanı sil | ✅ |
 | `album-save` | Albümü arşive al/çıkar | ✅ |
