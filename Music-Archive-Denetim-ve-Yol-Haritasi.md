@@ -30,6 +30,44 @@ defa çalışması ve kaydedilen albümlerin çıkışta bellekte kalması. Düz
 URL ayrıştırmasına regresyon testi, arşiv hata ekranına yeniden deneme eklendi.
 Kalıcı veritabanı ve tarayıcı kabul sonuçları yeni teslim raporunda tutulacak.
 
+İlk MIDI akışı eklendi: `server/studio.js` kalıcı Recording/Piece modellerini ve
+sahiplik denetimli API'yi içeriyor; `js/studio/` bağımsız MIDI motoru, canvas,
+IndexedDB kurtarma, standart `.mid` dışa aktarma ve sentetik oynatma sağlıyor.
+Ana gezinme Arşivim / Stüdyo / Kayıtlarım / Çalışmalarım oldu; mevcut katalog
+ekranları Arşivim alt gezinmesinde korundu. Açılıştaki uydurma arşiv kartı kaldırıldı.
+
+Faz durumu: Faz 0 doğrulandı; Faz 1 eski ekranların bütün token/durum dönüşümü
+nedeniyle kısmi; Faz 2 gerçek donanım kabulü ve örnek tabanlı ses nedeniyle
+deneysel; Faz 3'ün ilk MIDI kalıcılık/kurtarma akışı hazır, ses/A–B/metronom
+kapsamı bekliyor. Bunlar tamamlanmış fazlar olarak işaretlenmedi. Brifin sonundaki
+ilk uçtan uca akış isteği önceliklendirildi; mikrofon ve analiz açılmadı.
+
+Sonraki sıra: gerçek piyano kabul testi → saptanan MIDI kusurları → tasarım
+tokenları ve dil kapsamının tamamlanması → Faz 3'ün kalan kayıt araçları →
+mikrofon. Ayrıntılı envanter, test kanıtları ve cihaz adımları:
+`docs/reports/MIDI_STUDIO_2026-09-05.md`.
+
+## Plan ve spec seti — 6 Eylül 2026
+
+Sonraki tur iki plana bölündü. `docs/plans/CLAUDE-PLAN-2026-09-05.md` tasarım,
+sözleşme ve denetim işini; `docs/plans/CODEX-PLAN-2026-09-05.md` uygulamayı
+tanımlar. Claude tarafı tamamlandı: `docs/specs/` altında dokuz sözleşme dosyası
+var — token dönüşüm tablosu, dört durum matrisi, 287 anahtarlık tr/en/ku
+sözlüğü, 12 uç noktalık API sözleşmesi, veri modeli ve indeksler, MIDI ölçüm
+formülleri ve eşikleri, ~70 kontrollük buton envanteri, performans ölçüm
+yöntemleri ve kapalı kararlar (KR-1…KR-7).
+
+Kod okunarak doğrulanan yeni bulgular: kayıt ve eser **silinemiyor/düzenlenemiyor**
+(`server/studio.js` yalnız POST/GET içeriyor); `LibraryView.js:157` mood sütununu
+çiziyor ama `js/` içinde mood **yazan tek satır yok**; `Like` şemasında `tags`
+alanı yok; arşivde filtre/sıralama yok; tür ve yıl verisi hiç saklanmıyor.
+
+Sprint sırası: Faz 1'i kapat (token, üç dil, dört durum, erişilebilirlik) →
+Faz 3'ü kapat (kayıt yönetimi, metronom, A–B, zaman işaretli not) → Faz 6 ilk
+dilim (eser detayı, dürüst MIDI ölçümleri, deneme karşılaştırma) → Faz 7 arşiv
+yüzeyi (etiket, mood, filtre, istatistik, günlük, yedek). Faz 4, 5 ve 8
+bu turda açılmıyor.
+
 Sıra: mevcut akışların doğrulanması → mevcut tasarıma bağlı stüdyo yüzeyi →
 deneysel MIDI motoru → ilk kaydet/kurtar/yeniden dinle akışı. Mikrofon, analiz
 ve ileri çalışma araçları sonraki işlerdir; donanım kabulü otomatik testle
