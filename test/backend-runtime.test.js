@@ -871,6 +871,7 @@ test('no shipped markup carries inline event handlers', async () => {
         const markup = fs.readFileSync(path.resolve(__dirname, '..', file), 'utf8');
         assert.doesNotMatch(markup, /\son(?:click|change|input|submit|load|error|keypress|keydown|mouseover)\s*=\s*["']/i, file);
         assert.doesNotMatch(markup, /<script(?![^>]*\bsrc=)[^>]*>/i, `${file} still contains an inline script`);
+        assert.doesNotMatch(markup, /<img\b[^>]*\bsrc=["']\s*["']/i, `${file} still contains an empty image source`);
     }
 });
 

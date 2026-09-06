@@ -26,3 +26,11 @@ test('unbundled frontend imports resolve to existing named exports', () => {
         }
     }
 });
+
+test('shell image placeholders never request the current page as an empty src', () => {
+    const shell = fs.readFileSync(path.resolve(__dirname, '../js/components/Shell.js'), 'utf8');
+    for (const id of ['modalCover', 'coverPreviewImg', 'trackDetailImage', 'miniPlayerImage']) {
+        assert.match(shell, new RegExp(`id=["']${id}["'][^>]+src=["']/js/placeholder\\.svg["']`));
+    }
+    assert.doesNotMatch(shell, /<img\b[^>]*\bsrc=["']\s*["']/i);
+});

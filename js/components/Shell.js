@@ -50,7 +50,7 @@ function mountShellMarkup() {
     <div id="detailsModal" class="modal hidden ma-overlay">
         <div class="ma-dialog ma-dialog-wide">
             <div class="ma-shell-2 ma-dialog-head">
-                <img id="modalCover" src="" alt="" class="ma-dialog-cover">
+                <img id="modalCover" src="/js/placeholder.svg" alt="" class="ma-dialog-cover">
                 <div class="ma-shell-3">
                     <p class="ma-kicker" id="modalType"></p>
                     <h2 id="modalTitle" class="ma-dialog-title ma-truncate"></h2>
@@ -148,7 +148,7 @@ function mountShellMarkup() {
                 </div>
                 <div id="coverPreviewContainer" class="ma-shell-29 hidden">
                     <p class="ma-kicker" data-lang="cover.preview"></p>
-                    <img id="coverPreviewImg" src="" alt=""
+                    <img id="coverPreviewImg" src="/js/placeholder.svg" alt=""
                         class="ma-shell-30">
                 </div>
                 <div class="ma-shell-31">
@@ -171,7 +171,7 @@ function mountShellMarkup() {
             </div>
             <div class="ma-drawer-body">
                 <div class="ma-shell-36">
-                    <img id="trackDetailImage" src="" alt="" class="ma-drawer-cover" loading="lazy">
+                    <img id="trackDetailImage" src="/js/placeholder.svg" alt="" class="ma-drawer-cover" loading="lazy">
                     <div class="ma-shell-37">
                         <div id="trackDetailName" class="ma-shell-38"></div>
                         <div id="trackDetailArtist" class="ma-shell-39"></div>
@@ -240,7 +240,7 @@ function mountShellMarkup() {
             <div id="miniPlayerProgress" class="mini-player-progress-bar"></div>
         </div>
         <div class="mini-player-body">
-            <img id="miniPlayerImage" src="" alt="" class="ma-shell-54 ma-cover ma-cover-md">
+            <img id="miniPlayerImage" src="/js/placeholder.svg" alt="" class="ma-shell-54 ma-cover ma-cover-md">
             <div class="ma-shell-55">
                 <p id="miniPlayerTitle" class="ma-shell-56 ma-truncate"></p>
                 <p id="miniPlayerArtist" class="ma-shell-57 ma-truncate"></p>
