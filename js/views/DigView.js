@@ -1,3 +1,4 @@
+import { empty, error as errorState, loading, signedOut } from '../components/States.js';
 /**
  * Dig view — the swipe-through discovery screen from the design canvas.
  *
@@ -11,7 +12,7 @@ import { store } from '../state/store.js';
 import { get, post } from '../services/api.js';
 import { getLikedTracks } from '../services/library.js';
 import { playTrack } from '../components/MiniPlayer.js';
-import { el, cover, kicker, replace, emptyState, errorState, loadingState } from '../core/dom.js';
+import { el, cover, kicker, replace } from '../core/dom.js';
 import { showToast } from '../utils.js';
 import { t } from '../services/i18n.js';
 import { isAuthenticated } from '../services/auth.js';
@@ -32,19 +33,19 @@ export class DigView extends Component {
     render() {
         this.container.replaceChildren(el('main', { className: 'ma-main' }, [
             el('div', {
-                style: 'display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap'
+                className: 'ma-display-flex ma-items-flex-end ma-justify-space-between ma-gap-24 ma-wrap-wrap'
             }, [
                 el('div', {}, [
                     kicker(t('dig.kicker')),
                     el('h2', { className: 'ma-page-title', text: t('dig.title') })
                 ]),
                 el('div', {
-                    style: 'font-size:13px;color:var(--ink2)',
+                    className: 'ma-text-13 ma-color-ink2',
                     attrs: { id: 'digSummary' },
                     text: t('dig.summary', { left: this.queue.length, kept: this.kept })
                 })
             ]),
-            el('div', { className: 'ma-rule', style: 'margin:20px 0 32px' }),
+            el('div', { className: 'ma-rule ma-m-20-0-32', }),
             el('div', { attrs: { id: 'digBody' } })
         ]));
 
@@ -59,30 +60,17 @@ export class DigView extends Component {
         if (summary) summary.textContent = t('dig.summary', { left: this.queue.length, kept: this.kept });
 
         if (!isAuthenticated()) {
-            replace(body, emptyState('♥', t('dig.signedOut'), '', el('button', {
-                className: 'ma-btn ma-btn-primary',
-                style: 'margin-top:24px',
-                text: t('auth.login'),
-                attrs: { type: 'button' },
-                on: { click: () => window.openAuthModal?.() }
-            })));
+            replace(body, signedOut({ body: t('dig.signedOut'), next: 'dig' }));
             return;
         }
 
         if (this.loading) {
-            replace(body, loadingState(4));
+            replace(body, loading({ rows: 1 }));
             return;
         }
 
         if (this.failed) {
-            replace(body, errorState(t('dig.loadFailed'), ''), el('div', { style: 'text-align:center' }, [
-                el('button', {
-                    className: 'ma-btn ma-btn-secondary',
-                    text: t('common.retry'),
-                    attrs: { type: 'button' },
-                    on: { click: () => void this.loadQueue() }
-                })
-            ]));
+            replace(body, errorState({ title: t('dig.loadFailed'), retry: () => this.loadQueue() }));
             return;
         }
 
@@ -101,15 +89,14 @@ export class DigView extends Component {
         return el('div', { className: 'ma-dig-stage' }, [
             el('div', { className: 'ma-dig-card', attrs: { id: 'digCard' } }, [
                 cover(track.image, track.name || '', 'ma-cover-fill', { className: 'ma-dig-art' }),
-                el('div', { style: 'padding:20px' }, [
+                el('div', { className: 'ma-p-20' }, [
                     el('div', { className: 'ma-dig-title', text: track.name }),
                     el('div', {
                         className: 'ma-dig-sub',
                         text: [track.artist, track.album].filter(Boolean).join(' · ')
                     }),
                     el('button', {
-                        className: 'ma-btn ma-btn-secondary',
-                        style: 'margin-top:18px;width:100%;justify-content:flex-start',
+                        className: 'ma-btn ma-btn-secondary ma-mt-18 ma-w-100 ma-justify-flex-start',
                         text: t('dig.preview'),
                         attrs: { type: 'button', disabled: !track.preview_url },
                         on: { click: () => this.preview() }
@@ -118,21 +105,19 @@ export class DigView extends Component {
             ]),
             el('div', { className: 'ma-dig-actions' }, [
                 el('button', {
-                    className: 'ma-btn ma-btn-secondary',
-                    style: 'justify-content:flex-start',
+                    className: 'ma-btn ma-btn-secondary ma-justify-flex-start',
                     text: t('dig.skip'),
                     attrs: { type: 'button' },
                     on: { click: () => void this.swipe('pass') }
                 }),
                 el('button', {
-                    className: 'ma-btn ma-btn-primary',
-                    style: 'justify-content:flex-start',
+                    className: 'ma-btn ma-btn-primary ma-justify-flex-start',
                     text: t('dig.keep'),
                     attrs: { type: 'button' },
                     on: { click: () => void this.swipe('archive') }
                 })
             ]),
-            el('div', { style: 'font-size:11px;color:var(--ink3);margin-top:14px', text: t('dig.keys') })
+            el('div', { className: 'ma-text-11 ma-color-ink3 ma-mt-14', text: t('dig.keys') })
         ]);
     }
 
@@ -140,22 +125,21 @@ export class DigView extends Component {
     upNext() {
         return el('aside', { className: 'ma-card-flush' }, [
             el('div', {
-                className: 'ma-kicker',
-                style: 'padding:14px 18px;border-bottom:2px solid var(--rule)',
+                className: 'ma-kicker ma-p-14-18 ma-border-bottom-2-solid-rule',
                 text: t('dig.next')
             }),
             ...this.queue.slice(1, 5).map((track, index) => el('div', {
-                className: 'ma-row ma-row-inset',
-                style: `opacity:${1 - index * 0.16}`
+                className: 'ma-row ma-row-inset ma-dynamic-opacity',
+                style: `--row-opacity:${1 - index * 0.16}`
             }, [
                 cover(track.image, track.name || '', 'ma-cover-xs'),
-                el('div', { style: 'min-width:0' }, [
-                    el('div', { className: 'ma-row-title', style: 'font-size:13px', text: track.name }),
-                    el('div', { className: 'ma-row-sub', style: 'font-size:11px', text: track.artist || '' })
+                el('div', { className: 'ma-min-w-0' }, [
+                    el('div', { className: 'ma-row-title ma-text-13',  text: track.name }),
+                    el('div', { className: 'ma-row-sub ma-text-11',  text: track.artist || '' })
                 ])
             ])),
             el('div', {
-                style: 'padding:14px 18px;font-size:11px;color:var(--ink3);line-height:1.5',
+                className: 'ma-p-14-18 ma-text-11 ma-color-ink3 ma-line-height-1-5',
                 text: t('dig.hint')
             })
         ]);
@@ -163,13 +147,12 @@ export class DigView extends Component {
 
     /** @returns {HTMLElement} */
     doneState() {
-        return emptyState('♥', t('dig.doneTitle'), t('dig.doneBody', { kept: this.kept }), el('button', {
-            className: 'ma-btn ma-btn-secondary',
-            style: 'margin-top:24px',
+        return empty({ icon: '♥', title: t('dig.doneTitle'), body: t('dig.doneBody', { kept: this.kept }), action: el('button', {
+            className: 'ma-btn ma-btn-secondary ma-mt-24',
             text: t('dig.reset'),
             attrs: { type: 'button' },
             on: { click: () => void this.loadQueue() }
-        }));
+        }) });
     }
 
     /* ── behaviour ───────────────────────────────────────────────────── */

@@ -60,6 +60,55 @@ An unset `NODE_ENV` applies production protections and refuses an unavailable
 database. `/api/health` reports database readiness and Spotify configuration.
 Spotify is required for catalog search, not for authentication or the studio.
 
+### Instrument studio (experimental)
+
+Open **Stüdyo**, connect a Web MIDI input or explicitly select **Ekran piyanosu
+• Simülasyon**. Sign in to record, give the take a title, start, play and stop.
+**Arşive kaydet** confirms MongoDB persistence; **Kayıtlarım** lists stored takes
+and recoverable local drafts. **Dinle** synthesizes the captured MIDI events;
+**.mid indir** exports a Standard MIDI File, not recorded instrument audio.
+**Çalışmalarım** stores a piece and personal notes and links subsequent takes
+to that piece and, optionally, a liked catalog track.
+
+Recording limits: 60 minutes or 60,000 MIDI events. IndexedDB checkpoints run
+once a second while recording. A sudden browser/process crash can lose the last
+second; graceful stop writes the final take. If upload fails, use **Tekrar yükle**
+in Kayıtlarım. Drafts belong to the signed-in account on this browser/origin;
+clearing site data removes them. Export valuable takes as `.mid` as well.
+
+This is the first MIDI workflow, not completion of every brief phase. Sampled
+piano sound, microphone recording, analysis, metronome, A–B loops and PDF/MIDI
+attachments are pending. The new studio screens currently use Turkish; main
+navigation and the existing archive retain TR/EN/KU. Real hardware acceptance
+is still required. See the [delivery report](docs/reports/MIDI_STUDIO_2026-09-05.md).
+
+### Studio verification
+
+`npm run check` runs lint and the unit/regression suite. For persistent storage
+tests, provide a **local, disposable MongoDB**; the suite refuses remote hosts
+and creates a randomly named test database:
+
+```bash
+STUDIO_TEST_MONGO=mongodb://127.0.0.1:27017 npm run check
+```
+
+CI starts its own MongoDB service for this test. Tests retain their isolated
+database for inspection and do not read `.env` or contact your hosted database.
+
+For the Chrome flow, start the app against a disposable local MongoDB using
+explicit test secrets, `ENABLE_MOCK_AUTH=false`, and a matching `CORS_ORIGINS`.
+Start Chrome with an isolated profile and `--remote-debugging-port=9227`, then:
+
+```bash
+STUDIO_TEST_URL=http://127.0.0.1:3109 npm run test:browser
+```
+
+The browser test creates disposable accounts and actual MIDI simulation takes,
+tests failed upload/recovery, reload/login, permission denial and responsive
+layout. It writes screenshots to `/tmp/music-archive-studio-*.png`. Never point
+it at a server containing your personal archive. Automated MIDI input is not a
+physical device test.
+
 ### Mobile client
 
 ```bash

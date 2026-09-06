@@ -35,7 +35,7 @@ function mountShellMarkup() {
                         data-lang-aria="nav.toggleTheme"><i id="themeIcon" class="fa-solid fa-circle-half-stroke"></i></button>
                 </div>
                 <div>
-                    <div class="ma-setting-title" style="margin-bottom:8px" data-lang="settings.language"></div>
+                    <div class="ma-shell-1 ma-setting-title" data-lang="settings.language"></div>
                     <select id="languageSelect" class="ma-input">
                         <option value="tr">Türkçe</option>
                         <option value="en">English</option>
@@ -49,9 +49,9 @@ function mountShellMarkup() {
     <!-- Album / playlist details -->
     <div id="detailsModal" class="modal hidden ma-overlay">
         <div class="ma-dialog ma-dialog-wide">
-            <div class="ma-dialog-head" style="align-items:flex-end;gap:20px">
+            <div class="ma-shell-2 ma-dialog-head">
                 <img id="modalCover" src="" alt="" class="ma-dialog-cover">
-                <div style="flex:1 1 auto;min-width:0">
+                <div class="ma-shell-3">
                     <p class="ma-kicker" id="modalType"></p>
                     <h2 id="modalTitle" class="ma-dialog-title ma-truncate"></h2>
                 </div>
@@ -63,38 +63,38 @@ function mountShellMarkup() {
     </div>
 
     <!-- Add to playlist -->
-    <div id="addToPlaylistModal" class="modal hidden ma-overlay" style="z-index:80">
-        <div class="ma-dialog" style="max-width:380px">
+    <div id="addToPlaylistModal" class="ma-shell-4 modal hidden ma-overlay">
+        <div class="ma-shell-5 ma-dialog">
             <div class="ma-dialog-head">
                 <span class="ma-kicker" data-lang="track.addToPlaylist"></span>
                 <button type="button" class="ma-iconbtn" data-shell-action="close-add-to-playlist"
                     data-lang-aria="common.close">✕</button>
             </div>
             <div class="ma-dialog-body">
-                <div id="playlistOptions" style="max-height:260px;overflow-y:auto"></div>
-                <button type="button" class="ma-btn ma-btn-secondary" style="width:100%"
+                <div id="playlistOptions" class="ma-shell-6"></div>
+                <button type="button" class="ma-shell-7 ma-btn ma-btn-secondary"
                     data-shell-action="close-add-to-playlist" data-lang="common.cancel"></button>
             </div>
         </div>
     </div>
 
     <!-- Create playlist -->
-    <div id="createPlaylistModal" class="modal hidden ma-overlay" style="z-index:85"
+    <div id="createPlaylistModal" class="ma-shell-8 modal hidden ma-overlay"
         data-shell-action="close-create-playlist">
-        <div class="ma-dialog" style="max-width:400px">
+        <div class="ma-shell-9 ma-dialog">
             <div class="ma-dialog-head">
                 <span class="ma-kicker" data-lang="playlist.create"></span>
                 <button type="button" class="ma-iconbtn" data-shell-action="close-create-playlist"
                     data-lang-aria="common.close">✕</button>
             </div>
             <div class="ma-dialog-body">
-                <p class="ma-setting-hint" style="margin:0" data-lang="library.organize"></p>
+                <p class="ma-shell-10 ma-setting-hint" data-lang="library.organize"></p>
                 <input type="text" id="newPlaylistName" class="ma-input"
                     data-lang-placeholder="playlist.namePlaceholder">
-                <div style="display:flex;gap:10px">
-                    <button type="button" class="ma-btn ma-btn-primary" style="flex:1 1 0"
+                <div class="ma-shell-11">
+                    <button type="button" class="ma-shell-12 ma-btn ma-btn-primary"
                         data-shell-action="confirm-create-playlist" data-lang="playlist.createButton"></button>
-                    <button type="button" class="ma-btn ma-btn-secondary" style="flex:1 1 0"
+                    <button type="button" class="ma-shell-13 ma-btn ma-btn-secondary"
                         data-shell-action="close-create-playlist" data-lang="common.cancel"></button>
                 </div>
             </div>
@@ -102,15 +102,15 @@ function mountShellMarkup() {
     </div>
 
     <!-- Confirmation -->
-    <div id="confirmModal" class="modal hidden ma-overlay" style="z-index:100">
-        <div class="ma-dialog" style="max-width:380px" id="confirmModalContent">
+    <div id="confirmModal" class="ma-shell-14 modal hidden ma-overlay">
+        <div class="ma-shell-15 ma-dialog" id="confirmModalContent">
             <div class="ma-dialog-body">
                 <div id="confirmIcon" class="ma-notice-mark"></div>
                 <h3 class="ma-dialog-title" id="confirmTitle"></h3>
-                <p class="ma-setting-hint" style="margin:0" id="confirmMessage"></p>
-                <div style="display:flex;gap:10px;margin-top:4px">
-                    <button type="button" id="confirmYesBtn" class="ma-btn ma-btn-danger" style="flex:1 1 0"></button>
-                    <button type="button" class="ma-btn ma-btn-secondary" style="flex:1 1 0"
+                <p class="ma-shell-16 ma-setting-hint" id="confirmMessage"></p>
+                <div class="ma-shell-17">
+                    <button type="button" id="confirmYesBtn" class="ma-shell-18 ma-btn ma-btn-danger"></button>
+                    <button type="button" class="ma-shell-19 ma-btn ma-btn-secondary"
                         data-shell-action="close-confirm" data-lang="common.cancel"></button>
                 </div>
             </div>
@@ -118,27 +118,27 @@ function mountShellMarkup() {
     </div>
 
     <!-- Change cover -->
-    <div id="changeCoverModal" class="modal hidden ma-overlay" style="z-index:110"
+    <div id="changeCoverModal" class="ma-shell-20 modal hidden ma-overlay"
         data-shell-action="close-cover">
-        <div class="ma-dialog" style="max-width:420px">
+        <div class="ma-shell-21 ma-dialog">
             <div class="ma-dialog-head">
                 <span class="ma-kicker" data-lang="cover.title"></span>
                 <button type="button" class="ma-iconbtn" data-shell-action="close-cover"
                     data-lang-aria="common.close">✕</button>
             </div>
             <div class="ma-dialog-body">
-                <p class="ma-setting-hint" style="margin:0" data-lang="cover.subtitle"></p>
-                <div style="display:flex;gap:8px">
-                    <button type="button" id="coverTabUpload" class="ma-pill is-active" style="flex:1 1 0;justify-content:center"
+                <p class="ma-shell-22 ma-setting-hint" data-lang="cover.subtitle"></p>
+                <div class="ma-shell-23">
+                    <button type="button" id="coverTabUpload" class="ma-shell-24 ma-pill is-active"
                         data-shell-action="cover-tab-upload" data-lang="cover.upload"></button>
-                    <button type="button" id="coverTabUrl" class="ma-pill" style="flex:1 1 0;justify-content:center"
+                    <button type="button" id="coverTabUrl" class="ma-shell-25 ma-pill"
                         data-shell-action="cover-tab-url" data-lang="cover.url"></button>
                 </div>
                 <div id="coverUploadSection">
                     <label class="ma-dropzone">
-                        <i class="fa-solid fa-cloud-arrow-up" style="font-size:22px;color:var(--ink3)"></i>
-                        <span class="ma-setting-hint" style="margin:0" data-lang="cover.dropHint"></span>
-                        <span class="ma-kicker" style="text-transform:none;letter-spacing:normal;font-weight:400"
+                        <i class="ma-shell-26 fa-solid fa-cloud-arrow-up"></i>
+                        <span class="ma-shell-27 ma-setting-hint" data-lang="cover.dropHint"></span>
+                        <span class="ma-shell-28 ma-kicker"
                             data-lang="cover.formats"></span>
                         <input type="file" id="coverFileInput" accept="image/*" hidden>
                     </label>
@@ -146,15 +146,15 @@ function mountShellMarkup() {
                 <div id="coverUrlSection" class="hidden">
                     <input type="text" id="coverUrlInput" class="ma-input" placeholder="https://example.com/image.jpg">
                 </div>
-                <div id="coverPreviewContainer" class="hidden" style="text-align:center">
+                <div id="coverPreviewContainer" class="ma-shell-29 hidden">
                     <p class="ma-kicker" data-lang="cover.preview"></p>
                     <img id="coverPreviewImg" src="" alt=""
-                        style="width:96px;height:96px;object-fit:cover;margin:8px auto 0;border:1px solid var(--border)">
+                        class="ma-shell-30">
                 </div>
-                <div style="display:flex;gap:10px">
-                    <button type="button" class="ma-btn ma-btn-primary" style="flex:1 1 0"
+                <div class="ma-shell-31">
+                    <button type="button" class="ma-shell-32 ma-btn ma-btn-primary"
                         data-shell-action="confirm-cover" data-lang="common.save"></button>
-                    <button type="button" class="ma-btn ma-btn-secondary" style="flex:1 1 0"
+                    <button type="button" class="ma-shell-33 ma-btn ma-btn-secondary"
                         data-shell-action="close-cover" data-lang="common.cancel"></button>
                 </div>
             </div>
@@ -162,20 +162,20 @@ function mountShellMarkup() {
     </div>
 
     <!-- Track record drawer -->
-    <div id="trackDetailModal" class="modal hidden ma-scrim" style="z-index:60">
+    <div id="trackDetailModal" class="ma-shell-34 modal hidden ma-scrim">
         <aside id="trackDetailContent" class="ma-drawer" role="dialog" aria-modal="true">
             <div class="ma-drawer-head">
                 <span class="ma-kicker" data-lang="track.details"></span>
-                <button type="button" class="ma-iconbtn" style="width:30px;height:30px"
+                <button type="button" class="ma-shell-35 ma-iconbtn"
                     data-shell-action="close-track-detail" data-lang-aria="common.close">✕</button>
             </div>
             <div class="ma-drawer-body">
-                <div style="display:flex;gap:16px;align-items:flex-start">
+                <div class="ma-shell-36">
                     <img id="trackDetailImage" src="" alt="" class="ma-drawer-cover" loading="lazy">
-                    <div style="min-width:0;flex:1 1 auto">
-                        <div id="trackDetailName" style="font-size:20px;font-weight:600;letter-spacing:-0.015em"></div>
-                        <div id="trackDetailArtist" style="font-size:13px;color:var(--ink2);margin-top:4px"></div>
-                        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+                    <div class="ma-shell-37">
+                        <div id="trackDetailName" class="ma-shell-38"></div>
+                        <div id="trackDetailArtist" class="ma-shell-39"></div>
+                        <div class="ma-shell-40">
                             <button type="button" id="trackDetailPlayBtn" class="ma-btn ma-btn-secondary ma-btn-sm">
                                 <span data-lang="track.preview"></span>
                             </button>
@@ -187,12 +187,12 @@ function mountShellMarkup() {
                     </div>
                 </div>
 
-                <div class="ma-rule" style="margin:24px 0 20px"></div>
+                <div class="ma-shell-41 ma-rule"></div>
 
                 <div class="ma-kicker" data-lang="track.rate"></div>
-                <div style="display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap">
+                <div class="ma-shell-42">
                     <div id="trackDetailRating" class="star-rating"></div>
-                    <span id="trackDetailRatingText" style="font-size:13px;color:var(--ink2)"></span>
+                    <span id="trackDetailRatingText" class="ma-shell-43"></span>
                 </div>
 
                 <div class="ma-drawer-section-head">
@@ -200,27 +200,27 @@ function mountShellMarkup() {
                     <button type="button" id="trackNoteSaveBtn" class="ma-btn ma-btn-ghost ma-btn-sm hidden"
                         data-lang="common.save"></button>
                 </div>
-                <textarea id="trackDetailNote" class="ma-textarea" style="margin-top:10px"
+                <textarea id="trackDetailNote" class="ma-shell-44 ma-textarea"
                     data-lang-placeholder="track.notePlaceholder"></textarea>
 
-                <div class="ma-kicker" style="margin-top:24px" data-lang="track.addToPlaylist"></div>
-                <button type="button" id="trackDetailAddBtn" class="ma-btn ma-btn-secondary"
-                    style="width:100%;margin-top:12px;justify-content:flex-start">＋&nbsp;<span
+                <div class="ma-shell-45 ma-kicker" data-lang="track.addToPlaylist"></div>
+                <button type="button" id="trackDetailAddBtn" class="ma-shell-46 ma-btn ma-btn-secondary"
+                   >＋&nbsp;<span
                         data-lang="track.addToPlaylist"></span></button>
 
-                <div class="ma-kicker" style="margin-top:24px" data-lang="track.listenOn"></div>
-                <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+                <div class="ma-shell-47 ma-kicker" data-lang="track.listenOn"></div>
+                <div class="ma-shell-48">
                     <a id="trackSpotifyLink" href="#" target="_blank" rel="noopener" class="ma-linkrow">
-                        <i class="fa-brands fa-spotify" style="color:#1DB954"></i><span>Spotify</span>
-                        <i class="fa-solid fa-arrow-up-right-from-square" style="margin-left:auto;color:var(--ink3);font-size:11px"></i>
+                        <i class="ma-shell-49 fa-brands fa-spotify"></i><span>Spotify</span>
+                        <i class="ma-shell-50 fa-solid fa-arrow-up-right-from-square"></i>
                     </a>
                     <a id="trackYoutubeLink" href="#" target="_blank" rel="noopener" class="ma-linkrow">
-                        <i class="fa-brands fa-youtube" style="color:#FF0000"></i><span>YouTube</span>
-                        <i class="fa-solid fa-arrow-up-right-from-square" style="margin-left:auto;color:var(--ink3);font-size:11px"></i>
+                        <i class="ma-shell-51 fa-brands fa-youtube"></i><span>YouTube</span>
+                        <i class="ma-shell-52 fa-solid fa-arrow-up-right-from-square"></i>
                     </a>
                     <a id="trackAppleMusicLink" href="#" target="_blank" rel="noopener" class="ma-linkrow">
                         <i class="fa-brands fa-apple"></i><span>Apple Music</span>
-                        <i class="fa-solid fa-arrow-up-right-from-square" style="margin-left:auto;color:var(--ink3);font-size:11px"></i>
+                        <i class="ma-shell-53 fa-solid fa-arrow-up-right-from-square"></i>
                     </a>
                 </div>
             </div>
@@ -233,16 +233,16 @@ function mountShellMarkup() {
             <div id="miniPlayerProgress" class="mini-player-progress-bar"></div>
         </div>
         <div class="mini-player-body">
-            <img id="miniPlayerImage" src="" alt="" class="ma-cover ma-cover-md" style="padding:0">
-            <div style="min-width:0;flex:0 1 220px">
-                <p id="miniPlayerTitle" class="ma-truncate" style="margin:0;font-size:13px;font-weight:600"></p>
-                <p id="miniPlayerArtist" class="ma-truncate" style="margin:2px 0 0;font-size:11px;color:var(--ink3)"></p>
+            <img id="miniPlayerImage" src="" alt="" class="ma-shell-54 ma-cover ma-cover-md">
+            <div class="ma-shell-55">
+                <p id="miniPlayerTitle" class="ma-shell-56 ma-truncate"></p>
+                <p id="miniPlayerArtist" class="ma-shell-57 ma-truncate"></p>
             </div>
             <button type="button" id="miniPlayerPlayBtn" class="mini-player-play">
                 <i id="miniPlayerIcon" class="fa-solid fa-play"></i>
             </button>
             <span id="miniPlayerTime" class="mini-player-time">0:00 / 0:30</span>
-            <span class="ma-tag" style="margin-left:auto">30 sn</span>
+            <span class="ma-shell-58 ma-tag">30 sn</span>
             <button type="button" id="miniPlayerCloseBtn" class="ma-iconbtn" data-lang-aria="player.close">✕</button>
         </div>
     </div>

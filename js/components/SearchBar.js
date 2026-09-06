@@ -58,8 +58,7 @@ export class SearchBar extends Component {
         input.value = this.initialQuery;
 
         const clearButton = el('button', {
-            className: 'ma-btn ma-btn-ghost',
-            style: 'height:auto;padding:0;color:var(--ink3)',
+            className: 'ma-btn ma-btn-ghost ma-h-auto ma-p-0 ma-color-ink3',
             text: '✕',
             attrs: { type: 'button', id: 'searchClear', 'aria-label': t('common.close') },
             on: { click: () => this.clearQuery() }
@@ -70,7 +69,7 @@ export class SearchBar extends Component {
             kicker(t('common.search')),
             el('div', { className: 'ma-searchbar-row' }, [
                 el('div', { className: 'ma-searchfield' }, [
-                    el('span', { style: 'color:var(--ink3);font-size:15px', attrs: { 'aria-hidden': 'true' }, text: '⌕' }),
+                    el('span', { className: 'ma-color-ink3 ma-text-15', attrs: { 'aria-hidden': 'true' }, text: '⌕' }),
                     input,
                     clearButton
                 ]),

@@ -103,7 +103,6 @@ export class Router {
                 return;
             }
 
-            console.log(`[Router] Mounting view for route: ${route}`, { ViewClass, queryParams });
             
             this.currentView = new ViewClass(container, { router: this, queryParams });
             this.currentRoute = route;
@@ -111,11 +110,11 @@ export class Router {
             // Mount the view
             if (typeof this.currentView.mount === 'function') {
                 this.currentView.mount();
-                console.log(`[Router] View mounted successfully: ${route}`);
+
             } else if (typeof this.currentView.render === 'function') {
                 // Fallback: call render directly
                 this.currentView.render();
-                console.log(`[Router] View rendered directly: ${route}`);
+
             } else {
                 console.error('View does not have mount() or render() method');
             }

@@ -1,3 +1,4 @@
+import { empty, error as errorState, loading, signedOut } from '../components/States.js';
 /**
  * Library view.
  *
@@ -14,7 +15,7 @@ import { Component } from '../core/Component.js';
 import { store } from '../state/store.js';
 import { getLikedTracks, getFollowedArtists, getPlaylists, unlikeTrack } from '../services/library.js';
 import { getTrackRating } from '../services/rating.js';
-import { el, cover, avatar, stars, kicker, replace, emptyState, errorState, loadingState } from '../core/dom.js';
+import { el, cover, avatar, stars, kicker, replace } from '../core/dom.js';
 import { t } from '../services/i18n.js';
 import { isAuthenticated } from '../services/auth.js';
 
@@ -44,7 +45,7 @@ export class LibraryView extends Component {
             kicker(t('library.title')),
             el('h2', { className: 'ma-page-title', text: t('library.subtitle') }),
 
-            el('div', { style: 'display:flex;gap:8px;margin-top:24px;flex-wrap:wrap' },
+            el('div', { className: 'ma-display-flex ma-gap-8 ma-mt-24 ma-wrap-wrap' },
                 TABS.map(tab => el('button', {
                     className: `ma-pill${tab.id === this.viewType ? ' is-active' : ''}`,
                     attrs: { type: 'button', 'aria-pressed': String(tab.id === this.viewType) },
@@ -58,7 +59,7 @@ export class LibraryView extends Component {
                     })
                 ]))),
 
-            el('div', { className: 'ma-rule', style: 'margin-top:20px' }),
+            el('div', { className: 'ma-rule ma-mt-20', }),
             el('div', { attrs: { id: 'libraryContent' } })
         ]));
 
@@ -70,17 +71,11 @@ export class LibraryView extends Component {
         if (!content) return;
 
         if (!isAuthenticated()) {
-            replace(content, emptyState('♥', t('library.emptyLikes'), t('library.emptyLikesBody'), el('button', {
-                className: 'ma-btn ma-btn-primary',
-                style: 'margin-top:24px',
-                text: t('auth.login'),
-                attrs: { type: 'button' },
-                on: { click: () => window.openAuthModal?.() }
-            })));
+            replace(content, signedOut({ next: `library?type=${this.viewType}` }));
             return;
         }
 
-        replace(content, loadingState(5));
+        replace(content, loading({ rows: 8 }));
 
         try {
             switch (this.viewType) {
@@ -98,11 +93,7 @@ export class LibraryView extends Component {
             }
         } catch (error) {
             if (!this.isMounted) return;
-            replace(content, errorState(t('library.loadFailed'), error.message));
-            content.append(el('button', {
-                className: 'ma-btn ma-btn-primary', text: t('common.retry'),
-                attrs: { type: 'button' }, on: { click: () => this.loadContent() }
-            }));
+            replace(content, errorState({ error, title: t('library.loadFailed'), retry: () => this.loadContent() }));
         }
     }
 
@@ -111,19 +102,18 @@ export class LibraryView extends Component {
         const tracks = store.likedTracks;
 
         if (tracks.length === 0) {
-            replace(content, emptyState('♥', t('library.emptyLikes'), t('library.emptyLikesBody'), el('button', {
-                className: 'ma-btn ma-btn-primary',
-                style: 'margin-top:24px',
+            replace(content, empty({ icon: '♥', title: t('library.emptyLikes'), body: t('library.emptyLikesBody'), action: el('button', {
+                className: 'ma-btn ma-btn-primary ma-mt-24',
                 text: t('library.startSearching'),
                 attrs: { type: 'button' },
                 on: { click: () => this.router?.navigate('search') }
-            })));
+            }) }));
             return;
         }
 
         const head = el('div', { className: 'ma-row-head' }, [
-            el('div', { style: 'width:36px;flex:0 0 auto' }),
-            el('div', { style: 'flex:1 1 auto', text: t('library.colTrack') }),
+            el('div', { className: 'ma-w-36 ma-flex-0-0-auto' }),
+            el('div', { className: 'ma-flex-1-1-auto', text: t('library.colTrack') }),
             el('div', { className: 'ma-col-mood', text: t('library.colMood') }),
             el('div', { className: 'ma-col-stars', text: t('library.colRating') }),
             el('div', { className: 'ma-col-actions' })
@@ -158,15 +148,13 @@ export class LibraryView extends Component {
             el('div', { className: 'ma-col-stars' }, [stars(getTrackRating(track.trackId))]),
             el('div', { className: 'ma-col-actions' }, [
                 track.userNote ? el('button', {
-                    className: 'ma-iconbtn',
-                    style: 'width:28px;height:28px;color:var(--violet-ink)',
+                    className: 'ma-iconbtn ma-w-28 ma-h-28 ma-color-violet-ink',
                     text: '✎',
                     attrs: { type: 'button', title: t('library.hasNote'), 'aria-label': t('library.hasNote') },
                     on: { click: open }
                 }) : null,
                 el('button', {
-                    className: 'ma-iconbtn is-on',
-                    style: 'width:28px;height:28px',
+                    className: 'ma-iconbtn is-on ma-w-28 ma-h-28',
                     text: '♥',
                     attrs: { type: 'button', title: t('track.unlike'), 'aria-label': t('track.unlike') },
                     // It says "remove from archive", so it removes from the
@@ -194,14 +182,13 @@ export class LibraryView extends Component {
         const artists = store.followedArtists;
 
         if (artists.length === 0) {
-            replace(content, emptyState('◉', t('library.emptyFollows'), t('library.emptyFollowsBody')));
+            replace(content, empty({ icon: '◉', title: t('library.emptyFollows'), body: t('library.emptyFollowsBody'), action: { label: t('library.startSearching'), onClick: () => this.router.navigate('search') } }));
             return;
         }
 
-        replace(content, el('div', { className: 'ma-grid ma-grid-5', style: 'padding-top:24px' },
+        replace(content, el('div', { className: 'ma-grid ma-grid-5 ma-pt-24', },
             artists.map(artist => el('button', {
-                className: 'ma-card',
-                style: 'text-align:center',
+                className: 'ma-card ma-align-center',
                 attrs: { type: 'button' },
                 dataset: { artistId: artist.artistId },
                 on: {
@@ -211,7 +198,7 @@ export class LibraryView extends Component {
                 }
             }, [
                 avatar(artist.image, artist.artistName || '', 'ma-avatar-lg', { className: 'ma-mx-auto' }),
-                el('div', { style: 'font-size:14px;font-weight:600;margin-top:14px', className: 'ma-truncate', text: artist.artistName })
+                el('div', {  className: 'ma-truncate ma-text-14 ma-weight-600 ma-mt-14', text: artist.artistName })
             ]))));
     }
 
@@ -220,8 +207,7 @@ export class LibraryView extends Component {
         const playlists = store.playlists;
 
         const tiles = playlists.map(playlist => el('button', {
-            className: 'ma-card-flush',
-            style: 'cursor:pointer;text-align:left;padding:0;color:inherit;font:inherit',
+            className: 'ma-card-flush ma-cursor-pointer ma-align-left ma-p-0 ma-color-inherit ma-font-inherit',
             attrs: { type: 'button' },
             dataset: { playlistId: playlist.id },
             on: { click: () => window.openPlaylistDetails?.(playlist.id) }
@@ -230,10 +216,10 @@ export class LibraryView extends Component {
                 className: 'ma-playlist-cover',
                 attrs: { 'aria-hidden': 'true' }
             }),
-            el('div', { style: 'padding:14px 16px 16px' }, [
-                el('div', { className: 'ma-truncate', style: 'font-size:15px;font-weight:600', text: playlist.name }),
+            el('div', { className: 'ma-p-14-16-16' }, [
+                el('div', { className: 'ma-truncate ma-text-15 ma-weight-600',  text: playlist.name }),
                 el('div', {
-                    style: 'font-size:12px;color:var(--ink3);margin-top:3px',
+                    className: 'ma-text-12 ma-color-ink3 ma-mt-3',
                     text: `${playlist.trackCount ?? playlist.PlaylistTracks?.length ?? 0} ${t('common.songs')}`
                 })
             ])
@@ -244,22 +230,21 @@ export class LibraryView extends Component {
             attrs: { type: 'button' },
             on: { click: () => window.createPlaylist?.() }
         }, [
-            el('span', { style: 'font-size:22px', text: '＋' }),
+            el('span', { className: 'ma-text-22', text: '＋' }),
             el('span', { text: t('library.newPlaylist') })
         ]));
 
         if (playlists.length === 0) {
-            replace(content, emptyState('≡', t('library.emptyPlaylists'), t('library.emptyPlaylistsBody'), el('button', {
-                className: 'ma-btn ma-btn-primary',
-                style: 'margin-top:24px',
+            replace(content, empty({ icon: '≡', title: t('library.emptyPlaylists'), body: t('library.emptyPlaylistsBody'), action: el('button', {
+                className: 'ma-btn ma-btn-primary ma-mt-24',
                 text: t('library.createPlaylist'),
                 attrs: { type: 'button' },
                 on: { click: () => window.createPlaylist?.() }
-            })));
+            }) }));
             return;
         }
 
-        replace(content, el('div', { className: 'ma-grid ma-grid-4', style: 'padding-top:24px' }, tiles));
+        replace(content, el('div', { className: 'ma-grid ma-grid-4 ma-pt-24', }, tiles));
     }
 
     /**

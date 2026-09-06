@@ -1,3 +1,4 @@
+import { getCurrentLanguage } from './services/i18n.js';
 import { showToast as toast } from './components/Toast.js';
 
 // Utility Functions
@@ -35,9 +36,9 @@ export function formatTime(ms) {
  * @param {string} lang - Language code ('tr' or 'en')
  * @returns {string} Formatted date string
  */
-export function formatDate(date, lang = 'tr') {
+export function formatDate(date, lang = getCurrentLanguage()) {
     const d = new Date(date);
-    return d.toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', {
+    return d.toLocaleDateString(lang, {
         year: 'numeric',
         month: 'short',
         day: 'numeric'

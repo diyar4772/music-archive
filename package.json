@@ -6,9 +6,11 @@
     "scripts": {
         "start": "node server.js",
         "dev": "node --watch server.js",
+        "audit": "node scripts/audit.mjs",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
         "test": "node --test test/*.test.js",
+        "test:browser": "node test/browser/studio-smoke.mjs",
         "check": "npm run lint && npm test"
     },
     "engines": {

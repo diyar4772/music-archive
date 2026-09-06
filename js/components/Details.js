@@ -1,3 +1,4 @@
+import { loading, empty, error as errorState, denied } from './States.js';
 /**
  * Detail modals: album, track and playlist.
  *
@@ -17,7 +18,7 @@ import { rateTrack, removeRating, getTrackRating } from '../services/rating.js';
 import { playTrack, isPlaying } from './MiniPlayer.js';
 import { openModal, closeModal, showConfirmModal } from './Modal.js';
 import { showToast, formatTime } from '../utils.js';
-import { el, cover, replace, emptyState, errorState, loadingState, PLACEHOLDER_IMAGE } from '../core/dom.js';
+import { el, cover, replace, PLACEHOLDER_IMAGE } from '../core/dom.js';
 import { t } from '../services/i18n.js';
 
 let currentTrack = null;
@@ -74,8 +75,7 @@ function renderRatingControl(container, item, readout) {
         }
 
         const clear = el('button', {
-            className: 'ma-btn ma-btn-ghost ma-btn-sm',
-            style: 'margin-left:6px',
+            className: 'ma-btn ma-btn-ghost ma-btn-sm ma-ml-6',
             attrs: { type: 'button' },
             text: t('track.resetRating')
         });
@@ -130,8 +130,7 @@ async function resolvePreview(track) {
  */
 function trackRow(track, onRemove) {
     const play = el('button', {
-        className: 'mini-player-play',
-        style: 'width:32px;height:32px;font-size:12px',
+        className: 'mini-player-play ma-w-32 ma-h-32 ma-text-12',
         attrs: { type: 'button', 'aria-label': t('player.playAria', { name: track.name }) },
         html: '<i class="fa-solid fa-play"></i>'
     });
@@ -153,8 +152,7 @@ function trackRow(track, onRemove) {
     });
 
     const title = el('button', {
-        className: 'ma-row-main',
-        style: 'border:0;background:transparent;color:inherit;font:inherit;padding:0',
+        className: 'ma-row-main ma-border-0 ma-background-transparent ma-color-inherit ma-font-inherit ma-p-0',
         attrs: { type: 'button' },
         on: { click: () => openTrackDetail(track.id, track.name, track.artist, track.image, track.preview_url) }
     }, [
@@ -187,7 +185,7 @@ export async function openAlbumDetail(id) {
     byId('modalTitle').textContent = t('common.loading');
     byId('modalType').textContent = t('album.title');
     byId('modalCover').src = PLACEHOLDER_IMAGE;
-    replace(body, loadingState(5));
+    replace(body, loading({ rows: 5 }));
     openModal('detailsModal');
 
     try {
@@ -211,26 +209,25 @@ export async function openAlbumDetail(id) {
         paintSave();
 
         const ratingRow = el('div', { className: 'star-rating' });
-        const ratingText = el('p', { style: 'font-size:12px;color:var(--ink3);margin:6px 0 0' });
+        const ratingText = el('p', { className: 'ma-text-12 ma-color-ink3 ma-m-6-0-0' });
         renderRatingControl(ratingRow, { ...album, itemType: 'album' }, ratingText);
 
         replace(body,
             el('div', {
-                style: 'display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;'
-                    + 'padding:16px 0;border-bottom:1px solid var(--border)'
+                className: 'ma-display-flex ma-wrap-wrap ma-items-center ma-justify-space-between ma-gap-16 ma-p-16-0 ma-border-bottom-1-solid-border'
             }, [
                 el('div', {}, [
-                    el('p', { className: 'ma-kicker', style: 'margin:0 0 8px', text: t('album.rate') }),
+                    el('p', { className: 'ma-kicker ma-m-0-0-8',  text: t('album.rate') }),
                     ratingRow,
                     ratingText
                 ]),
                 saveButton
             ]),
-            el('div', { className: 'ma-rows', style: 'border-top:0' },
+            el('div', { className: 'ma-rows ma-border-top-0', },
                 (album.tracks || []).map(track => trackRow({ ...track, artist: track.artist || album.artist, image: album.image })))
         );
     } catch (error) {
-        replace(body, errorState(t('album.loadFailed'), error.message || ''));
+        replace(body, errorState({ error, title: t('album.loadFailed'), retry: () => openAlbumDetail(id) }));
     }
 }
 
@@ -342,14 +339,14 @@ export async function openPlaylistDetails(playlist) {
     byId('modalTitle').textContent = t('common.loading');
     byId('modalType').textContent = t('playlist.label');
     byId('modalCover').src = PLACEHOLDER_IMAGE;
-    replace(body, loadingState(5));
+    replace(body, loading({ rows: 5 }));
     openModal('detailsModal');
 
     try {
-        const all = await getPlaylists();
+        const all = await getPlaylists({ strict: true });
         currentPlaylist = all.find(p => String(p.id) === playlistId);
         if (!currentPlaylist) {
-            replace(body, errorState(t('common.notFound')));
+            replace(body, denied({ title: t('common.notFound'), action: { label: t('common.close'), onClick: () => closeModal('detailsModal') } }));
             return;
         }
 
@@ -361,7 +358,7 @@ export async function openPlaylistDetails(playlist) {
         byId('modalCover').src = list.coverImage || PLACEHOLDER_IMAGE;
 
         const actions = el('div', {
-            style: 'display:flex;flex-wrap:wrap;gap:8px;padding:16px 0;border-bottom:1px solid var(--border)'
+            className: 'ma-display-flex ma-wrap-wrap ma-gap-8 ma-p-16-0 ma-border-bottom-1-solid-border'
         }, [
             button(t('playlist.changeCover'), () => {
                 coverData = null;
@@ -384,7 +381,7 @@ export async function openPlaylistDetails(playlist) {
         ]);
 
         replace(body, actions, tracks.length
-            ? el('div', { className: 'ma-rows', style: 'border-top:0' }, tracks.map(entry => trackRow(
+            ? el('div', { className: 'ma-rows ma-border-top-0', }, tracks.map(entry => trackRow(
                 {
                     id: entry.trackId,
                     name: entry.trackName,
@@ -398,9 +395,9 @@ export async function openPlaylistDetails(playlist) {
                     }
                 }
             )))
-            : emptyState('≡', t('playlist.empty')));
+            : empty({ icon: '≡', title: t('playlist.empty'), action: { label: t('library.startSearching'), onClick: () => { closeModal('detailsModal'); window.router.navigate('search'); } } }));
     } catch (error) {
-        replace(body, errorState(t('playlist.loadFailed'), error.message || ''));
+        replace(body, errorState({ error, title: t('playlist.loadFailed'), retry: () => openPlaylistDetails(playlistId) }));
     }
 }
 
@@ -411,12 +408,12 @@ export async function addToPlaylistFromDetail() {
     if (!store.token) return window.openAuthModal?.();
 
     const target = byId('playlistOptions');
-    replace(target, loadingState(3));
+    replace(target, loading({ rows: 3 }));
     openModal('addToPlaylistModal');
 
     const lists = await getPlaylists();
     if (!lists.length) {
-        replace(target, emptyState('≡', t('playlist.chooseFirst')));
+        replace(target, empty({ icon: '≡', title: t('playlist.chooseFirst'), action: { label: t('library.createPlaylist'), onClick: () => window.createPlaylist?.() } }));
         return;
     }
 
@@ -435,7 +432,7 @@ export async function addToPlaylistFromDetail() {
         cover(list.coverImage, list.name || '', 'ma-cover-sm'),
         el('span', { className: 'ma-row-main ma-row-title', text: list.name }),
         el('span', {
-            style: 'font-size:11px;color:var(--ink3);flex:0 0 auto',
+            className: 'ma-text-11 ma-color-ink3 ma-flex-0-0-auto',
             text: `${list.trackCount ?? list.PlaylistTracks?.length ?? 0} ${t('common.songs')}`
         })
     ])));

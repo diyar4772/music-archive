@@ -15,10 +15,10 @@ import { showToast } from '../utils.js';
 const LANGUAGES = ['tr', 'en', 'ku'];
 
 const SECTIONS = [
-    { id: 'dashboard', key: 'nav.dashboard' },
-    { id: 'search', key: 'nav.search' },
-    { id: 'library', key: 'nav.library' },
-    { id: 'dig', key: 'nav.dig' }
+    { id: 'dashboard', key: 'nav.archive' },
+    { id: 'studio', key: 'nav.studio' },
+    { id: 'recordings', key: 'nav.recordings' },
+    { id: 'pieces', key: 'nav.pieces' }
 ];
 
 const MENU_ITEMS = [
@@ -104,7 +104,29 @@ export class Navbar extends Component {
             ])
         ]);
 
+        if (active === 'dashboard') {
+            header.append(el('nav', { className: 'studio-subnav', attrs: { 'aria-label': t('nav.archive') } },
+                ['dashboard', 'search', 'library', 'dig'].map(id => el('button', {
+                    className: 'ma-navbtn', text: t(`nav.${id}`), attrs: { type: 'button' },
+                    on: { click: () => this.goTo(id) }
+                }))));
+        }
+        const focus = this.container.contains(document.activeElement) ? document.activeElement : null;
+        const focusLabel = focus?.getAttribute('aria-label');
+        const focusText = focus?.textContent;
         this.container.replaceChildren(header);
+        if (focus) [...header.querySelectorAll('button')].find(node => focusLabel ? node.getAttribute('aria-label') === focusLabel : node.textContent === focusText)?.focus();
+        header.addEventListener('keydown', event => {
+            if (!this.menuOpen) return;
+            const items = [...header.querySelectorAll('[role=menuitem]')];
+            const index = items.indexOf(document.activeElement);
+            if (event.key === 'Escape') { event.preventDefault(); this.closeMenu(); this.querySelector('[aria-haspopup=menu]')?.focus(); }
+            else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+                event.preventDefault();
+                const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+                items[next]?.focus();
+            }
+        });
     }
 
     /**
@@ -112,10 +134,9 @@ export class Navbar extends Component {
      * @returns {HTMLElement}
      */
     accountControl(user) {
-        return el('div', { className: 'ma-account', style: 'position:relative' }, [
+        return el('div', { className: 'ma-account ma-position-relative', }, [
             el('button', {
-                className: 'ma-iconbtn',
-                style: 'width:auto;padding:0 8px 0 4px;gap:8px;color:var(--ink)',
+                className: 'ma-iconbtn ma-w-auto ma-p-0-8-0-4 ma-gap-8 ma-color-ink',
                 attrs: {
                     type: 'button',
                     'aria-haspopup': 'menu',
@@ -129,7 +150,7 @@ export class Navbar extends Component {
                     text: initialOf(user),
                     attrs: { 'aria-hidden': 'true' }
                 }),
-                el('span', { style: 'font-size:12px;color:var(--ink2)', text: '▾' })
+                el('span', { className: 'ma-text-12 ma-color-ink2', text: '▾' })
             ]),
             this.menuOpen ? this.accountMenu(user) : null
         ]);
@@ -142,8 +163,8 @@ export class Navbar extends Component {
     accountMenu(user) {
         return el('div', { className: 'ma-menu', attrs: { role: 'menu' } }, [
             el('div', { className: 'ma-menu-head' }, [
-                el('div', { style: 'font-size:13px;font-weight:600', text: user }),
-                el('div', { className: 'ma-kicker', style: 'margin-top:4px', text: t('nav.accountMenu') })
+                el('div', { className: 'ma-text-13 ma-weight-600', text: user }),
+                el('div', { className: 'ma-kicker ma-mt-4',  text: t('nav.accountMenu') })
             ]),
             ...MENU_ITEMS.map(item => el('button', {
                 className: `ma-menu-item${item.action === 'logout' ? ' is-danger' : ''}`,
@@ -151,7 +172,7 @@ export class Navbar extends Component {
                 on: { click: event => { event.stopPropagation(); this.handleMenuAction(item.action); } }
             }, [
                 el('span', { text: t(item.key) }),
-                el('i', { className: item.icon, style: `color:${item.color}`, attrs: { 'aria-hidden': 'true' } })
+                el('i', { className: `${item.icon} ma-dynamic-accent`, style: `--accent:${item.color}`, attrs: { 'aria-hidden': 'true' } })
             ]))
         ]);
     }
@@ -165,6 +186,7 @@ export class Navbar extends Component {
     toggleMenu() {
         this.menuOpen = !this.menuOpen;
         this.render();
+        if (this.menuOpen) this.querySelector('[role=menuitem]')?.focus();
     }
 
     closeMenu() {

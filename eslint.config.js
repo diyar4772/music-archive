@@ -43,7 +43,7 @@ module.exports = [
     },
     {
         // Server and tooling: CommonJS, Node globals.
-        files: ['server.js', 'eslint.config.js'],
+        files: ['server.js', 'server/**/*.js', 'eslint.config.js'],
         languageOptions: {
             ecmaVersion: 2023,
             sourceType: 'commonjs',
@@ -84,6 +84,15 @@ module.exports = [
             ecmaVersion: 2023,
             sourceType: 'commonjs',
             globals: { ...globals.node }
+        },
+        rules: sharedRules
+    },
+    {
+        files: ['test/**/*.mjs'],
+        languageOptions: {
+            ecmaVersion: 2023,
+            sourceType: 'module',
+            globals: globals.node
         },
         rules: sharedRules
     }

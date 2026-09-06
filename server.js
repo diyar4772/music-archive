@@ -10,6 +10,7 @@ const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
 const crypto = require('crypto');
 const path = require('path');
+const { registerStudioRoutes, Recording, Piece } = require('./server/studio');
 
 if (process.env.SKIP_DOTENV_CONFIG !== 'true') {
     dotenv.config();
@@ -1772,6 +1773,8 @@ app.delete('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
             AlbumFollow.deleteMany({ userId }),
             Rating.deleteMany({ userId }),
             LoginHistory.deleteMany({ userId }),
+            Recording.deleteMany({ userId }),
+            Piece.deleteMany({ userId }),
             PlaylistTrack.deleteMany({ playlistId: { $in: await Playlist.find({ userId }).distinct('_id') } }),
             Playlist.deleteMany({ userId }),
             User.findByIdAndDelete(userId)
@@ -2544,6 +2547,11 @@ app.get('/api/library/check/:spotifyId', authenticateToken, async (req, res) => 
 // 📱 MOBILE: Bind to 0.0.0.0 for local network access (React Native Expo)
 const HOST = process.env.HOST || '0.0.0.0';
 
+registerStudioRoutes(app, {
+    authenticateToken, User, Like,
+    canPersist: () => !useInMemory && mongoose.connection.readyState === 1
+});
+
 app.use('/api', (req, res) => {
     res.status(404).json({ error: 'API endpoint not found' });
 });
@@ -2589,4 +2597,3 @@ module.exports = {
         }
     } : {})
 };
-

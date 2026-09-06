@@ -75,7 +75,7 @@ export async function likeTrack(track) {
 
     try {
         const status = await toggleLike(track);
-        if (status === 'liked') showToast('❤️ Arşivine eklendi');
+        if (status === 'liked') showToast(t('track.liked'));
         return status === 'liked';
     } catch (error) {
         showToast(`❌ ${error.message || t('common.error')}`, 'error');
@@ -94,7 +94,7 @@ export async function unlikeTrack(trackId) {
     try {
         const existing = store.likedTracks.find(t => t.trackId === trackId) || { trackId };
         const status = await toggleLike(existing);
-        if (status === 'unliked') showToast('💔 Arşivinden çıkarıldı');
+        if (status === 'unliked') showToast(t('track.unliked'));
         return status === 'unliked';
     } catch (error) {
         showToast(`❌ ${error.message || t('common.error')}`, 'error');
@@ -164,7 +164,7 @@ export async function followArtist(artist) {
 
     try {
         const status = await toggleFollow(artist);
-        if (status === 'followed') showToast('✅ Sanatçı takip ediliyor');
+        if (status === 'followed') showToast(t('search.following'));
         return status === 'followed';
     } catch (error) {
         showToast(`❌ ${error.message || t('common.error')}`, 'error');
@@ -183,7 +183,7 @@ export async function unfollowArtist(artistId) {
     try {
         const existing = store.followedArtists.find(a => a.artistId === artistId) || { artistId };
         const status = await toggleFollow(existing);
-        if (status === 'unfollowed') showToast('👋 Takip bırakıldı');
+        if (status === 'unfollowed') showToast(t('search.unfollowed'));
         return status === 'unfollowed';
     } catch (error) {
         showToast(`❌ ${error.message || t('common.error')}`, 'error');
@@ -206,12 +206,13 @@ export function isArtistFollowed(artistId) {
  * Get albums the user saved
  * @returns {Promise<Array>}
  */
-export async function getAlbumFollows() {
+export async function getAlbumFollows({ strict = false } = {}) {
     try {
         const { albumFollows } = await fetchMe();
         store.setAlbumFollows(albumFollows);
         return albumFollows;
     } catch (error) {
+        if (strict) throw error;
         console.error('Failed to fetch saved albums:', error.message);
         return [];
     }
@@ -236,12 +237,12 @@ export async function toggleAlbumFollow(album) {
 
         if (status === 'followed') {
             store.setAlbumFollows([...store.albumFollows, payload]);
-            showToast('💿 Albüm arşivine eklendi');
+            showToast(t('album.savedToast'));
             return true;
         }
 
         store.setAlbumFollows(store.albumFollows.filter(a => a.albumId !== albumId));
-        showToast('🗑️ Albüm arşivinden çıkarıldı');
+        showToast(t('album.removedToast'));
         return false;
     } catch (error) {
         showToast(`❌ ${error.message || t('common.error')}`, 'error');
@@ -288,7 +289,7 @@ export async function createPlaylist(name) {
         // Keep the shape the dashboard expects for a fresh, empty playlist.
         store.setPlaylists([...store.playlists, { ...data, PlaylistTracks: [] }]);
 
-        showToast('✅ Liste oluşturuldu');
+        showToast(t('playlist.created'));
         return data;
     } catch (error) {
         showToast(`❌ ${error.message || t('common.error')}`, 'error');
@@ -347,7 +348,7 @@ export async function addToPlaylist(playlistId, track) {
 export async function removeFromPlaylist(playlistId, trackId) {
     try {
         await del(`/playlists/${encodeURIComponent(playlistId)}/tracks/${encodeURIComponent(trackId)}`);
-        showToast('🗑️ Şarkı listeden kaldırıldı');
+        showToast(t('playlist.removed'));
         return true;
     } catch (error) {
         showToast(`❌ ${error.message || t('common.error')}`, 'error');

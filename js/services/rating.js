@@ -15,12 +15,13 @@ import { t } from './i18n.js';
  * Get all user ratings
  * @returns {Promise<Array>}
  */
-export async function getRatings() {
+export async function getRatings({ strict = false } = {}) {
     try {
         const { ratings } = await fetchMe();
         store.setRatings(ratings);
         return ratings;
     } catch (error) {
+        if (strict) throw error;
         console.error('Failed to fetch ratings:', error.message);
         return [];
     }

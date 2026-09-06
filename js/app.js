@@ -26,6 +26,9 @@ import { DashboardView } from './views/DashboardView.js';
 import { SearchView } from './views/SearchView.js';
 import { LibraryView } from './views/LibraryView.js';
 import { DigView } from './views/DigView.js';
+import { StudioView } from './views/StudioView.js';
+import { RecordingsView } from './views/RecordingsView.js';
+import { PiecesView } from './views/PiecesView.js';
 import { Navbar } from './components/Navbar.js';
 import { initToast } from './components/Toast.js';
 
@@ -37,7 +40,7 @@ let navbar = null;
  * Initialize the application
  */
 async function initApp() {
-    console.log('🎵 Music Archive Web - Initializing...');
+
 
     // Initialize toast system
     initToast();
@@ -75,6 +78,9 @@ async function initApp() {
         'search': SearchView,
         'library': LibraryView,
         'dig': DigView,
+        'studio': StudioView,
+        'recordings': RecordingsView,
+        'pieces': PiecesView,
         '*': DashboardView // Default route
     });
 
@@ -87,7 +93,7 @@ async function initApp() {
     // Initialize Navbar
     const navbarContainer = document.getElementById('navbar');
     if (navbarContainer) {
-        console.log('[App] Initializing Navbar...');
+
         navbar = new Navbar(navbarContainer, {
             onLogout: handleLogout,
             onShowDashboard: () => router?.navigate('dashboard'),
@@ -97,7 +103,7 @@ async function initApp() {
             onOpenSettings: openSettingsModal
         });
         navbar.mount();
-        console.log('[App] Navbar initialized');
+
     } else {
         console.warn('[App] Navbar container not found');
     }
@@ -108,7 +114,6 @@ async function initApp() {
     // Apply saved settings
     applySettings();
 
-    console.log('✅ Music Archive Web - Ready!');
 }
 
 function renderStartupError() {
@@ -117,10 +122,10 @@ function renderStartupError() {
     appContainer.innerHTML = `
         <main class="ma-main">
             <div class="ma-empty">
-                <div class="ma-notice-mark" style="margin:0 auto">!</div>
+                <div class="ma-shell-59 ma-notice-mark">!</div>
                 <div class="ma-empty-title"></div>
                 <div class="ma-empty-body"></div>
-                <button id="retryBootstrap" class="ma-btn ma-btn-primary" style="margin-top:24px"></button>
+                <button id="retryBootstrap" class="ma-shell-60 ma-btn ma-btn-primary"></button>
             </div>
         </main>`;
     appContainer.querySelector('.ma-empty-title').textContent = t('app.loadFailed');
@@ -181,7 +186,8 @@ function setupEventListeners() {
     document.addEventListener('languagechange', () => {
         applyTranslations(document);
         navbar?.render();
-        router?.handleRoute();
+        if (router?.currentView?.onLanguageChange) router.currentView.onLanguageChange();
+        else router?.handleRoute();
     });
 
     // Close the suggestion list on an outside click. The profile menu closes
@@ -264,6 +270,7 @@ window.createPlaylist = createPlaylist;
 // single submit listener so Enter works like the button.
 let authMode = 'login';
 let authSubmitting = false;
+let authNext = null;
 
 const setAuthError = (message) => {
     const box = document.getElementById('authError');
@@ -289,7 +296,8 @@ const updateAuthModal = () => {
     if (password) password.autocomplete = isLogin ? 'current-password' : 'new-password';
 };
 
-window.openAuthModal = (mode = 'login') => {
+window.openAuthModal = (mode = 'login', { next = null } = {}) => {
+    authNext = typeof next === 'string' && /^(dashboard|search|library|dig|studio|recordings|pieces)(\?|$)/.test(next) ? next : null;
     authMode = mode === 'register' ? 'register' : 'login';
     setAuthError(null);
     updateAuthModal();
@@ -340,7 +348,10 @@ async function submitAuth(event) {
         window.closeAuthModal();
         navbar?.render();
         await fetchUserData();
-        router?.navigate('dashboard');
+        const destination = authNext || 'dashboard';
+        authNext = null;
+        if (router?.getCurrentRoute() === destination.split('?')[0]) await router.handleRoute();
+        else router?.navigate(destination);
     } finally {
         authSubmitting = false;
         if (submitButton) submitButton.disabled = false;

@@ -1,3 +1,4 @@
+import { loading, empty, error as errorState } from '../components/States.js';
 /**
  * Dashboard view.
  *
@@ -36,17 +37,16 @@ export class DashboardView extends Component {
         this.container.replaceChildren(isAuthenticated() ? this.overview() : this.landing());
         if (isAuthenticated()) {
             this.paintPanels();
-            void this.loadData();
         }
     }
 
     /* ── landing ─────────────────────────────────────────────────────── */
 
     landing() {
-        return el('main', { className: 'ma-main' }, [
+        return el('main', { className: 'ma-main' }, [el('div', { attrs: { id: 'dashboardState' } }),
             el('section', { className: 'ma-hero' }, [
                 el('div', {}, [
-                    el('div', { className: 'ma-badge', style: 'margin-bottom:28px' }, [
+                    el('div', { className: 'ma-badge ma-mb-28', }, [
                         el('span', { className: 'ma-badge-dot', attrs: { 'aria-hidden': 'true' } }),
                         el('span', { text: t('landing.badge') })
                     ]),
@@ -71,36 +71,26 @@ export class DashboardView extends Component {
                         })
                     ])
                 ]),
-                this.sampleRecord()
+                this.studioIntro()
             ]),
 
             el('div', { className: 'ma-rule' }),
 
             el('section', { className: 'ma-features' }, FEATURES.map(feature => el('div', { className: 'ma-feature' }, [
-                el('div', { className: 'ma-feature-mark', style: `color:${feature.color}`, text: feature.icon }),
+                el('div', { className: 'ma-feature-mark ma-dynamic-accent', style: `--accent:${feature.color}`, text: feature.icon }),
                 el('div', { className: 'ma-feature-title', text: t(feature.title) }),
                 el('div', { className: 'ma-feature-body', text: t(feature.body) })
             ])))
         ]);
     }
 
-    /** @returns {HTMLElement} the "one record from the archive" sample card */
-    sampleRecord() {
-        return el('div', { className: 'ma-card' }, [
-            kicker(t('landing.sampleKicker'), 'ma-sample-kicker'),
-            el('div', { style: 'display:flex;gap:14px;align-items:flex-start;margin-top:16px' }, [
-                cover(null, t('landing.sampleTitle'), 'ma-cover-lg'),
-                el('div', { style: 'min-width:0' }, [
-                    el('div', { style: 'font-size:15px;font-weight:600', text: t('landing.sampleTitle') }),
-                    el('div', { style: 'font-size:13px;color:var(--ink2);margin-top:2px', text: t('landing.sampleMeta') }),
-                    el('div', { className: 'ma-stars', style: 'font-size:15px;margin-top:8px', text: '★★★★★' })
-                ])
-            ]),
-            el('div', {
-                style: 'margin-top:16px;border-top:1px solid var(--border);padding-top:14px;font-size:13px;'
-                    + 'line-height:1.6;color:var(--ink2);font-style:italic',
-                text: t('landing.sampleNote')
-            })
+    studioIntro() {
+        return el('div', { className: 'ma-card studio-intro' }, [
+            kicker(t('nav.studio')),
+            el('h2', { text: t('landing.studioTitle') }),
+            el('p', { className: 'studio-muted', text: t('landing.studioBody') }),
+            el('button', { className: 'ma-btn ma-btn-primary', text: t('nav.studio'), attrs: { type: 'button' },
+                on: { click: () => this.router.navigate('studio') } })
         ]);
     }
 
@@ -109,17 +99,16 @@ export class DashboardView extends Component {
     overview() {
         const stats = this.getCollectionStats();
 
-        return el('main', { className: 'ma-main' }, [
+        return el('main', { className: 'ma-main' }, [el('div', { attrs: { id: 'dashboardState' } }),
             el('div', {
-                style: 'display:flex;align-items:flex-end;justify-content:space-between;gap:24px;'
-                    + 'margin-bottom:28px;flex-wrap:wrap'
+                className: 'ma-display-flex ma-items-flex-end ma-justify-space-between ma-gap-24 ma-mb-28 ma-wrap-wrap'
             }, [
                 el('div', {}, [
                     kicker(t('dashboard.kicker')),
                     el('h2', { className: 'ma-page-title', text: this.greeting() })
                 ]),
                 el('div', {
-                    style: 'font-size:13px;color:var(--ink2)',
+                    className: 'ma-text-13 ma-color-ink2',
                     attrs: { id: 'dashSummary' },
                     text: t('dashboard.summary', { tracks: stats.totalTracks, artists: stats.totalArtists })
                 })
@@ -132,12 +121,12 @@ export class DashboardView extends Component {
                 this.ratingCard(stats)
             ]),
 
-            el('div', { className: 'ma-grid ma-grid-2', style: 'margin-top:16px' }, [
+            el('div', { className: 'ma-grid ma-grid-2 ma-mt-16', }, [
                 this.panel('recentlyAddedContainer', t('library.recentlyAdded'), t('dashboard.recentWindow')),
                 this.panel('topRatedContainer', t('library.topRated'), '5 ★')
             ]),
 
-            el('div', { style: 'display:flex;justify-content:flex-end;gap:8px;margin-top:20px;flex-wrap:wrap' }, [
+            el('div', { className: 'ma-display-flex ma-justify-flex-end ma-gap-8 ma-mt-20 ma-wrap-wrap' }, [
                 el('button', {
                     className: 'ma-btn ma-btn-secondary ma-btn-sm',
                     text: t('export.csv'),
@@ -164,18 +153,17 @@ export class DashboardView extends Component {
 
         return el('div', { className: 'ma-card ma-bento-hero' }, [
             el('div', { className: 'ma-stat-label' }, [
-                el('span', { style: 'color:var(--pink-ink);font-size:14px', text: '♥' }),
+                el('span', { className: 'ma-color-pink-ink ma-text-14', text: '♥' }),
                 kicker(t('library.likedSongs'))
             ]),
             el('div', { className: 'ma-stat-big', attrs: { id: 'likedCount' }, text: String(stats.totalTracks) }),
             el('div', {
-                style: 'font-size:14px;color:var(--ink2);margin-top:6px',
+                className: 'ma-text-14 ma-color-ink2 ma-mt-6',
                 text: t('dashboard.newThisMonth', { n: this.addedThisMonth() })
             }),
-            el('div', { style: 'margin-top:auto;display:flex;gap:6px;padding-top:24px' }, strip),
+            el('div', { className: 'ma-mt-auto ma-display-flex ma-gap-6 ma-pt-24' }, strip),
             el('button', {
-                className: 'ma-btn ma-btn-secondary ma-btn-sm',
-                style: 'margin-top:20px;align-self:flex-start',
+                className: 'ma-btn ma-btn-secondary ma-btn-sm ma-mt-20 ma-align-self-flex-start',
                 text: t('dashboard.goLibrary'),
                 attrs: { type: 'button' },
                 on: { click: () => this.onOpenProfileModal('likes') }
@@ -190,8 +178,8 @@ export class DashboardView extends Component {
     followsCard(stats) {
         const faces = store.followedArtists.slice(0, 4).map((artist, index) => {
             const node = avatar(artist.image, artist.artistName || '', 'ma-avatar-sm');
-            node.style.marginLeft = index ? '-8px' : '0';
-            node.style.border = '2px solid var(--card)';
+            node.classList.add('ma-avatar-stack');
+            if (index) node.classList.add('ma-avatar-overlap');
             return node;
         });
 
@@ -202,12 +190,12 @@ export class DashboardView extends Component {
         }, [
             el('div', {}, [
                 el('div', { className: 'ma-stat-label' }, [
-                    el('span', { style: 'color:var(--violet-ink);font-size:13px', text: '◉' }),
+                    el('span', { className: 'ma-color-violet-ink ma-text-13', text: '◉' }),
                     kicker(t('library.following'))
                 ]),
                 el('div', { className: 'ma-stat', attrs: { id: 'followingCount' }, text: String(stats.totalArtists) })
             ]),
-            el('div', { style: 'display:flex' }, faces)
+            el('div', { className: 'ma-display-flex' }, faces)
         ]);
     }
 
@@ -226,13 +214,12 @@ export class DashboardView extends Component {
             on: { click: () => this.onOpenProfileModal('playlists') }
         }, [
             el('div', { className: 'ma-stat-label' }, [
-                el('span', { style: 'color:var(--cyan-ink);font-size:13px', text: '≡' }),
+                el('span', { className: 'ma-color-cyan-ink ma-text-13', text: '≡' }),
                 kicker(t('library.playlists'))
             ]),
             el('div', { className: 'ma-stat', attrs: { id: 'playlistCount' }, text: String(stats.totalPlaylists) }),
             el('div', {
-                className: 'ma-kicker',
-                style: 'margin-top:4px;letter-spacing:normal;text-transform:none;font-weight:400;font-size:12px',
+                className: 'ma-kicker ma-mt-4 ma-letter-spacing-normal ma-text-transform-none ma-weight-400 ma-text-12',
                 attrs: { id: 'playlistTrackTotal' },
                 text: t('dashboard.tracksTotal', { n: tracksInPlaylists })
             })
@@ -248,12 +235,12 @@ export class DashboardView extends Component {
 
         return el('div', { className: 'ma-card' }, [
             el('div', { className: 'ma-stat-label' }, [
-                el('span', { style: 'color:var(--violet-ink);font-size:13px', text: '★' }),
+                el('span', { className: 'ma-color-violet-ink ma-text-13', text: '★' }),
                 kicker(t('library.averageRating'))
             ]),
             el('div', { className: 'ma-stat', attrs: { id: 'statRating' }, text: stats.avgRating }),
             el('div', {
-                style: 'margin-top:4px;font-size:12px;color:var(--ink3)',
+                className: 'ma-mt-4 ma-text-12 ma-color-ink3',
                 attrs: { id: 'ratedCount' },
                 text: t('dashboard.ratedCount', { n: rated })
             })
@@ -271,7 +258,7 @@ export class DashboardView extends Component {
         return el('div', { className: 'ma-card-flush' }, [
             el('div', { className: 'ma-card-head' }, [
                 kicker(title),
-                el('span', { style: 'font-size:11px;color:var(--ink3)', text: meta })
+                el('span', { className: 'ma-text-11 ma-color-ink3', text: meta })
             ]),
             el('div', { attrs: { id } })
         ]);
@@ -336,23 +323,28 @@ export class DashboardView extends Component {
 
     async loadData() {
         if (!isAuthenticated()) return;
+        const state = this.querySelector('#dashboardState');
+        if (!this.loaded) state?.replaceChildren(loading({ rows: 3 }));
         try {
             await Promise.all([
-                getLikedTracks(),
-                getFollowedArtists(),
-                getAlbumFollows(),
-                getPlaylists(),
-                getRatings()
+                getLikedTracks({ strict: true }),
+                getFollowedArtists({ strict: true }),
+                getAlbumFollows({ strict: true }),
+                getPlaylists({ strict: true }),
+                getRatings({ strict: true })
             ]);
             if (!this.isMounted) return;
+            this.loaded = true;
+            state?.replaceChildren(...(store.likedTracks.length ? [] : [empty({ title: t('library.emptyLikes'), body: t('library.emptyLikesBody'), action: { label: t('library.startSearching'), onClick: () => this.router.navigate('search') } })]));
             this.updateStats();
             this.paintPanels();
         } catch (error) {
-            console.error('Failed to load dashboard data:', error);
+            if (this.isMounted) state?.replaceChildren(errorState({ error, title: t('library.loadFailed'), retry: () => this.loadData() }));
         }
     }
 
     onMount() {
+        if (isAuthenticated()) void this.loadData();
         this.unsubscribeLikes = store.subscribe('likedTracks', () => {
             this.updateStats();
             renderRecentlyAdded();

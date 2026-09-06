@@ -1,3 +1,4 @@
+import { t } from '../services/i18n.js';
 // Mini Player Component
 import { formatTime, showToast } from '../utils.js';
 
@@ -12,7 +13,7 @@ export function playTrack(track) {
     const { id, name, artist, image, preview_url } = track;
 
     if (!preview_url) {
-        showToast('❌ Önizleme mevcut değil');
+        showToast(t('track.noPreview'));
         return;
     }
 
@@ -42,7 +43,7 @@ export function playTrack(track) {
     updatePlayPauseButton(true);
     currentAudio.play().catch(err => {
         console.error('Playback error:', err);
-        showToast('❌ Oynatma başarısız');
+        showToast(t('player.failed'));
     });
 
     // Handle track end

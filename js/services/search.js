@@ -29,7 +29,6 @@ export async function performSearch(overrideQuery, searchType = store.searchType
     try {
         return await get(`/search?artist=${encodeURIComponent(query)}&type=${apiType}`);
     } catch (error) {
-        
         showToast(`❌ ${error.message || t('search.failed')}`, 'error');
         throw error;
     }
@@ -100,13 +99,11 @@ export async function handleAutocomplete(query) {
 
         historyMatches.forEach(term => {
             list.appendChild(el('button', {
-                className: 'autocomplete-item',
-                style: 'display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border:0;'
-                    + 'background:transparent;color:var(--ink);font-size:13px;text-align:left;cursor:pointer',
+                className: 'autocomplete-item ma-display-flex ma-items-center ma-gap-12 ma-w-100 ma-p-10-12 ma-border-0 ma-background-transparent ma-color-ink ma-text-13 ma-align-left ma-cursor-pointer',
                 attrs: { type: 'button' },
                 on: { click: () => selectAutocompleteItem(term) }
             }, [
-                el('i', { className: 'fa-solid fa-clock', style: 'color:var(--ink3)' }),
+                el('i', { className: 'fa-solid fa-clock ma-color-ink3', }),
                 el('span', { text: term })
             ]));
         });
@@ -138,7 +135,7 @@ export async function handleAutocomplete(query) {
         }
     } catch (error) {
         replace(list, el('div', {
-            style: 'padding:12px;font-size:13px;color:var(--err-ink)',
+            className: 'ma-p-12 ma-text-13 ma-color-err-ink',
             text: error.message || t('search.suggestFailed')
         }));
     }
@@ -150,8 +147,7 @@ export async function handleAutocomplete(query) {
  */
 function suggestionHeading(label) {
     return el('div', {
-        className: 'ma-kicker',
-        style: 'padding:10px 12px 6px',
+        className: 'ma-kicker ma-p-10-12-6',
         text: label
     });
 }
@@ -161,24 +157,20 @@ function suggestionHeading(label) {
  */
 function createAutocompleteItem({ name, image, subtitle, isLocal, isRounded = true, onClick }) {
     const art = isRounded ? avatar(image, name, 'ma-avatar-sm') : cover(image, name, 'ma-cover-sm');
-    art.style.width = '36px';
-    art.style.height = '36px';
+    art.classList.add('ma-autocomplete-art');
 
     return el('button', {
-        className: 'autocomplete-item',
-        style: 'display:flex;align-items:center;gap:12px;width:100%;padding:8px 12px;border:0;'
-            + `background:transparent;color:var(--ink);text-align:left;cursor:pointer;${
-                isLocal ? 'box-shadow:inset 2px 0 0 var(--pink)' : ''}`,
+        className: `autocomplete-item ma-autocomplete-option${isLocal ? ' is-local' : ''}`,
         attrs: { type: 'button' },
         on: { click: onClick }
     }, [
         art,
-        el('span', { style: 'min-width:0' }, [
-            el('span', { style: 'display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600' }, [
+        el('span', { className: 'ma-min-w-0' }, [
+            el('span', { className: 'ma-display-flex ma-items-center ma-gap-6 ma-text-13 ma-weight-600' }, [
                 el('span', { className: 'ma-truncate', text: name }),
-                isLocal ? el('i', { className: 'fa-solid fa-heart', style: 'color:var(--pink-ink);font-size:10px' }) : null
+                isLocal ? el('i', { className: 'fa-solid fa-heart ma-color-pink-ink ma-text-10', }) : null
             ]),
-            el('span', { className: 'ma-truncate', style: 'display:block;font-size:11px;color:var(--ink3)', text: subtitle })
+            el('span', { className: 'ma-truncate ma-display-block ma-text-11 ma-color-ink3',  text: subtitle })
         ])
     ]);
 }

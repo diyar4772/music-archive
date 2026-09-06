@@ -1,3 +1,4 @@
+import { error as errorState } from '../components/States.js';
 /**
  * Base Component Class
  * Provides a foundation for all UI components with lifecycle methods
@@ -48,10 +49,7 @@ export class Component {
             console.error(`Error mounting component ${this.constructor.name}:`, error);
             console.error('Error stack:', error.stack);
             if (this.container) {
-                const box = document.createElement('div');
-                box.className = 'p-4 text-red-500';
-                box.textContent = `${this.constructor.name} yüklenemedi: ${error.message}`;
-                this.container.replaceChildren(box);
+                this.container.replaceChildren(errorState({ error, retry: () => window.location.reload() }));
             }
         }
     }

@@ -1,3 +1,4 @@
+import { t } from '../services/i18n.js';
 // API Service - Centralized fetch wrapper
 import { API_URL } from '../config.js';
 import { store } from '../state/store.js';
@@ -72,10 +73,10 @@ export async function fetchAPI(endpoint, options = {}) {
             message = errorJson.error || message;
         } catch {}
         const messages = {
-            SEARCH_UNAVAILABLE: 'Arama servisi şu an kullanılamıyor',
-            SEARCH_UPSTREAM_AUTH_FAILED: 'Arama servisine bağlanılamadı',
-            SEARCH_RATE_LIMITED: 'Arama sınırına ulaşıldı. Lütfen biraz bekleyin.',
-            SEARCH_TIMEOUT: 'Arama servisi zamanında yanıt vermedi'
+            SEARCH_UNAVAILABLE: t('states.searchUnavailable'),
+            SEARCH_UPSTREAM_AUTH_FAILED: t('search.unavailableTitle'),
+            SEARCH_RATE_LIMITED: t('search.rateLimited'),
+            SEARCH_TIMEOUT: t('search.timeout')
         };
         throw Object.assign(new Error(messages[message] || message), { status: response.status, code: message });
     }
@@ -98,8 +99,9 @@ export async function get(endpoint) {
  * @param {Object} data - Request body
  * @returns {Promise<any>} Response data
  */
-export async function post(endpoint, data) {
+export async function post(endpoint, data, options = {}) {
     return fetchAPI(endpoint, {
+        ...options,
         method: 'POST',
         body: JSON.stringify(data)
     });

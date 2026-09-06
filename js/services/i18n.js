@@ -50,7 +50,7 @@ export function t(key, options = {}) {
  */
 export function applyTranslations(root = document) {
     root.querySelectorAll('[data-lang]').forEach(node => {
-        node.textContent = t(node.dataset.lang);
+        node.textContent = t(node.dataset.lang, JSON.parse(node.dataset.langOptions || '{}'));
     });
     root.querySelectorAll('[data-lang-placeholder]').forEach(node => {
         node.placeholder = t(node.dataset.langPlaceholder);
@@ -82,3 +82,20 @@ export function getCurrentLanguage() {
 document.documentElement.lang = currentLanguage;
 
 export default { t, changeLanguage, applyTranslations, get language() { return currentLanguage; } };
+
+// Explicit translation descriptors let DOM helpers bind text without rebuilding
+// stateful views (MIDI devices, recording buffers, drafts and audio players).
+export function liveText(key, options = {}) {
+    return { translationKey: key, options, toString: () => t(key, options) };
+}
+
+export function setText(node, value) {
+    if (value?.translationKey) {
+        node.dataset.lang = value.translationKey;
+        node.dataset.langOptions = JSON.stringify(value.options || {});
+    } else {
+        delete node.dataset.lang;
+        delete node.dataset.langOptions;
+    }
+    node.textContent = String(value ?? '');
+}

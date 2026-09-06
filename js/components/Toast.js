@@ -41,7 +41,7 @@ export function showToast(message, type = 'info', duration = 3000) {
 
     const card = el('div', { className: `ma-toast is-${tone}` }, [
         el('span', { className: 'ma-toast-icon', attrs: { 'aria-hidden': 'true' }, text: ICONS[tone] }),
-        el('span', { style: 'flex:1 1 auto', text: message })
+        el('span', { className: 'ma-flex-1-1-auto', text: message })
     ]);
 
     const dismiss = () => {

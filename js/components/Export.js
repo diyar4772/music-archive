@@ -1,3 +1,4 @@
+import { t } from '../services/i18n.js';
 // CSV Export Component
 import { store } from '../state/store.js';
 import { getTrackRating } from '../services/rating.js';
@@ -8,12 +9,12 @@ import { showToast, formatDate } from '../utils.js';
  */
 export function exportToCSV() {
     if (store.likedTracks.length === 0) {
-        showToast('❌ Dışa aktarılacak şarkı yok');
+        showToast(t('export.empty'));
         return;
     }
 
     // CSV headers
-    const headers = ['Şarkı Adı', 'Sanatçı', 'Albüm', 'Puan', 'Eklenme Tarihi'];
+    const headers = [t('export.track'), t('export.artist'), t('album.title'), t('library.colRating'), t('export.addedAt')];
 
     // Build rows
     const rows = store.likedTracks.map(track => {
@@ -37,7 +38,7 @@ export function exportToCSV() {
 
     // Create and download file
     downloadFile(csvContent, `koleksiyon_${getDateString()}.csv`, 'text/csv');
-    showToast('✅ CSV dosyası indirildi');
+    showToast(t('export.csvDone'));
 }
 
 /**
@@ -68,7 +69,7 @@ export function exportStats() {
 
     const jsonContent = JSON.stringify(stats, null, 2);
     downloadFile(jsonContent, `koleksiyon_yedek_${getDateString()}.json`, 'application/json');
-    showToast('✅ JSON yedek dosyası indirildi');
+    showToast(t('export.backupDone'));
 }
 
 /**

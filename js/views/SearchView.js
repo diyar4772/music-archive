@@ -1,3 +1,4 @@
+import { empty, error as errorState, loading } from '../components/States.js';
 /**
  * Search view.
  *
@@ -16,7 +17,7 @@ import {
     likeTrack, unlikeTrack, isTrackLiked
 } from '../services/library.js';
 import { getTrackRating } from '../services/rating.js';
-import { el, cover, avatar, stars, kicker, replace, emptyState, errorState, loadingState } from '../core/dom.js';
+import { el, cover, avatar, stars, kicker, replace } from '../core/dom.js';
 import { SearchBar } from '../components/SearchBar.js';
 import { t } from '../services/i18n.js';
 
@@ -45,7 +46,7 @@ export class SearchView extends Component {
 
         this.container.replaceChildren(el('main', { className: 'ma-main' }, [
             head,
-            el('div', { className: 'ma-rule', style: 'margin-top:24px' }),
+            el('div', { className: 'ma-rule ma-mt-24', }),
             el('div', { attrs: { id: 'searchResults' } })
         ]));
 
@@ -69,11 +70,11 @@ export class SearchView extends Component {
     }
 
     showStartState() {
-        replace(this.results_, emptyState('⌕', t('search.startTitle'), t('search.startBody')));
+        replace(this.results_, empty({ icon: '⌕', title: t('search.startTitle'), body: t('search.startBody'), action: { label: t('search.startTitle'), onClick: () => this.querySelector('#searchInput')?.focus() } }));
     }
 
     async runSearch() {
-        replace(this.results_, loadingState(5));
+        replace(this.results_, loading({ rows: 6 }));
 
         try {
             this.results = await performSearch(this.query, this.searchType);
@@ -82,22 +83,22 @@ export class SearchView extends Component {
         } catch (error) {
             if (!this.isMounted) return;
             if (UPSTREAM_CODES.has(error.code)) this.showUpstreamNotice();
-            else replace(this.results_, errorState(t('search.failed'), error.message || ''));
+            else replace(this.results_, errorState({ error, title: t('search.failed'), retry: () => this.runSearch() }));
         }
     }
 
     /** The designed 503 card: search is out, the archive still works. */
     showUpstreamNotice() {
-        replace(this.results_, el('div', { className: 'ma-card-flush', style: 'margin-top:28px' }, [
+        replace(this.results_, el('div', { className: 'ma-card-flush ma-mt-28', }, [
             el('div', { className: 'ma-notice' }, [
                 el('div', { className: 'ma-notice-mark', text: '!' }),
                 el('div', {}, [
-                    el('div', { style: 'font-size:17px;font-weight:600', text: t('search.unavailableTitle') }),
+                    el('div', { className: 'ma-text-17 ma-weight-600', text: t('search.unavailableTitle') }),
                     el('div', {
-                        style: 'font-size:13px;color:var(--ink2);margin-top:6px;line-height:1.6',
-                        text: t('search.unavailableBody')
+                        className: 'ma-text-13 ma-color-ink2 ma-mt-6 ma-line-height-1-6',
+                        text: t('states.searchUnavailable')
                     }),
-                    el('div', { style: 'display:flex;gap:10px;margin-top:16px;flex-wrap:wrap' }, [
+                    el('div', { className: 'ma-display-flex ma-gap-10 ma-mt-16 ma-wrap-wrap' }, [
                         el('button', {
                             className: 'ma-btn ma-btn-secondary ma-btn-sm',
                             text: t('common.retry'),
@@ -117,9 +118,9 @@ export class SearchView extends Component {
     }
 
     displayResults() {
-        const empty = !this.results || (Array.isArray(this.results) && this.results.length === 0);
-        if (empty) {
-            replace(this.results_, emptyState('⌕', t('search.emptyTitle', { query: this.query }), t('search.emptyBody')));
+        const isEmpty = !this.results || (Array.isArray(this.results) && this.results.length === 0);
+        if (isEmpty) {
+            replace(this.results_, empty({ icon: '⌕', title: t('search.emptyTitle', { query: this.query }), body: t('search.emptyBody'), action: { label: t('search.startTitle'), onClick: () => this.querySelector('#searchInput')?.focus() } }));
             return;
         }
 
@@ -139,17 +140,17 @@ export class SearchView extends Component {
         const pct = albums.length ? Math.round((archived / albums.length) * 100) : 0;
 
         replace(this.results_, el('div', {}, [
-            el('section', { className: 'ma-artist-hero', style: 'margin-top:0' }, [
-                el('div', { className: 'ma-artist-hero-inner', style: 'padding-left:0;padding-right:0' }, [
+            el('section', { className: 'ma-artist-hero ma-mt-0', }, [
+                el('div', { className: 'ma-artist-hero-inner ma-pl-0 ma-pr-0', }, [
                     avatar(artist.image, artist.name || '', 'ma-avatar-xl'),
-                    el('div', { style: 'flex:1 1 auto;min-width:0' }, [
+                    el('div', { className: 'ma-flex-1-1-auto ma-min-w-0' }, [
                         kicker(t('artist.kicker')),
                         el('h2', { className: 'ma-artist-name', text: artist.name }),
                         el('div', {
-                            style: 'font-size:14px;color:var(--ink2);margin-top:10px',
+                            className: 'ma-text-14 ma-color-ink2 ma-mt-10',
                             text: t('artist.meta', { total: albums.length, tracks: archived })
                         }),
-                        el('div', { style: 'display:flex;gap:10px;margin-top:24px;flex-wrap:wrap' }, [
+                        el('div', { className: 'ma-display-flex ma-gap-10 ma-mt-24 ma-wrap-wrap' }, [
                             el('button', {
                                 className: 'ma-btn',
                                 attrs: { type: 'button', id: 'followBtn' },
@@ -161,14 +162,14 @@ export class SearchView extends Component {
                 ])
             ]),
 
-            el('div', { style: 'display:flex;align-items:center;justify-content:space-between;margin:32px 0 18px;gap:12px' }, [
+            el('div', { className: 'ma-display-flex ma-items-center ma-justify-space-between ma-m-32-0-18 ma-gap-12' }, [
                 kicker(t('artist.discography')),
-                el('span', { style: 'font-size:11px;color:var(--ink3)', text: t('common.results', { n: albums.length }) })
+                el('span', { className: 'ma-text-11 ma-color-ink3', text: t('common.results', { n: albums.length }) })
             ]),
 
             albums.length === 0
-                ? emptyState('≡', t('search.noAlbums'), '')
-                : el('div', { className: 'ma-grid ma-grid-4', style: 'gap:20px' },
+                ? empty({ icon: '≡', title: t('search.noAlbums'), body: '' })
+                : el('div', { className: 'ma-grid ma-grid-4 ma-gap-20', },
                     albums.map(album => this.albumTile(album, isAlbumFollowed(album.id))))
         ]));
 
@@ -184,21 +185,21 @@ export class SearchView extends Component {
     coverageCard(albums, archived, pct) {
         return el('div', { className: 'ma-card ma-coverage' }, [
             kicker(t('artist.coverage')),
-            el('div', { style: 'display:flex;align-items:baseline;gap:8px;margin-top:14px;flex-wrap:wrap' }, [
-                el('span', { style: 'font-size:34px;font-weight:700;letter-spacing:-0.03em', text: `${pct}%` }),
+            el('div', { className: 'ma-display-flex ma-items-baseline ma-gap-8 ma-mt-14 ma-wrap-wrap' }, [
+                el('span', { className: 'ma-text-34 ma-weight-700 ma-letter-spacing-0-03em', text: `${pct}%` }),
                 el('span', {
-                    style: 'font-size:13px;color:var(--ink2)',
+                    className: 'ma-text-13 ma-color-ink2',
                     text: t('artist.coverageBody', { total: albums.length, archived })
                 })
             ]),
-            el('div', { className: 'ma-meter', style: 'margin-top:16px' }, [
-                el('div', { className: 'ma-meter-fill', style: `width:${pct}%` })
+            el('div', { className: 'ma-meter ma-mt-16', }, [
+                el('div', { className: 'ma-meter-fill', style: `--fill:${pct}%` })
             ]),
-            el('div', { className: 'ma-ticks', style: 'margin-top:14px' },
+            el('div', { className: 'ma-ticks ma-mt-14', },
                 albums.slice(0, 24).map(album => el('div', {
                     className: `ma-tick${isAlbumFollowed(album.id) ? ' is-on' : ''}`
                 }))),
-            el('div', { style: 'font-size:11px;color:var(--ink3);margin-top:10px', text: t('artist.tickHint') })
+            el('div', { className: 'ma-text-11 ma-color-ink3 ma-mt-10', text: t('artist.tickHint') })
         ]);
     }
 
@@ -209,7 +210,7 @@ export class SearchView extends Component {
      */
     albumTile(album, inArchive) {
         const art = cover(album.image, album.name || '', 'ma-cover-fill');
-        if (!inArchive) art.style.opacity = '.72';
+        if (!inArchive) art.classList.add('ma-art-unarchived');
 
         return el('button', {
             className: 'ma-tile',
@@ -217,13 +218,13 @@ export class SearchView extends Component {
             dataset: { albumId: album.id },
             on: { click: () => window.openAlbumDetail?.(album.id) }
         }, [
-            el('div', { style: 'position:relative' }, [
+            el('div', { className: 'ma-position-relative' }, [
                 art,
                 inArchive ? el('span', { className: 'ma-album-flag', text: t('artist.inArchive') }) : null
             ]),
-            el('div', { className: 'ma-truncate', style: 'font-size:15px;font-weight:500;margin-top:12px', text: album.name }),
+            el('div', { className: 'ma-truncate ma-text-15 ma-weight-500 ma-mt-12',  text: album.name }),
             el('div', {
-                style: 'font-size:12px;color:var(--ink3);margin-top:2px',
+                className: 'ma-text-12 ma-color-ink3 ma-mt-2',
                 text: [album.artist, album.year].filter(Boolean).join(' · ')
             })
         ]);
@@ -258,14 +259,13 @@ export class SearchView extends Component {
     displayArtistList() {
         replace(this.results_, this.section(t('search.artists'), this.results.length,
             el('div', { className: 'ma-grid ma-grid-6' }, this.results.map(artist => el('button', {
-                className: 'ma-card',
-                style: 'text-align:center',
+                className: 'ma-card ma-align-center',
                 attrs: { type: 'button' },
                 on: { click: () => this.router?.navigate(`search?q=${encodeURIComponent(artist.name)}&type=artist`) }
             }, [
                 avatar(artist.image, artist.name || '', 'ma-avatar-md', { className: 'ma-mx-auto' }),
-                el('div', { className: 'ma-truncate', style: 'font-size:14px;font-weight:500;margin-top:14px', text: artist.name }),
-                el('div', { className: 'ma-truncate', style: 'font-size:11px;color:var(--ink3);margin-top:2px', text: artist.genres || '' })
+                el('div', { className: 'ma-truncate ma-text-14 ma-weight-500 ma-mt-14',  text: artist.name }),
+                el('div', { className: 'ma-truncate ma-text-11 ma-color-ink3 ma-mt-2',  text: artist.genres || '' })
             ])))));
     }
 
@@ -350,10 +350,10 @@ export class SearchView extends Component {
      * @returns {HTMLElement}
      */
     section(title, count, body) {
-        return el('section', { style: 'padding:28px 0 0' }, [
-            el('div', { style: 'display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px' }, [
+        return el('section', { className: 'ma-p-28-0-0' }, [
+            el('div', { className: 'ma-display-flex ma-items-center ma-justify-space-between ma-mb-16 ma-gap-12' }, [
                 kicker(title),
-                el('span', { style: 'font-size:11px;color:var(--ink3)', text: t('search.resultCount', { n: count }) })
+                el('span', { className: 'ma-text-11 ma-color-ink3', text: t('search.resultCount', { n: count }) })
             ]),
             body
         ]);

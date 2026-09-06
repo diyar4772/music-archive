@@ -1,3 +1,4 @@
+import { setText } from '../services/i18n.js';
 /**
  * Safe DOM construction helpers.
  *
@@ -44,13 +45,17 @@ export function el(tag, options = {}, children = []) {
     const { className, text, html, style, attrs, dataset, on } = options;
 
     if (className) node.className = className;
-    if (text !== undefined && text !== null) node.textContent = String(text);
+    if (text !== undefined && text !== null) setText(node, text);
     if (html !== undefined) node.innerHTML = html;
     if (style) node.style.cssText = style;
 
     for (const [name, value] of Object.entries(attrs || {})) {
         if (value === undefined || value === null || value === false) continue;
         node.setAttribute(name, value === true ? '' : String(value));
+        if (value?.translationKey) {
+            const binding = { 'aria-label': 'aria', placeholder: 'placeholder', title: 'title' }[name];
+            if (binding) node.setAttribute(`data-lang-${binding}`, value.translationKey);
+        }
     }
     for (const [name, value] of Object.entries(dataset || {})) {
         if (value === undefined || value === null) continue;
@@ -118,57 +123,9 @@ export function replace(container, ...nodes) {
     container.replaceChildren(...nodes.filter(Boolean));
 }
 
-/**
- * A centred empty state: mark, title and an optional body line.
- * @param {string} icon - a glyph character or Font Awesome class list
- * @param {string} title
- * @param {string} [body]
- * @param {Node|null} [action]
- * @returns {HTMLElement}
- */
-export function emptyState(icon, title, body = '', action = null) {
-    return el('div', { className: 'ma-empty' }, [
-        el('div', { className: 'ma-empty-mark' }, [glyph(icon)]),
-        el('div', { className: 'ma-empty-title', text: title }),
-        body ? el('div', { className: 'ma-empty-body', text: body }) : null,
-        action
-    ]);
-}
-
-/**
- * The same block in an error tone.
- * @param {string} title
- * @param {string} [body]
- * @returns {HTMLElement}
- */
-export function errorState(title, body = '') {
-    return el('div', { className: 'ma-empty' }, [
-        el('div', { className: 'ma-notice-mark', style: 'margin:0 auto' }, ['!']),
-        el('div', { className: 'ma-empty-title', text: title }),
-        body ? el('div', { className: 'ma-empty-body', text: body }) : null
-    ]);
-}
-
-/**
- * Shimmering placeholder rows shown while a list loads.
- * @param {number} [rows]
- * @returns {HTMLElement}
- */
-export function loadingState(rows = 4) {
-    const widths = ['62%', '48%', '71%', '55%', '66%'];
-    return el('div', {}, Array.from({ length: rows }, (_, i) => el('div', { className: 'ma-skel-row' }, [
-        el('div', { className: 'ma-skel', style: 'width:36px;height:36px;flex:0 0 auto;border-radius:0' }),
-        el('div', { style: 'flex:1 1 auto' }, [
-            el('div', { className: 'ma-skel', style: `height:11px;width:${widths[i % widths.length]}` }),
-            el('div', { className: 'ma-skel', style: 'height:9px;width:34%;margin-top:7px' })
-        ]),
-        el('div', { className: 'ma-skel', style: 'width:52px;height:10px' })
-    ])));
-}
-
 /* ── design-system pieces ───────────────────────────────────────────────── */
 
-const ACCENTS = ['#8B5CF6', '#F472B6', '#22D3EE', '#A78BFA', '#EC4899'];
+const ACCENTS = ['var(--violet)', 'var(--pink)', 'var(--cyan)', 'var(--violet-l)', 'var(--pink-d)'];
 
 /**
  * A stable accent for a name, so the same artist keeps the same tile colour
@@ -224,7 +181,7 @@ function artwork(src, name, baseClass, { tag = 'span', attrs = {}, on = {}, clas
         attrs: { 'aria-hidden': 'true', ...attrs },
         on
     });
-    node.style.backgroundColor = accentFor(name);
+    node.style.setProperty('--art-accent', accentFor(name));
 
     const url = safeImageUrl(src);
     if (url === PLACEHOLDER_IMAGE) return node;

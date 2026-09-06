@@ -70,37 +70,439 @@
     }
   },
   "spacing": {
-    "xs": { "value": "4px" },
-    "sm": { "value": "8px" },
-    "md": { "value": "12px" },
-    "lg": { "value": "16px" },
-    "xl": { "value": "20px" },
-    "2xl": { "value": "24px" },
-    "3xl": { "value": "32px" },
-    "4xl": { "value": "40px" }
+    "xs": {
+      "value": "4px"
+    },
+    "sm": {
+      "value": "8px"
+    },
+    "md": {
+      "value": "12px"
+    },
+    "lg": {
+      "value": "16px"
+    },
+    "xl": {
+      "value": "20px"
+    },
+    "2xl": {
+      "value": "24px"
+    },
+    "3xl": {
+      "value": "32px"
+    },
+    "4xl": {
+      "value": "40px"
+    },
+    "2": {
+      "value": "2px"
+    },
+    "4": {
+      "value": "4px"
+    },
+    "6": {
+      "value": "6px"
+    },
+    "8": {
+      "value": "8px"
+    },
+    "10": {
+      "value": "10px"
+    },
+    "12": {
+      "value": "12px"
+    },
+    "16": {
+      "value": "16px"
+    },
+    "20": {
+      "value": "20px"
+    },
+    "24": {
+      "value": "24px"
+    },
+    "28": {
+      "value": "28px"
+    },
+    "32": {
+      "value": "32px"
+    },
+    "36": {
+      "value": "36px"
+    },
+    "40": {
+      "value": "40px"
+    },
+    "48": {
+      "value": "48px"
+    },
+    "64": {
+      "value": "64px"
+    },
+    "72": {
+      "value": "72px"
+    },
+    "96": {
+      "value": "96px"
+    },
+    "104": {
+      "value": "104px"
+    },
+    "5": {
+      "value": "5px"
+    },
+    "14": {
+      "value": "14px"
+    },
+    "38": {
+      "value": "38px"
+    },
+    "1": {
+      "value": "1px"
+    },
+    "80": {
+      "value": "80px"
+    },
+    "44": {
+      "value": "44px"
+    },
+    "11": {
+      "value": "11px"
+    }
   },
   "borderRadius": {
-    "sm": { "value": "6px" },
-    "md": { "value": "8px" },
-    "lg": { "value": "12px" },
-    "xl": { "value": "16px" },
-    "2xl": { "value": "20px" },
-    "full": { "value": "9999px" }
+    "sm": {
+      "value": "6px"
+    },
+    "md": {
+      "value": "8px"
+    },
+    "lg": {
+      "value": "12px"
+    },
+    "xl": {
+      "value": "16px"
+    },
+    "2xl": {
+      "value": "20px"
+    },
+    "full": {
+      "value": "9999px"
+    },
+    "4": {
+      "value": "4px"
+    },
+    "6": {
+      "value": "6px"
+    },
+    "8": {
+      "value": "8px"
+    },
+    "12": {
+      "value": "12px"
+    },
+    "16": {
+      "value": "16px"
+    }
   },
   "typography": {
     "fontFamily": {
-      "primary": { "value": "Inter, system-ui, sans-serif" }
+      "primary": {
+        "value": "Inter, system-ui, sans-serif"
+      }
     },
     "fontSize": {
-      "xs": { "value": "11px" },
-      "sm": { "value": "13px" },
-      "base": { "value": "15px" },
-      "lg": { "value": "17px" },
-      "xl": { "value": "20px" },
-      "2xl": { "value": "24px" },
-      "3xl": { "value": "28px" },
-      "4xl": { "value": "34px" }
+      "xs": {
+        "value": "11px"
+      },
+      "sm": {
+        "value": "13px"
+      },
+      "base": {
+        "value": "15px"
+      },
+      "lg": {
+        "value": "17px"
+      },
+      "xl": {
+        "value": "20px"
+      },
+      "2xl": {
+        "value": "24px"
+      },
+      "3xl": {
+        "value": "28px"
+      },
+      "4xl": {
+        "value": "34px"
+      },
+      "10": {
+        "value": "10px"
+      },
+      "11": {
+        "value": "11px"
+      },
+      "12": {
+        "value": "12px"
+      },
+      "13": {
+        "value": "13px"
+      },
+      "14": {
+        "value": "14px"
+      },
+      "15": {
+        "value": "15px"
+      },
+      "17": {
+        "value": "17px"
+      },
+      "20": {
+        "value": "20px"
+      },
+      "24": {
+        "value": "24px"
+      },
+      "26": {
+        "value": "26px"
+      },
+      "display-1": {
+        "value": "clamp(2.25rem, 6vw, 4.5rem)"
+      },
+      "display-2": {
+        "value": "clamp(1.75rem, 4.5vw, 3.25rem)"
+      },
+      "display-3": {
+        "value": "clamp(1.5rem, 3vw, 2.125rem)"
+      },
+      "34": {
+        "value": "34px"
+      },
+      "30": {
+        "value": "30px"
+      },
+      "28": {
+        "value": "28px"
+      },
+      "22": {
+        "value": "22px"
+      },
+      "52": {
+        "value": "52px"
+      },
+      "72": {
+        "value": "72px"
+      },
+      "40": {
+        "value": "40px"
+      },
+      "16": {
+        "value": "16px"
+      },
+      "56": {
+        "value": "56px"
+      },
+      "36": {
+        "value": "36px"
+      },
+      "64": {
+        "value": "64px"
+      },
+      "48": {
+        "value": "48px"
+      },
+      "42": {
+        "value": "42px"
+      },
+      "44": {
+        "value": "44px"
+      }
+    }
+  },
+  "web": {
+    "description": "Web uses numeric pixel-named tokens; legacy keys above remain for mobile compatibility. Structural size tokens preserve existing geometry.",
+    "tokens": {
+      "space-2": "2px",
+      "space-4": "4px",
+      "space-6": "6px",
+      "space-8": "8px",
+      "space-10": "10px",
+      "space-12": "12px",
+      "space-16": "16px",
+      "space-20": "20px",
+      "space-24": "24px",
+      "space-28": "28px",
+      "space-32": "32px",
+      "space-36": "36px",
+      "space-40": "40px",
+      "space-48": "48px",
+      "space-64": "64px",
+      "space-72": "72px",
+      "space-96": "96px",
+      "space-104": "104px",
+      "text-10": "10px",
+      "text-11": "11px",
+      "text-12": "12px",
+      "text-13": "13px",
+      "text-14": "14px",
+      "text-15": "15px",
+      "text-17": "17px",
+      "text-20": "20px",
+      "text-24": "24px",
+      "text-26": "26px",
+      "radius-4": "4px",
+      "radius-6": "6px",
+      "radius-8": "8px",
+      "radius-12": "12px",
+      "radius-16": "16px",
+      "radius-full": "999px",
+      "touch": "44px",
+      "hairline": "1px",
+      "text-display-1": "clamp(2.25rem, 6vw, 4.5rem)",
+      "text-display-2": "clamp(1.75rem, 4.5vw, 3.25rem)",
+      "text-display-3": "clamp(1.5rem, 3vw, 2.125rem)",
+      "glow-violet-lg": "0 0 48px -12px rgba(139, 92, 246, .5)",
+      "glow-pink-sm": "0 0 32px -8px rgba(244, 114, 182, .18)",
+      "scrim": "rgba(10, 10, 11, .66)",
+      "scrim-strong": "rgba(10, 10, 11, .72)",
+      "size-2": "2px",
+      "size-6": "6px",
+      "size-24": "24px",
+      "size-10": "10px",
+      "size-1": "1px",
+      "text-34": "34px",
+      "size-60": "60px",
+      "size-26": "26px",
+      "size-9": "9px",
+      "size-32": "32px",
+      "size-40": "40px",
+      "size-46": "46px",
+      "size-34": "34px",
+      "size-30": "30px",
+      "size-38": "38px",
+      "space-5": "5px",
+      "size-104": "104px",
+      "space-14": "14px",
+      "space-38": "38px",
+      "size-208": "208px",
+      "size-36": "36px",
+      "size-44": "44px",
+      "size-72": "72px",
+      "text-30": "30px",
+      "text-28": "28px",
+      "size-22": "22px",
+      "size-76": "76px",
+      "text-22": "22px",
+      "size-80": "80px",
+      "size-168": "168px",
+      "text-52": "52px",
+      "space-1": "1px",
+      "size-180": "180px",
+      "text-72": "72px",
+      "text-40": "40px",
+      "space-80": "80px",
+      "size-420": "420px",
+      "size-64": "64px",
+      "text-16": "16px",
+      "size-8": "8px",
+      "size-4": "4px",
+      "size-16": "16px",
+      "size-3": "3px",
+      "size-70": "70px",
+      "size-74": "74px",
+      "size-460": "460px",
+      "size-320": "320px",
+      "size-132": "132px",
+      "text-56": "56px",
+      "size-112": "112px",
+      "text-36": "36px",
+      "text-64": "64px",
+      "size-220": "220px",
+      "space-44": "44px",
+      "text-48": "48px",
+      "size-300": "300px",
+      "size-28": "28px",
+      "size-52": "52px",
+      "text-42": "42px",
+      "text-44": "44px",
+      "size-440": "440px",
+      "size-820": "820px",
+      "size-96": "96px",
+      "size-128": "128px",
+      "space-11": "11px",
+      "size-380": "380px",
+      "size-260": "260px",
+      "size-400": "400px",
+      "spotify": "#1DB954",
+      "youtube": "#FF0000",
+      "page": "#0A0A0B",
+      "surface": "#121214",
+      "card": "#1A1A20",
+      "elev": "#1E1E24",
+      "hover": "#2A2A32",
+      "border": "#27272A",
+      "rule": "#3F3F46",
+      "ink": "#FAFAFA",
+      "ink2": "#A1A1AA",
+      "ink3": "#A1A1AA",
+      "violet": "#8B5CF6",
+      "violet-d": "#7C3AED",
+      "violet-l": "#A78BFA",
+      "pink": "#F472B6",
+      "pink-d": "#EC4899",
+      "cyan": "#22D3EE",
+      "ok": "#10B981",
+      "err": "#EF4444",
+      "warn": "#F59E0B",
+      "info": "#3B82F6",
+      "grad": "linear-gradient(90deg, #8B5CF6, #F472B6)",
+      "grad-135": "linear-gradient(135deg, #8B5CF6, #F472B6)",
+      "hero-grad": "linear-gradient(90deg, #A78BFA, #F472B6)",
+      "violet-ink": "#A78BFA",
+      "pink-ink": "#F472B6",
+      "cyan-ink": "#22D3EE",
+      "ok-ink": "#10B981",
+      "err-ink": "#F87171",
+      "warn-ink": "#F59E0B",
+      "on-accent": "#0A0A0B",
+      "shadow-menu": "0 20px 40px -16px rgba(0, 0, 0, .6)",
+      "glow-violet": "0 0 32px -8px rgba(139, 92, 246, .45)",
+      "glow-pink": "0 0 32px -8px rgba(244, 114, 182, .45)",
+      "container": "1240px",
+      "gutter": "24px",
+      "radius-control": "0.5rem",
+      "font-small": "0.8125rem",
+      "font-body": "0.9375rem",
+      "font-heading": "1.25rem",
+      "font-note": "clamp(1.5rem, 4vw, 2.5rem)",
+      "key-white": "#f4f4f5",
+      "key-black": "#18181b",
+      "keyboard-min": "78rem",
+      "keyboard-height": "9rem",
+      "roll-height": "13rem",
+      "piano-label-font": "11px system-ui",
+      "studio-readable": "70rem"
+    },
+    "light": {
+      "page": "#FAFAFA",
+      "surface": "#FFFFFF",
+      "card": "#FFFFFF",
+      "elev": "#FFFFFF",
+      "hover": "#F4F4F5",
+      "border": "#E4E4E7",
+      "rule": "#A1A1AA",
+      "ink": "#18181B",
+      "ink2": "#52525B",
+      "ink3": "#656570",
+      "hero-grad": "linear-gradient(90deg, #6D28D9, #DB2777)",
+      "violet-ink": "#6D28D9",
+      "pink-ink": "#BE185D",
+      "cyan-ink": "#0E7490",
+      "ok-ink": "#047857",
+      "err-ink": "#B91C1C",
+      "warn-ink": "#B45309",
+      "on-accent": "#0A0A0B",
+      "shadow-menu": "0 20px 40px -16px rgba(24, 24, 27, .18)"
     }
   }
 }
-

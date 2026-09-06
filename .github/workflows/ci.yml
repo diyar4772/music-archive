@@ -8,6 +8,16 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:8.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
@@ -21,10 +31,12 @@ jobs:
 
       - run: npm run lint
 
-      # The suite sets SKIP_DOTENV_CONFIG and supplies its own throwaway
-      # secrets, stubs axios, and runs against the in-memory database, so it
-      # needs no repository secrets and reaches no external service.
+      # Existing tests use in-memory storage; the studio integration suite
+      # uses this job's local MongoDB and randomly named test database.
+      # No repository secrets or external accounts are used.
       - run: npm test
+        env:
+          STUDIO_TEST_MONGO: mongodb://127.0.0.1:27017
 
   line-endings:
     runs-on: ubuntu-latest

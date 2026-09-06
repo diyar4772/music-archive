@@ -60,7 +60,7 @@ function trackLine(track, trailing) {
  */
 function panelEmpty(message) {
     return el('div', {
-        style: 'padding:32px 20px;text-align:center;font-size:13px;color:var(--ink3)',
+        className: 'ma-p-32-20 ma-align-center ma-text-13 ma-color-ink3',
         text: message
     });
 }
@@ -84,7 +84,7 @@ export function renderRecentlyAdded() {
     replace(container, ...recent.map(track => trackLine(
         track,
         el('span', {
-            style: 'font-size:11px;color:var(--ink3);flex:0 0 auto',
+            className: 'ma-text-11 ma-color-ink3 ma-flex-0-0-auto',
             text: track.createdAt ? formatDate(track.createdAt) : ''
         })
     )));
@@ -106,7 +106,7 @@ export function renderTopRated() {
 
     replace(container, ...top.map(track => {
         const line = trackLine(track, stars(getTrackRating(track.trackId)));
-        line.lastElementChild.style.flex = '0 0 auto';
+        line.lastElementChild.classList.add('ma-flex-0-0-auto');
         return line;
     }));
 }
