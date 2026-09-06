@@ -1576,6 +1576,13 @@ const authenticateAdmin = (req, res, next) => {
     res.status(403).json({ error: 'Admin access required' });
 };
 
+const authenticateAdminPage = (req, res, next) => {
+    const admin = verifyAdminToken(readCookie(req, ADMIN_COOKIE_NAME));
+    if (!admin) return res.redirect('/admin/login');
+    req.user = admin;
+    return next();
+};
+
 const adminLoginValidation = [
     body('username').isString().isLength({ min: 1, max: 100 }),
     body('password').isString().isLength({ min: 1, max: 200 })
@@ -1875,8 +1882,9 @@ app.delete('/api/admin/users/:userId', authenticateAdmin, async (req, res) => {
     }
 });
 
-// Redirect /admin to the actual file
-app.get(['/admin', '/admin.html'], (req, res) => {
+// Keep the panel markup private; unauthenticated browser navigation lands on
+// the small login page without exposing the management UI or endpoint map.
+app.get(['/admin', '/admin.html'], authenticateAdminPage, (req, res) => {
     res.sendFile(`${__dirname  }/panel-4772.html`);
 });
 

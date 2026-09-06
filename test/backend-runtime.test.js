@@ -595,6 +595,37 @@ test('admin login issues a constrained HttpOnly session and logout revokes the b
     assert.match(logout.response.headers.get('set-cookie'), /Max-Age=0/);
 });
 
+test('admin page redirects anonymous browsers and serves the panel only with a valid session', async () => {
+    for (const route of ['/admin', '/admin.html']) {
+        const anonymous = await request(route, { redirect: 'manual' });
+        assert.equal(anonymous.response.status, 302);
+        assert.equal(anonymous.response.headers.get('location'), '/admin/login');
+    }
+
+    const loginPage = await request('/admin/login', { redirect: 'manual' });
+    assert.equal(loginPage.response.status, 200);
+    assert.match(loginPage.response.headers.get('content-type'), /text\/html/);
+    assert.match(loginPage.body, /adminLoginForm/);
+    assert.doesNotMatch(loginPage.body, /Kullanıcı Detayları|api\/admin\/users/);
+
+    const login = await postJson('/api/admin/login', {
+        username: 'test-admin', password: 'test-only-admin-password'
+    }, { 'x-forwarded-for': '203.0.113.49' });
+    const cookie = cookieValue(login.response);
+
+    const panel = await request('/admin', {
+        redirect: 'manual', headers: { cookie }
+    });
+    assert.equal(panel.response.status, 200);
+    assert.match(panel.body, /Music Library Yönetim Sistemi/);
+
+    const loggedInLoginPage = await request('/admin/login', {
+        redirect: 'manual', headers: { cookie }
+    });
+    assert.equal(loggedInLoginPage.response.status, 302);
+    assert.equal(loggedInLoginPage.response.headers.get('location'), '/admin');
+});
+
 test('admin authentication rejects Basic, ordinary, mistyped and expired tokens and limits login attempts', async () => {
     const basic = Buffer.from('test-admin:test-only-admin-password').toString('base64');
     assert.equal((await request('/api/admin/stats', {
