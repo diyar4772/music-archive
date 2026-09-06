@@ -1894,7 +1894,11 @@ app.get(['/admin', '/admin.html'], authenticateAdminPage, (req, res) => {
 
 // Helper: Get random items from array
 const getRandomItems = (arr, count) => {
-    const shuffled = [...arr].sort(() => 0.5 - Math.random());
+    const shuffled = [...arr];
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
     return shuffled.slice(0, count);
 };
 
@@ -2699,6 +2703,7 @@ module.exports = {
             models: { User, Like, Rating, LoginHistory },
             timingSafeStringEqual,
             serializeAdminCookie,
+            getRandomItems,
             toggleLike,
             upsertLike
         }

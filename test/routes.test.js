@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 const jwt = require('jsonwebtoken');
 Object.assign(process.env, { NODE_ENV: 'test', SKIP_DOTENV_CONFIG: 'true', JWT_SECRET: 'test-only-jwt-secret', ADMIN_USERNAME: 'test-admin', ADMIN_PASSWORD: 'test-only-admin-password', MONGO_URI: '' });
-const { app, connectDatabase } = require('../server');
+const { app, connectDatabase, _test } = require('../server');
 let server, base;
 const token = jwt.sign({ id: 'route-user', username: 'route-user' }, process.env.JWT_SECRET);
 const call = async (path, method = 'GET', body) => {
@@ -29,6 +29,18 @@ test('no duplicate method/path registrations, including renamed parameters and a
             }
         }
     }
+});
+test('Dig random selection stays within the expected distribution band', () => {
+    const source = Array.from({ length: 10 }, (_value, index) => index);
+    const counts = Array(10).fill(0);
+    for (let attempt = 0; attempt < 10_000; attempt += 1) {
+        counts[_test.getRandomItems(source, 1)[0]] += 1;
+    }
+    counts.forEach((count, index) => {
+        assert.ok(count >= 850 && count <= 1150, `item ${index} selected ${count} times`);
+    });
+    assert.deepEqual(source, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    assert.equal(new Set(_test.getRandomItems(source, source.length)).size, source.length);
 });
 test('library idempotent likes and legacy toggles share storage; deletion uses Spotify ID', async () => {
     const data = { spotifyId: 'track-one', title: 'One', artist: 'Artist' };
