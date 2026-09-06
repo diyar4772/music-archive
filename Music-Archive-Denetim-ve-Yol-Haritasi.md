@@ -36,6 +36,13 @@ IndexedDB kurtarma, standart `.mid` dışa aktarma ve sentetik oynatma sağlıyo
 Ana gezinme Arşivim / Stüdyo / Kayıtlarım / Çalışmalarım oldu; mevcut katalog
 ekranları Arşivim alt gezinmesinde korundu. Açılıştaki uydurma arşiv kartı kaldırıldı.
 
+6 Eylül 2026 — Sprint 1 kodu bitti: token dönüşümü, dört durum bileşenleri ve
+stüdyo ekranlarının üç dile taşınması tamamlandı (513 anahtar × tr/en/ku).
+K1.5 ile görünen her kontrol dilden bağımsız bir `data-testid` aldı
+(`docs/specs/TESTIDS.md`, 138 kimlik); tarayıcı testi artık kontrolleri metne
+göre değil kimliğe göre buluyor. `npm run audit` on kalemin onunda hedefte.
+Sıradaki iş Sprint 2 / K2.1: kayıt düzenleme ve silme.
+
 Faz durumu: Faz 0 doğrulandı; Faz 1 eski ekranların bütün token/durum dönüşümü
 nedeniyle kısmi; Faz 2 gerçek donanım kabulü ve örnek tabanlı ses nedeniyle
 deneysel; Faz 3'ün ilk MIDI kalıcılık/kurtarma akışı hazır, ses/A–B/metronom

@@ -25,13 +25,16 @@ Codex'in başlaması için bekleyen bir karar kalmadı.
 | C10 Karar kayıtları | `docs/specs/DECISIONS.md` | ✅ KR-1…KR-7 kapandı |
 | C9 Sprint denetimi | `docs/reviews/TEMPLATE.md` + `npm run audit` | ✅ altyapı hazır, denetim Codex bitirince |
 | Sprint 2 hazırlığı | `docs/specs/SPRINT2-VERIFICATION.md`, `test/perf/seed-recordings.mjs` | ✅ doğrulama yöntemleri + tohumlama |
+| K1.5 kimlik sistemi | `docs/specs/TESTIDS.md`, `test/testids.test.js` | ✅ uygulandı (6 Eylül), 138 kontrol |
 
 **Kapanan kararlar** (proje sahibi onayıyla, §6'daki önerilerin tamamı):
 KR-1 kendi örnek çalıcımız · KR-2 varsayılan arşivleme · KR-3 mood'u kullanıcı
 atar · KR-4 5 yıldız kalır · KR-5 fiziksel koleksiyon = etiket · KR-6 mikrofon
 bu turda yok · KR-7 `design-tokens.json` tek kaynak.
 
-**Sırada:** Codex, `docs/plans/CODEX-PLAN-2026-09-05.md` Sprint 1'den başlar.
+**Sırada:** Codex, `docs/plans/CODEX-BASLANGIC-2026-09-06.md` üzerinden
+Sprint 2'ye (K2.1) başlar. Sprint 1 kodu bitti; K1.5 de Claude tarafında
+kapatıldı (bkz. `docs/reports/K1.5_TESTIDS_2026-09-06.md`).
 
 ---
 

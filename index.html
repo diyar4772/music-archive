@@ -48,20 +48,20 @@
             <h2 style="margin:10px 0 22px;font-size:24px;font-weight:700;letter-spacing:-0.02em" id="authTitle"></h2>
             <!-- Owned entirely by js/app.js: a real form so Enter submits, no inline
                  onclick, and no mode detection from the heading text. -->
-            <form id="authForm" novalidate>
-                <input type="text" id="authUsername" name="username" autocomplete="username" class="ma-input"
+            <form id="authForm" novalidate data-testid="auth-form">
+                <input type="text" id="authUsername" name="username" autocomplete="username" class="ma-input" data-testid="auth-username"
                     data-lang-placeholder="auth.username" style="margin-bottom:12px">
                 <input type="password" id="authPassword" name="password" autocomplete="current-password"
-                    class="ma-input" data-lang-placeholder="auth.password" style="margin-bottom:12px">
+                    class="ma-input" data-testid="auth-password" data-lang-placeholder="auth.password" style="margin-bottom:12px">
                 <p id="authError" role="alert" aria-live="polite" class="hidden"
                     style="margin:0 0 14px;font-size:13px;color:var(--err-ink);background:rgba(239,68,68,.12);
                            border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:10px 12px"></p>
-                <button type="submit" id="authSubmit" class="ma-btn ma-btn-primary ma-btn-lg"
+                <button type="submit" id="authSubmit" class="ma-btn ma-btn-primary ma-btn-lg" data-testid="auth-submit"
                     style="width:100%"></button>
             </form>
-            <button type="button" id="authSwitch" class="ma-btn ma-btn-ghost"
+            <button type="button" id="authSwitch" class="ma-btn ma-btn-ghost" data-testid="auth-switch"
                 style="width:100%;margin-top:12px;font-size:13px"></button>
-            <button type="button" id="authClose" class="ma-btn ma-btn-sm"
+            <button type="button" id="authClose" class="ma-btn ma-btn-sm" data-testid="auth-close"
                 style="width:100%;margin-top:4px;color:var(--ink3)" data-lang="common.close"></button>
         </div>
     </div>

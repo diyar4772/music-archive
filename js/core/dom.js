@@ -34,6 +34,7 @@ export function escapeHtml(value) {
  * @param {string} [options.text] - written with textContent, never parsed
  * @param {string} [options.html] - static markup only; never pass user data
  * @param {string} [options.style] - inline declarations; author-written only
+ * @param {string} [options.testid] - stable hook for tests; never styled or shown
  * @param {Object} [options.attrs]
  * @param {Object} [options.dataset]
  * @param {Object} [options.on] - event name -> handler
@@ -42,12 +43,15 @@ export function escapeHtml(value) {
  */
 export function el(tag, options = {}, children = []) {
     const node = document.createElement(tag);
-    const { className, text, html, style, attrs, dataset, on } = options;
+    const { className, text, html, style, testid, attrs, dataset, on } = options;
 
     if (className) node.className = className;
     if (text !== undefined && text !== null) setText(node, text);
     if (html !== undefined) node.innerHTML = html;
     if (style) node.style.cssText = style;
+    // Test hook, not an interface detail: selectors must not depend on the
+    // visible label, which changes with the language.
+    if (testid) node.dataset.testid = testid;
 
     for (const [name, value] of Object.entries(attrs || {})) {
         if (value === undefined || value === null || value === false) continue;
@@ -156,6 +160,7 @@ export function initialOf(name = '') {
  * @param {Object} [options.attrs]
  * @param {Object} [options.on]
  * @param {string} [options.className] - extra classes
+ * @param {string} [options.testid]
  * @returns {HTMLElement}
  */
 export function cover(src, name, size = 'ma-cover-sm', options = {}) {
@@ -174,11 +179,12 @@ export function avatar(src, name, size = 'ma-avatar-sm', options = {}) {
     return artwork(src, name, `ma-avatar ${size}`, options);
 }
 
-function artwork(src, name, baseClass, { tag = 'span', attrs = {}, on = {}, className = '' } = {}) {
+function artwork(src, name, baseClass, { tag = 'span', attrs = {}, on = {}, className = '', testid } = {}) {
     const node = el(tag, {
         className: `${baseClass} ${className}`.trim(),
         text: initialOf(name),
         attrs: { 'aria-hidden': 'true', ...attrs },
+        testid,
         on
     });
     node.style.setProperty('--art-accent', accentFor(name));

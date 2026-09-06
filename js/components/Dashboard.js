@@ -31,6 +31,7 @@ export function getCollectionStats() {
 function trackLine(track, trailing) {
     return el('button', {
         className: 'ma-row ma-row-inset',
+        testid: 'dashboard-track',
         attrs: { type: 'button' },
         dataset: { trackId: track.trackId },
         on: {

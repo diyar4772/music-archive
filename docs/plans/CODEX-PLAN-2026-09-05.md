@@ -24,6 +24,7 @@ başka bir karar veya onay beklenmiyor.
 | `docs/specs/CONTROLS.md` | ~70 kontrol: pasiflik, onay, klavye, hata | K2.x–K4.x |
 | `docs/specs/PERF-HARNESS.md` | P1–P6 ölçüm yöntemleri | K2.5, K2.6, K3.3 |
 | `docs/specs/SPRINT2-VERIFICATION.md` | Sprint 2 doğrulama prosedürleri + K1.5 | K1.5, K2.1–K2.6 |
+| `docs/specs/TESTIDS.md` | 138 kontrolün `data-testid` kayıt defteri (✅ var / ⏳ planlı) | hepsi |
 | `test/perf/seed-recordings.mjs` | 500 kayıtlık tohumlama (hazır, çalışıyor) | K2.5 |
 | `scripts/audit.mjs` → `npm run audit` | Mekanik kabul kriteri sayacı | hepsi |
 
@@ -117,14 +118,18 @@ navbar'ın telefonda kullanılabilir hali, canvas'ların ekran okuyucu karşıl�
 **Kabul:** Klavyeyle her ekranın her kontrolüne ulaşılıyor; odak görünür;
 375px genişlikte stüdyo kullanılabiliyor.
 
-### K1.5 — Test seçicilerini dilden ayır ⚠️ **K1.2 ile AYNI commit'te**
-`test/browser/studio-smoke.mjs` düğmeleri görünen Türkçe metne göre buluyor
-(8 `click()` çağrısı + metne bağlı doğrulamalar). K1.2 bunların hepsini kırar
-ve kırılma **sessiz** olur: `?.click()` hiçbir şey yapmaz, test bir sonraki
-`c.until()` çağrısında zaman aşımına düşer, sebebi görünmez.
-Kontrollere `data-testid` eklenir; seçiciler metne değil kimliğe bakar.
-Kimlik listesi: `docs/specs/SPRINT2-VERIFICATION.md` §0.
-**Kabul:** `grep -c "textContent ===" test/browser/*.mjs` → 0; `npm run test:browser` geçiyor.
+### K1.5 — Test seçicilerini dilden ayır ✅ **KAPANDI (Claude, 6 Eylül 2026)**
+Bu ticket Codex'e kalmadı; Sprint 2'nin ön koşulu olduğu için Claude kapattı.
+Yapılanlar: 138 kontrole `data-testid` verildi, `el()` bir `testid` seçeneği
+aldı, `js/studio/ui.js` yardımcıları kimliği **zorunlu ilk argüman** olarak
+istiyor, tarayıcı testi kimliğe göre seçiyor ve beklenen metinleri
+`js/locales/*.json` üzerinden okuyor.
+**Kayıt defteri:** `docs/specs/TESTIDS.md` — yeni kontrolün kimliği oradan alınır.
+**Koruma:** `npm run audit` → "Kimliksiz kontrol" = 0 · `test/testids.test.js` (5 test).
+**Rapor:** `docs/reports/K1.5_TESTIDS_2026-09-06.md`.
+
+**Sprint 1 durumu:** K1.1–K1.5 kapandı. Kalan tek kalem C9 denetimi
+(`npm run test:browser`, yerel MongoDB + Chrome ile — bkz. §0 handoff notu).
 
 **Sprint 1 bitiş şartı:** `npm run check` yeşil · `npm run audit` taban altında ·
 üç dilde tam · token dışı değer yok · dört durum matrisi dolu ·

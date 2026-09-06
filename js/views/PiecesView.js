@@ -10,14 +10,14 @@ export class PiecesView extends Component {
     render() {
         this.owner = currentOwner();
         this.list = el('div', { className: 'studio-stack' });
-        const title = this.titleInput = input('title', t('pieces.fieldTitlePlaceholder'));
+        const title = this.titleInput = input('piece-field-title', 'title', t('pieces.fieldTitlePlaceholder'));
         title.required = true;
-        const composer = input('composer', t('pieces.fieldComposerPlaceholder'));
-        const notes = el('textarea', { className: 'ma-input', attrs: { name: 'notes', maxlength: 2000, rows: 3 } });
-        const catalog = select('catalogTrackId', [['', t('pieces.fieldCatalogNone')], ...store.likedTracks.map(t => [t.trackId, `${t.trackName} · ${t.artistName}`])]);
+        const composer = input('piece-field-composer', 'composer', t('pieces.fieldComposerPlaceholder'));
+        const notes = el('textarea', { className: 'ma-input', testid: 'piece-field-notes', attrs: { name: 'notes', maxlength: 2000, rows: 3 } });
+        const catalog = select('piece-field-catalog', 'catalogTrackId', [['', t('pieces.fieldCatalogNone')], ...store.likedTracks.map(t => [t.trackId, `${t.trackName} · ${t.artistName}`])]);
         const result = el('div');
-        const save = el('button', { className: 'ma-btn ma-btn-primary', text: t('pieces.add'), attrs: { type: 'submit' } });
-        const form = el('form', { className: 'ma-card studio-capture', on: { submit: async event => {
+        const save = el('button', { className: 'ma-btn ma-btn-primary', text: t('pieces.add'), testid: 'piece-save', attrs: { type: 'submit' } });
+        const form = el('form', { className: 'ma-card studio-capture', testid: 'piece-form', on: { submit: async event => {
             event.preventDefault();
             if (save.disabled) return;
             save.disabled = true;
@@ -35,7 +35,7 @@ export class PiecesView extends Component {
         ]);
         this.container.replaceChildren(page(t('pieces.title'), t('pieces.subtitle'), [
             this.owner ? form : signedOut({ body: t('pieces.signedOut'), next: 'pieces' }),
-            this.owner ? button(t('recordings.refresh'), () => this.load()) : null,
+            this.owner ? button('pieces-refresh', t('recordings.refresh'), () => this.load()) : null,
             this.list,
             notice(t('pieces.pending'))
         ]));
@@ -54,9 +54,9 @@ export class PiecesView extends Component {
             const pieces = await listPieces();
             if (!this.isMounted || version !== this.version || currentOwner() !== this.owner) return;
             this.loaded = true;
-            this.list.replaceChildren(...(pieces.length ? pieces.map(p => el('article', { className: 'ma-card studio-record' }, [
+            this.list.replaceChildren(...(pieces.length ? pieces.map(p => el('article', { className: 'ma-card studio-record', testid: 'piece-row' }, [
                 el('h2', { text: p.title }), el('p', { className: 'studio-muted', text: p.composer }), el('p', { text: p.notes }),
-                button(t('pieces.practice'), () => this.props.router.navigate(`studio?pieceId=${p.id}`), true)
+                button('piece-practice', t('pieces.practice'), () => this.props.router.navigate(`studio?pieceId=${p.id}`), true)
             ])) : [empty({ title: t('pieces.empty'), action: { label: t('pieces.add'), onClick: () => this.titleInput.focus() } })]));
         } catch (error) { if (this.isMounted && version === this.version) {
             if (!this.loaded) this.list.replaceChildren();

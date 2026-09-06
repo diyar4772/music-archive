@@ -25,16 +25,16 @@ export class RecordingPlayer {
         this.playing = true;
         this.label = el('span', { text: recording.title });
         this.counter = el('span', { className: 'studio-time' });
-        this.seek = el('input', { attrs: { type: 'range', min: 0, max: recording.durationMs, step: 10, value: 0, 'aria-label': t('player.playbackLabel') },
+        this.seek = el('input', { testid: 'player-seek', attrs: { type: 'range', min: 0, max: recording.durationMs, step: 10, value: 0, 'aria-label': t('player.playbackLabel') },
             on: { input: () => this.seekTo(Number(this.seek.value)) } });
-        const pause = button(t('player.pause'), () => {
+        const pause = button('player-pause', t('player.pause'), () => {
             this.playing = !this.playing;
             setText(pause, this.playing ? t('player.pause') : t('player.resume'));
             if (this.playing) this.seekTo(this.position);
             else this.engine.panic();
         });
-        this.container.replaceChildren(el('div', { className: 'studio-player' }, [
-            this.label, this.counter, this.seek, pause, button(t('player.stop'), () => this.stop()),
+        this.container.replaceChildren(el('div', { className: 'studio-player', testid: 'player' }, [
+            this.label, this.counter, this.seek, pause, button('player-stop', t('player.stop'), () => this.stop()),
             el('small', { className: 'studio-muted', text: t('player.synthetic') })
         ]));
         this.tick();

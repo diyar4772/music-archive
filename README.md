@@ -104,8 +104,11 @@ STUDIO_TEST_URL=http://127.0.0.1:3109 npm run test:browser
 ```
 
 The browser test creates disposable accounts and actual MIDI simulation takes,
-tests failed upload/recovery, reload/login, permission denial and responsive
-layout. It writes screenshots to `/tmp/music-archive-studio-*.png`. Never point
+tests failed upload/recovery, reload/login, permission denial, a language switch
+and responsive layout. It addresses controls by `data-testid` and reads expected
+messages from `js/locales/*.json`, so a translation change never turns into a
+silent selector failure; the identities are listed in `docs/specs/TESTIDS.md`
+and `npm test` fails if a control ships without one. It writes screenshots to `/tmp/music-archive-studio-*.png`. Never point
 it at a server containing your personal archive. Automated MIDI input is not a
 physical device test.
 

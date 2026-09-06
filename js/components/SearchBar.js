@@ -32,6 +32,7 @@ export class SearchBar extends Component {
         const debouncedAutocomplete = debounce(value => handleAutocomplete(value), 300);
 
         const input = el('input', {
+            testid: 'search-input',
             attrs: {
                 type: 'text',
                 id: 'searchInput',
@@ -60,6 +61,7 @@ export class SearchBar extends Component {
         const clearButton = el('button', {
             className: 'ma-btn ma-btn-ghost ma-h-auto ma-p-0 ma-color-ink3',
             text: '✕',
+            testid: 'search-clear',
             attrs: { type: 'button', id: 'searchClear', 'aria-label': t('common.close') },
             on: { click: () => this.clearQuery() }
         });
@@ -79,6 +81,7 @@ export class SearchBar extends Component {
                 }, TYPES.map(type => el('button', {
                     className: `ma-pill ma-pill-lg${type.id === currentType ? ' is-active' : ''}`,
                     text: t(type.key),
+                    testid: `search-type-${type.id}`,
                     attrs: {
                         type: 'button',
                         id: `type-${type.id}`,

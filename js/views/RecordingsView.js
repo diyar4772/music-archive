@@ -12,11 +12,11 @@ export class RecordingsView extends Component {
         this.owner = currentOwner();
         this.content = el('div', { className: 'studio-stack' });
         this.playerBox = el('div');
-        this.refresh = button(t('recordings.refresh'), () => this.load());
+        this.refresh = button('recordings-refresh', t('recordings.refresh'), () => this.load());
         this.progress = el('div', { className: 'ma-refresh-progress', attrs: { hidden: true, role: 'status', 'aria-label': t('recordings.refreshing') } });
         this.player = new RecordingPlayer(this.playerBox);
         this.container.replaceChildren(page(t('recordings.title'), t('recordings.subtitle'), [
-            el('div', { className: 'studio-toolbar' }, [button(t('recordings.openStudio'), () => this.props.router.navigate('studio'), true), this.refresh]),
+            el('div', { className: 'studio-toolbar' }, [button('recordings-open-studio', t('recordings.openStudio'), () => this.props.router.navigate('studio'), true), this.refresh]),
             this.playerBox, this.progress, this.content
         ]));
     }
@@ -70,7 +70,7 @@ export class RecordingsView extends Component {
             this.content.append(empty({ title: t('recordings.empty'), action: { label: t('recordings.openStudio'), onClick: () => this.props.router.navigate('studio') } }));
         }
         if (remote.status === 'fulfilled' && remote.value.hasMore) {
-            this.content.append(button(t('recordings.loadMore'), () => this.load(records.length)));
+            this.content.append(button('recordings-load-more', t('recordings.loadMore'), () => this.load(records.length)));
         }
     }
 
@@ -78,8 +78,8 @@ export class RecordingsView extends Component {
         const state = local ? (record.state === 'recording' ? t('recordings.stateInterrupted') : t('recordings.stateLocal')) : t('recordings.stateStored');
         const message = el('div');
         const load = () => local ? Promise.resolve(record) : getRecording(record.id);
-        const act = (label, fn) => {
-            const control = button(label, async () => {
+        const act = (testid, label, fn) => {
+            const control = button(testid, label, async () => {
                 control.disabled = true;
                 try {
                     const data = await load();
@@ -90,14 +90,15 @@ export class RecordingsView extends Component {
             });
             return control;
         };
-        const actions = [act(t('recordings.play'), data => this.player.play(data)), act(t('recordings.download'), data => downloadMidi(data))];
-        if (local) {actions.push(act(t('recordings.reupload'), async data => {
+        const actions = [act('recording-play', t('recordings.play'), data => this.player.play(data)),
+            act('recording-download', t('recordings.download'), data => downloadMidi(data))];
+        if (local) {actions.push(act('recording-reupload', t('recordings.reupload'), async data => {
             message.replaceChildren(notice(t('studio.uploading')));
             await uploadRecording(data, this.owner);
             await this.load();
         }));}
-        if (record.pieceId) actions.push(button(t('recordings.practicePiece'), () => this.props.router.navigate(`studio?pieceId=${record.pieceId}`)));
-        return el('article', { className: 'ma-card studio-record', dataset: { recordingId: record.id, storage: local ? 'local' : 'stored' } }, [
+        if (record.pieceId) actions.push(button('recording-practice-piece', t('recordings.practicePiece'), () => this.props.router.navigate(`studio?pieceId=${record.pieceId}`)));
+        return el('article', { className: 'ma-card studio-record', testid: 'recording-row', dataset: { recordingId: record.id, storage: local ? 'local' : 'stored' } }, [
             el('div', { className: 'studio-heading' }, [el('h2', { text: record.title }), el('span', { className: 'ma-badge', text: record.input === 'simulation' ? t('recordings.badgeSimulation') : t('recordings.badgeMidi') })]),
             el('p', { className: 'studio-muted' }, [time(record.durationMs), ' • ',
                 el('time', { dataset: { createdAt: record.createdAt || record.updatedAt }, text: new Date(record.createdAt || record.updatedAt).toLocaleString(getCurrentLanguage()) }),

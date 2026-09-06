@@ -102,12 +102,14 @@ export class SearchView extends Component {
                         el('button', {
                             className: 'ma-btn ma-btn-secondary ma-btn-sm',
                             text: t('common.retry'),
+                            testid: 'search-retry',
                             attrs: { type: 'button' },
                             on: { click: () => void this.runSearch() }
                         }),
                         el('button', {
                             className: 'ma-btn ma-btn-ghost ma-btn-sm',
                             text: t('search.backToLibrary'),
+                            testid: 'search-back-to-library',
                             attrs: { type: 'button' },
                             on: { click: () => this.router?.navigate('library') }
                         })
@@ -153,6 +155,7 @@ export class SearchView extends Component {
                         el('div', { className: 'ma-display-flex ma-gap-10 ma-mt-24 ma-wrap-wrap' }, [
                             el('button', {
                                 className: 'ma-btn',
+                                testid: 'artist-follow',
                                 attrs: { type: 'button', id: 'followBtn' },
                                 on: { click: () => void this.toggleFollow() }
                             })
@@ -214,6 +217,7 @@ export class SearchView extends Component {
 
         return el('button', {
             className: 'ma-tile',
+            testid: 'search-album',
             attrs: { type: 'button' },
             dataset: { albumId: album.id },
             on: { click: () => window.openAlbumDetail?.(album.id) }
@@ -260,6 +264,7 @@ export class SearchView extends Component {
         replace(this.results_, this.section(t('search.artists'), this.results.length,
             el('div', { className: 'ma-grid ma-grid-6' }, this.results.map(artist => el('button', {
                 className: 'ma-card ma-align-center',
+                testid: 'search-artist',
                 attrs: { type: 'button' },
                 on: { click: () => this.router?.navigate(`search?q=${encodeURIComponent(artist.name)}&type=artist`) }
             }, [
@@ -281,13 +286,14 @@ export class SearchView extends Component {
     trackRow(track) {
         const open = () => window.openTrackDetail?.(track.id, track.name, track.artist, track.image, track.preview_url);
 
-        return el('div', { className: 'ma-row', dataset: { trackId: track.id } }, [
+        return el('div', { className: 'ma-row', testid: 'search-track-row', dataset: { trackId: track.id } }, [
             cover(track.image, track.name || '', 'ma-cover-sm', {
                 tag: 'button',
+                testid: 'search-track-cover',
                 attrs: { type: 'button', 'aria-label': track.name || '', 'aria-hidden': null },
                 on: { click: open }
             }),
-            el('div', { className: 'ma-row-main', attrs: { role: 'button', tabindex: '0' }, on: {
+            el('div', { className: 'ma-row-main', testid: 'search-track-open', attrs: { role: 'button', tabindex: '0' }, on: {
                 click: open,
                 keydown: event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } }
             } }, [
@@ -301,6 +307,7 @@ export class SearchView extends Component {
                     // track you saved last week used to show an empty heart.
                     className: `ma-iconbtn${isTrackLiked(track.id) ? ' is-on' : ''}`,
                     text: '♥',
+                    testid: 'search-track-archive',
                     attrs: {
                         type: 'button',
                         title: isTrackLiked(track.id) ? t('track.unlike') : t('search.archive'),
@@ -311,6 +318,7 @@ export class SearchView extends Component {
                 el('button', {
                     className: 'ma-iconbtn',
                     text: '⋯',
+                    testid: 'search-track-details',
                     attrs: { type: 'button', 'aria-label': t('track.details') },
                     on: { click: open }
                 })

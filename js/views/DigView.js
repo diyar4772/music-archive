@@ -98,6 +98,7 @@ export class DigView extends Component {
                     el('button', {
                         className: 'ma-btn ma-btn-secondary ma-mt-18 ma-w-100 ma-justify-flex-start',
                         text: t('dig.preview'),
+                        testid: 'dig-preview',
                         attrs: { type: 'button', disabled: !track.preview_url },
                         on: { click: () => this.preview() }
                     })
@@ -107,12 +108,14 @@ export class DigView extends Component {
                 el('button', {
                     className: 'ma-btn ma-btn-secondary ma-justify-flex-start',
                     text: t('dig.skip'),
+                    testid: 'dig-skip',
                     attrs: { type: 'button' },
                     on: { click: () => void this.swipe('pass') }
                 }),
                 el('button', {
                     className: 'ma-btn ma-btn-primary ma-justify-flex-start',
                     text: t('dig.keep'),
+                    testid: 'dig-keep',
                     attrs: { type: 'button' },
                     on: { click: () => void this.swipe('archive') }
                 })
@@ -150,6 +153,7 @@ export class DigView extends Component {
         return empty({ icon: '♥', title: t('dig.doneTitle'), body: t('dig.doneBody', { kept: this.kept }), action: el('button', {
             className: 'ma-btn ma-btn-secondary ma-mt-24',
             text: t('dig.reset'),
+            testid: 'dig-reset',
             attrs: { type: 'button' },
             on: { click: () => void this.loadQueue() }
         }) });

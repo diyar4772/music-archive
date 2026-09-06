@@ -31,7 +31,12 @@ görünmeyen bir kırılma.
 Sprint 2 bu testi ağır şekilde genişletiyor (V5'te 10 döngü, V3'te A–B, V6'da
 silme). Kırık bir temelin üstüne inşa edilemez.
 
-### K1.5 — Test seçicilerini dilden ayır *(Sprint 1'e eklenir)*
+### K1.5 — Test seçicilerini dilden ayır ✅ *(kapandı: Claude, 6 Eylül 2026)*
+
+> **Durum:** Uygulandı. Aşağıdaki liste artık tarihî gerekçedir; yürürlükteki
+> tam kayıt defteri **`docs/specs/TESTIDS.md`** (138 kimlik, ✅/⏳ işaretli) ve
+> yeni kontrolün kimliği oradan alınır. Koruma: `npm run audit` → "Kimliksiz
+> kontrol" = 0 ve `test/testids.test.js`.
 
 Kullanıcıya görünen her kontrol bir `data-testid` alır. Seçici bundan sonra
 metne değil kimliğe bakar:
@@ -69,6 +74,21 @@ dosyasından okur.
 
 **Bu ticket Sprint 1'de, K1.2 ile aynı commit'te yapılır.** Ayrı bırakılırsa
 arada testler kırık kalır.
+
+**Uygulanan hâli — yukarıdaki listeden farkları:**
+
+| Beklenen | Uygulanan | Neden |
+|---|---|---|
+| `recording-edit` · `recording-delete` · `recording-delete-draft` | ⏳ K2.1'de | Kontroller henüz yok; ölü kimlik yazılmaz (brif md.1). |
+| `metronome-*`, `player-loop-*`, `recording-add-note` | ⏳ K2.2–K2.4'te | Aynı sebep; kimlikleri defterde ayrılmış durumda. |
+| "Stüdyoda çalış" → `piece-practice` | Çalışmalarım'da `piece-practice`, Kayıtlarım satırında `recording-practice-piece` | Aynı etiket iki ayrı ekranda; tek kimlik testi belirsiz bırakırdı. |
+| — | `studio-play-draft` · `studio-download-draft` | Stüdyodaki taslak düğmeleri Kayıtlarım satırındakilerle aynı etiketi taşıyor, kimlikleri ayrıldı. |
+| — | `studio-result`, `recording-row`, `piece-row`, `player`, `studio-capture` | Kapsam seçicileri: satır içi eylemi doğru satırda aramak için. |
+
+Yükleme hatasında `studio-upload` **kimliğini korur**, yalnız etiketi
+`recordings.reupload` olur. Test "tekrar yükle sunuldu mu" sorusunu
+`[data-testid=studio-result] [data-state=error]` + düğmenin yeniden
+etkinleşmesiyle sorar; metne hiç bakmaz.
 
 ---
 

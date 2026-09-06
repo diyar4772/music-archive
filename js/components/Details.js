@@ -33,13 +33,14 @@ const GHOST_BUTTON = 'ma-btn ma-btn-secondary ma-btn-sm';
 const DANGER_BUTTON = 'ma-btn ma-btn-danger ma-btn-sm';
 
 /**
+ * @param {string} testid - stable selector; the label is translated, this is not
  * @param {string} label
  * @param {() => void} onClick
  * @param {string} [className]
  * @returns {HTMLButtonElement}
  */
-function button(label, onClick, className = PRIMARY_BUTTON) {
-    return el('button', { className, text: label, attrs: { type: 'button' }, on: { click: onClick } });
+function button(testid, label, onClick, className = PRIMARY_BUTTON) {
+    return el('button', { className, text: label, testid, attrs: { type: 'button' }, on: { click: onClick } });
 }
 
 /**
@@ -61,6 +62,7 @@ function renderRatingControl(container, item, readout) {
             const half = !full && current >= position - 0.5;
             const star = el('button', {
                 className: `star ma-starbtn${full || half ? ' is-on' : ''}`,
+                testid: `rating-star-${position}`,
                 attrs: { type: 'button', 'aria-label': t('track.stars', { n: position }) },
                 text: full ? '★' : (half ? '⯨' : '☆')
             });
@@ -76,6 +78,7 @@ function renderRatingControl(container, item, readout) {
 
         const clear = el('button', {
             className: 'ma-btn ma-btn-ghost ma-btn-sm ma-ml-6',
+            testid: 'rating-clear',
             attrs: { type: 'button' },
             text: t('track.resetRating')
         });
@@ -131,6 +134,7 @@ async function resolvePreview(track) {
 function trackRow(track, onRemove) {
     const play = el('button', {
         className: 'mini-player-play ma-w-32 ma-h-32 ma-text-12',
+        testid: 'track-row-play',
         attrs: { type: 'button', 'aria-label': t('player.playAria', { name: track.name }) },
         html: '<i class="fa-solid fa-play"></i>'
     });
@@ -153,6 +157,7 @@ function trackRow(track, onRemove) {
 
     const title = el('button', {
         className: 'ma-row-main ma-border-0 ma-background-transparent ma-color-inherit ma-font-inherit ma-p-0',
+        testid: 'track-row-open',
         attrs: { type: 'button' },
         on: { click: () => openTrackDetail(track.id, track.name, track.artist, track.image, track.preview_url) }
     }, [
@@ -160,7 +165,7 @@ function trackRow(track, onRemove) {
         track.artist && el('span', { className: 'ma-row-sub', text: track.artist })
     ]);
 
-    return el('div', { className: 'ma-row', dataset: { trackId: track.id } }, [
+    return el('div', { className: 'ma-row', testid: 'track-row', dataset: { trackId: track.id } }, [
         cover(track.image, track.name || '', 'ma-cover-sm'),
         title,
         track.duration_ms ? el('span', { className: 'ma-col-dur', text: formatTime(track.duration_ms) }) : null,
@@ -168,6 +173,7 @@ function trackRow(track, onRemove) {
         onRemove ? el('button', {
             className: 'ma-iconbtn',
             text: '✕',
+            testid: 'track-row-remove',
             attrs: { type: 'button', 'aria-label': t('playlist.removeAria', { name: track.name }) },
             on: { click: event => { event.stopPropagation(); void onRemove(); } }
         }) : null
@@ -195,7 +201,7 @@ export async function openAlbumDetail(id) {
         byId('modalType').textContent = [album.artist, album.releaseDate?.slice(0, 4)].filter(Boolean).join(' · ');
         byId('modalCover').src = album.image || PLACEHOLDER_IMAGE;
 
-        const saveButton = button('', () => {}, GHOST_BUTTON);
+        const saveButton = button('album-save', '', () => {}, GHOST_BUTTON);
         const paintSave = () => {
             const saved = isAlbumFollowed(album.id);
             saveButton.textContent = saved ? `✓ ${t('album.saved')}` : `+ ${t('album.save')}`;
@@ -360,14 +366,14 @@ export async function openPlaylistDetails(playlist) {
         const actions = el('div', {
             className: 'ma-display-flex ma-wrap-wrap ma-gap-8 ma-p-16-0 ma-border-bottom-1-solid-border'
         }, [
-            button(t('playlist.changeCover'), () => {
+            button('playlist-change-cover', t('playlist.changeCover'), () => {
                 coverData = null;
                 byId('coverUrlInput').value = '';
                 byId('coverPreviewContainer').classList.add('hidden');
                 setCoverTab('upload');
                 openModal('changeCoverModal');
             }, GHOST_BUTTON),
-            button(t('playlist.delete'), () => showConfirmModal({
+            button('playlist-delete', t('playlist.delete'), () => showConfirmModal({
                 title: t('playlist.deleteTitle'),
                 message: t('playlist.deleteBody', { name: list.name }),
                 confirmText: t('playlist.deleteConfirm'),
@@ -419,6 +425,7 @@ export async function addToPlaylistFromDetail() {
 
     replace(target, ...lists.map(list => el('button', {
         className: 'ma-row',
+        testid: 'playlist-option',
         attrs: { type: 'button' },
         on: {
             click: async () => {

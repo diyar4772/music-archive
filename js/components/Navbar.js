@@ -61,6 +61,7 @@ export class Navbar extends Component {
             el('div', { className: 'ma-header-inner' }, [
                 el('button', {
                     className: 'ma-brand',
+                    testid: 'nav-home',
                     attrs: { type: 'button', 'aria-label': t('nav.home') },
                     on: { click: () => this.onShowDashboard() }
                 }, [
@@ -72,6 +73,7 @@ export class Navbar extends Component {
                     SECTIONS.map(section => el('button', {
                         className: `ma-navbtn${section.id === active ? ' is-active' : ''}`,
                         text: t(section.key),
+                        testid: `nav-${section.id}`,
                         attrs: {
                             type: 'button',
                             'aria-current': section.id === active ? 'page' : null
@@ -84,12 +86,14 @@ export class Navbar extends Component {
                         LANGUAGES.map(code => el('button', {
                             className: `ma-segbtn${code === i18n.language ? ' is-active' : ''}`,
                             text: code.toUpperCase(),
+                            testid: `nav-lang-${code}`,
                             attrs: { type: 'button', 'aria-pressed': String(code === i18n.language) },
                             on: { click: () => changeLanguage(code) }
                         }))),
 
                     el('button', {
                         className: 'ma-iconbtn',
+                        testid: 'nav-theme',
                         attrs: { type: 'button', title: t('nav.toggleTheme'), 'aria-label': t('nav.toggleTheme') },
                         on: { click: () => this.onToggleTheme() }
                     }, [el('i', { className: isDark ? 'fa-solid fa-moon' : 'fa-solid fa-sun' })]),
@@ -97,6 +101,7 @@ export class Navbar extends Component {
                     isAuth && user ? this.accountControl(user) : el('button', {
                         className: 'ma-btn ma-btn-primary ma-btn-sm',
                         text: t('auth.login'),
+                        testid: 'nav-login',
                         attrs: { type: 'button' },
                         on: { click: () => window.openAuthModal?.() }
                     })
@@ -107,7 +112,7 @@ export class Navbar extends Component {
         if (active === 'dashboard') {
             header.append(el('nav', { className: 'studio-subnav', attrs: { 'aria-label': t('nav.archive') } },
                 ['dashboard', 'search', 'library', 'dig'].map(id => el('button', {
-                    className: 'ma-navbtn', text: t(`nav.${id}`), attrs: { type: 'button' },
+                    className: 'ma-navbtn', text: t(`nav.${id}`), testid: `subnav-${id}`, attrs: { type: 'button' },
                     on: { click: () => this.goTo(id) }
                 }))));
         }
@@ -137,6 +142,7 @@ export class Navbar extends Component {
         return el('div', { className: 'ma-account ma-position-relative', }, [
             el('button', {
                 className: 'ma-iconbtn ma-w-auto ma-p-0-8-0-4 ma-gap-8 ma-color-ink',
+                testid: 'nav-account',
                 attrs: {
                     type: 'button',
                     'aria-haspopup': 'menu',
@@ -168,6 +174,7 @@ export class Navbar extends Component {
             ]),
             ...MENU_ITEMS.map(item => el('button', {
                 className: `ma-menu-item${item.action === 'logout' ? ' is-danger' : ''}`,
+                testid: `nav-menu-${item.action}`,
                 attrs: { type: 'button', role: 'menuitem' },
                 on: { click: event => { event.stopPropagation(); this.handleMenuAction(item.action); } }
             }, [

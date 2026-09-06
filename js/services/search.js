@@ -100,6 +100,7 @@ export async function handleAutocomplete(query) {
         historyMatches.forEach(term => {
             list.appendChild(el('button', {
                 className: 'autocomplete-item ma-display-flex ma-items-center ma-gap-12 ma-w-100 ma-p-10-12 ma-border-0 ma-background-transparent ma-color-ink ma-text-13 ma-align-left ma-cursor-pointer',
+                testid: 'search-history-item',
                 attrs: { type: 'button' },
                 on: { click: () => selectAutocompleteItem(term) }
             }, [
@@ -161,6 +162,7 @@ function createAutocompleteItem({ name, image, subtitle, isLocal, isRounded = tr
 
     return el('button', {
         className: `autocomplete-item ma-autocomplete-option${isLocal ? ' is-local' : ''}`,
+        testid: 'search-suggestion',
         attrs: { type: 'button' },
         on: { click: onClick }
     }, [

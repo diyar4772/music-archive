@@ -3,7 +3,7 @@ import { liveText as t } from '../services/i18n.js';
 
 const actionButton = action => action instanceof Node ? action : action && el('button', {
     className: 'ma-btn ma-btn-primary ma-state-action', text: action.label,
-    attrs: { type: 'button' }, on: { click: action.onClick }
+    testid: 'state-action', attrs: { type: 'button' }, on: { click: action.onClick }
 });
 
 export function loading({ rows = 4, label = t('states.loading') } = {}) {

@@ -125,7 +125,7 @@ function renderStartupError() {
                 <div class="ma-shell-59 ma-notice-mark">!</div>
                 <div class="ma-empty-title"></div>
                 <div class="ma-empty-body"></div>
-                <button id="retryBootstrap" class="ma-shell-60 ma-btn ma-btn-primary"></button>
+                <button id="retryBootstrap" class="ma-shell-60 ma-btn ma-btn-primary" data-testid="bootstrap-retry"></button>
             </div>
         </main>`;
     appContainer.querySelector('.ma-empty-title').textContent = t('app.loadFailed');

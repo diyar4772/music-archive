@@ -60,12 +60,14 @@ export class DashboardView extends Component {
                         el('button', {
                             className: 'ma-btn ma-btn-primary ma-btn-lg',
                             text: t('landing.ctaPrimary'),
+                            testid: 'landing-register',
                             attrs: { type: 'button' },
                             on: { click: () => window.openAuthModal?.('register') }
                         }),
                         el('button', {
                             className: 'ma-btn ma-btn-secondary ma-btn-lg',
                             text: t('landing.ctaSecondary'),
+                            testid: 'landing-features',
                             attrs: { type: 'button' },
                             on: { click: () => this.querySelector('.ma-features')?.scrollIntoView({ behavior: 'smooth' }) }
                         })
@@ -89,7 +91,7 @@ export class DashboardView extends Component {
             kicker(t('nav.studio')),
             el('h2', { text: t('landing.studioTitle') }),
             el('p', { className: 'studio-muted', text: t('landing.studioBody') }),
-            el('button', { className: 'ma-btn ma-btn-primary', text: t('nav.studio'), attrs: { type: 'button' },
+            el('button', { className: 'ma-btn ma-btn-primary', text: t('nav.studio'), testid: 'landing-studio', attrs: { type: 'button' },
                 on: { click: () => this.router.navigate('studio') } })
         ]);
     }
@@ -130,12 +132,14 @@ export class DashboardView extends Component {
                 el('button', {
                     className: 'ma-btn ma-btn-secondary ma-btn-sm',
                     text: t('export.csv'),
+                    testid: 'dashboard-export-csv',
                     attrs: { type: 'button' },
                     on: { click: () => exportToCSV() }
                 }),
                 el('button', {
                     className: 'ma-btn ma-btn-secondary ma-btn-sm',
                     text: t('export.backup'),
+                    testid: 'dashboard-export-backup',
                     attrs: { type: 'button' },
                     on: { click: () => exportStats() }
                 })
@@ -165,6 +169,7 @@ export class DashboardView extends Component {
             el('button', {
                 className: 'ma-btn ma-btn-secondary ma-btn-sm ma-mt-20 ma-align-self-flex-start',
                 text: t('dashboard.goLibrary'),
+                testid: 'dashboard-open-likes',
                 attrs: { type: 'button' },
                 on: { click: () => this.onOpenProfileModal('likes') }
             })
@@ -185,6 +190,7 @@ export class DashboardView extends Component {
 
         return el('button', {
             className: 'ma-card ma-bento-wide',
+            testid: 'dashboard-open-follows',
             attrs: { type: 'button' },
             on: { click: () => this.onOpenProfileModal('follows') }
         }, [
@@ -210,6 +216,7 @@ export class DashboardView extends Component {
 
         return el('button', {
             className: 'ma-card',
+            testid: 'dashboard-open-playlists',
             attrs: { type: 'button' },
             on: { click: () => this.onOpenProfileModal('playlists') }
         }, [

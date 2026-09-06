@@ -48,6 +48,7 @@ export class LibraryView extends Component {
             el('div', { className: 'ma-display-flex ma-gap-8 ma-mt-24 ma-wrap-wrap' },
                 TABS.map(tab => el('button', {
                     className: `ma-pill${tab.id === this.viewType ? ' is-active' : ''}`,
+                    testid: `library-tab-${tab.id}`,
                     attrs: { type: 'button', 'aria-pressed': String(tab.id === this.viewType) },
                     on: { click: () => this.router?.navigate(`library?type=${tab.id}`) }
                 }, [
@@ -105,6 +106,7 @@ export class LibraryView extends Component {
             replace(content, empty({ icon: '♥', title: t('library.emptyLikes'), body: t('library.emptyLikesBody'), action: el('button', {
                 className: 'ma-btn ma-btn-primary ma-mt-24',
                 text: t('library.startSearching'),
+                testid: 'library-start-searching',
                 attrs: { type: 'button' },
                 on: { click: () => this.router?.navigate('search') }
             }) }));
@@ -131,13 +133,14 @@ export class LibraryView extends Component {
             track.trackId, track.trackName, track.artistName, track.image, track.previewUrl
         );
 
-        return el('div', { className: 'ma-row', dataset: { trackId: track.trackId } }, [
+        return el('div', { className: 'ma-row', testid: 'library-track-row', dataset: { trackId: track.trackId } }, [
             cover(track.image, track.trackName || '', 'ma-cover-sm', {
                 tag: 'button',
+                testid: 'library-track-cover',
                 attrs: { type: 'button', 'aria-label': track.trackName || '', 'aria-hidden': null },
                 on: { click: open }
             }),
-            el('div', { className: 'ma-row-main', attrs: { role: 'button', tabindex: '0' }, on: {
+            el('div', { className: 'ma-row-main', testid: 'library-track-open', attrs: { role: 'button', tabindex: '0' }, on: {
                 click: open,
                 keydown: event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } }
             } }, [
@@ -150,12 +153,14 @@ export class LibraryView extends Component {
                 track.userNote ? el('button', {
                     className: 'ma-iconbtn ma-w-28 ma-h-28 ma-color-violet-ink',
                     text: '✎',
+                    testid: 'library-track-note',
                     attrs: { type: 'button', title: t('library.hasNote'), 'aria-label': t('library.hasNote') },
                     on: { click: open }
                 }) : null,
                 el('button', {
                     className: 'ma-iconbtn is-on ma-w-28 ma-h-28',
                     text: '♥',
+                    testid: 'library-track-unlike',
                     attrs: { type: 'button', title: t('track.unlike'), 'aria-label': t('track.unlike') },
                     // It says "remove from archive", so it removes from the
                     // archive. It used to open the drawer, which left the label
@@ -189,6 +194,7 @@ export class LibraryView extends Component {
         replace(content, el('div', { className: 'ma-grid ma-grid-5 ma-pt-24', },
             artists.map(artist => el('button', {
                 className: 'ma-card ma-align-center',
+                testid: 'library-artist',
                 attrs: { type: 'button' },
                 dataset: { artistId: artist.artistId },
                 on: {
@@ -208,6 +214,7 @@ export class LibraryView extends Component {
 
         const tiles = playlists.map(playlist => el('button', {
             className: 'ma-card-flush ma-cursor-pointer ma-align-left ma-p-0 ma-color-inherit ma-font-inherit',
+            testid: 'library-playlist',
             attrs: { type: 'button' },
             dataset: { playlistId: playlist.id },
             on: { click: () => window.openPlaylistDetails?.(playlist.id) }
@@ -227,6 +234,7 @@ export class LibraryView extends Component {
 
         tiles.push(el('button', {
             className: 'ma-newtile',
+            testid: 'library-new-playlist',
             attrs: { type: 'button' },
             on: { click: () => window.createPlaylist?.() }
         }, [
@@ -238,6 +246,7 @@ export class LibraryView extends Component {
             replace(content, empty({ icon: '≡', title: t('library.emptyPlaylists'), body: t('library.emptyPlaylistsBody'), action: el('button', {
                 className: 'ma-btn ma-btn-primary ma-mt-24',
                 text: t('library.createPlaylist'),
+                testid: 'library-create-playlist',
                 attrs: { type: 'button' },
                 on: { click: () => window.createPlaylist?.() }
             }) }));

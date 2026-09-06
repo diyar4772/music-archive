@@ -124,6 +124,60 @@ function embeddedTurkish() {
     return hits;
 }
 
+/* ── K1.5: test kimlikleri ────────────────────────────────────────── */
+
+// Görünen her kontrol dilden bağımsız bir `data-testid` taşır. Taşımazsa test
+// onu ancak görünen metninden bulabilir ve metin dille birlikte değişir —
+// seçici sessizce hiçbir şey seçmez, test anlaşılmaz bir zaman aşımına düşer.
+// SPRINT2-VERIFICATION §0 ve TESTIDS.md.
+const CONTROL_TAGS = 'button|input|select|textarea';
+
+function optionsBlock(source, from) {
+    const start = source.indexOf('{', from);
+    if (start === -1) return '';
+    let depth = 0;
+    for (let i = start; i < source.length; i += 1) {
+        if (source[i] === '{') depth += 1;
+        else if (source[i] === '}') { depth -= 1; if (!depth) return source.slice(start, i + 1); }
+    }
+    return source.slice(start);
+}
+
+function untestableControls() {
+    const hits = [];
+    for (const file of [...JS, join(ROOT, 'index.html')]) {
+        const source = read(file);
+        // el('button', { … }) — seçenek nesnesinde `testid` beklenir.
+        for (const m of source.matchAll(new RegExp(`el\\('(${CONTROL_TAGS})'`, 'g'))) {
+            if (/\btestid\b/.test(optionsBlock(source, m.index + m[0].length))) continue;
+            hits.push(`${rel(file)}:${source.slice(0, m.index).split('\n').length}  el('${m[1]}')`);
+        }
+        // Şablon dizesi veya index.html içindeki düz markup.
+        for (const m of source.matchAll(new RegExp(`<(${CONTROL_TAGS})\\b[^>]*>`, 'g'))) {
+            if (m[0].includes('data-testid')) continue;
+            hits.push(`${rel(file)}:${source.slice(0, m.index).split('\n').length}  ${m[0].slice(0, 60)}`);
+        }
+    }
+    return hits;
+}
+
+// Stüdyo yardımcıları (js/studio/ui.js) kimliği ilk argüman olarak ister;
+// ilk argüman dize sabiti değilse kontrol kimliksiz kalmış demektir.
+function untestableStudioControls() {
+    const hits = [];
+    for (const file of JS) {
+        if (file.endsWith('/ui.js')) continue;
+        const source = read(file);
+        for (const m of source.matchAll(/(?<![\w.])(button|input|select)\(\s*('|testid\b)?/g)) {
+            // Dize sabiti ya da `act(testid, …)` gibi kimliği devreden bir sarmalayıcı.
+            if (m[2]) continue;
+            if (!/from '.*studio\/ui\.js'|from '\.\/ui\.js'/.test(source)) continue;
+            hits.push(`${rel(file)}:${source.slice(0, m.index).split('\n').length}  ${m[1]}(…)`);
+        }
+    }
+    return hits;
+}
+
 /* ── Brif md.1 ve md.8: ölü kontrol, konsol gürültüsü ─────────────── */
 
 function deadHandlers() {
@@ -173,6 +227,8 @@ const CHECKS = [
       detail: inline.filter(s => /\d+px/.test(s.value)).map(s => `${s.file}  ${s.value.slice(0, 50)}`), spec: 'DESIGN-TOKENS §6' },
     { id: 'C3.parity',   label: 'Eksik çeviri anahtarı',          value: parity.missing.length,     target: 0,   detail: parity.missing.slice(0, 40), spec: 'I18N-STUDIO §6' },
     { id: 'C3.embedded', label: 'Kodda gömülü Türkçe dize',       value: embeddedTurkish().length,  target: 0,   detail: embeddedTurkish().slice(0, 40), spec: 'I18N-STUDIO §0' },
+    { id: 'K1.5.testid', label: 'Kimliksiz kontrol',              value: untestableControls().length + untestableStudioControls().length, target: 0,
+      detail: [...untestableControls(), ...untestableStudioControls()], spec: 'SPRINT2-VERIFICATION §0' },
     { id: 'B1.dead',     label: 'Boş gövdeli olay işleyici',      value: deadHandlers().length,     target: 0,   detail: deadHandlers(),     spec: 'Brif md.1' },
     { id: 'B8.console',  label: 'console.log kalıntısı',          value: consoleNoise().length,     target: 0,   detail: consoleNoise(),     spec: 'Brif md.8' },
     { id: 'X.todo',      label: 'TODO/FIXME işareti',             value: todoMarkers().length,      target: 0,   detail: todoMarkers(),      spec: '—' }
@@ -181,7 +237,7 @@ const CHECKS = [
 // 6 Eylül 2026, Sprint 1 öncesi ölçüm. Codex ilerledikçe bu sayılar düşmeli.
 const BASELINE = {
     'C1.colors': 13, 'C1.legacy': 6, 'C1.inline': 117, 'C1.px': 90,
-    'C3.parity': 0, 'C3.embedded': 113, 'B1.dead': 0, 'B8.console': 7, 'X.todo': 0
+    'C3.parity': 0, 'C3.embedded': 113, 'K1.5.testid': 85, 'B1.dead': 0, 'B8.console': 7, 'X.todo': 0
 };
 
 if (JSON_OUT) {

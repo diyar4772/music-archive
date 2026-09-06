@@ -19,33 +19,33 @@ export class StudioView extends Component {
     }
 
     render() {
-        this.source = select('source', [['midi', t('studio.deviceLabel')], ['simulation', t('studio.sourceSimulation')]]);
-        this.device = select('device', [['', t('studio.devicePlaceholder')]]);
+        this.source = select('studio-source', 'source', [['midi', t('studio.deviceLabel')], ['simulation', t('studio.sourceSimulation')]]);
+        this.device = select('studio-device', 'device', [['', t('studio.devicePlaceholder')]]);
         this.device.disabled = true;
-        this.connectButton = button(t('studio.connect'), () => this.connect(), true);
+        this.connectButton = button('studio-connect', t('studio.connect'), () => this.connect(), true);
         this.connection = el('div', {}, [notice(t('studio.connectHint'))]);
         this.mode = el('span', { className: 'ma-badge', text: t('studio.badgeWaiting') });
         this.currentNotes = el('div', { className: 'studio-notes', text: '—', attrs: { 'aria-live': 'polite', 'aria-atomic': 'true', 'aria-label': t('studio.notesLabel'), id: 'studio-current-notes' } });
         this.level = el('meter', { attrs: { min: 0, max: 127, value: 0, 'aria-label': t('studio.velocityLabel') } });
         this.pedal = el('span', { className: 'studio-muted', text: t('studio.sustainOff') });
-        this.keyboard = el('canvas', { className: 'studio-keyboard', attrs: { tabindex: 0, role: 'group', 'aria-label': t('studio.keyboardLabel') } });
-        this.roll = el('canvas', { className: 'studio-roll', attrs: { role: 'img', 'aria-label': t('studio.rollLabel'), 'aria-describedby': 'studio-current-notes' } });
+        this.keyboard = el('canvas', { className: 'studio-keyboard', testid: 'studio-keyboard', attrs: { tabindex: 0, role: 'group', 'aria-label': t('studio.keyboardLabel') } });
+        this.roll = el('canvas', { className: 'studio-roll', testid: 'studio-roll', attrs: { role: 'img', 'aria-label': t('studio.rollLabel'), 'aria-describedby': 'studio-current-notes' } });
         this.scroller = el('div', { className: 'studio-keyboard-scroll', attrs: { tabindex: 0, 'aria-label': t('studio.keyboardScrollLabel') } }, [this.keyboard]);
-        this.title = input('title', t('studio.fieldTitlePlaceholder'));
+        this.title = input('studio-field-title', 'title', t('studio.fieldTitlePlaceholder'));
         this.title.value = `${t('studio.captureLabel')} • ${new Date().toLocaleString(getCurrentLanguage())}`;
-        this.description = input('description', t('studio.fieldDescriptionPlaceholder'), 2000);
-        this.tags = input('tags', t('studio.fieldTagsPlaceholder'), 490);
-        this.piece = select('piece', [['', t('studio.fieldPieceFree')]]);
-        this.recordButton = button(t('studio.start'), () => this.start(), true);
-        this.stopButton = button(t('studio.stop'), () => this.stop());
+        this.description = input('studio-field-description', 'description', t('studio.fieldDescriptionPlaceholder'), 2000);
+        this.tags = input('studio-field-tags', 'tags', t('studio.fieldTagsPlaceholder'), 490);
+        this.piece = select('studio-field-piece', 'piece', [['', t('studio.fieldPieceFree')]]);
+        this.recordButton = button('studio-start', t('studio.start'), () => this.start(), true);
+        this.stopButton = button('studio-stop', t('studio.stop'), () => this.stop());
         this.stopButton.disabled = true;
-        this.timer = el('span', { className: 'studio-time', text: '00:00', attrs: { 'aria-label': t('studio.durationLabel') } });
-        this.result = el('div', { className: 'studio-result' });
+        this.timer = el('span', { className: 'studio-time', text: '00:00', testid: 'studio-timer', attrs: { 'aria-label': t('studio.durationLabel') } });
+        this.result = el('div', { className: 'studio-result', testid: 'studio-result' });
         this.playerBox = el('div');
         this.player = new RecordingPlayer(this.playerBox);
-        const naming = select('notation', [['letters', t('studio.notationLetters')], ['solfege', t('studio.notationSolfege')]]);
+        const naming = select('studio-notation', 'notation', [['letters', t('studio.notationLetters')], ['solfege', t('studio.notationSolfege')]]);
         naming.addEventListener('change', () => { this.piano.solfege = naming.value === 'solfege'; this.updateNotes(); });
-        const sound = el('input', { attrs: { type: 'checkbox' } });
+        const sound = el('input', { testid: 'studio-preview-sound', attrs: { type: 'checkbox' } });
         sound.addEventListener('change', async () => {
             try {
                 if (sound.checked) { await this.synth.enable(); if (!this.isMounted || !sound.checked) { await this.synth.dispose(); return; } this.synth.sync(this.engine.notes); }
@@ -54,20 +54,20 @@ export class StudioView extends Component {
         });
         this.container.replaceChildren(page(t('studio.title'), t('studio.subtitle'), [
             el('div', { className: 'studio-transport ma-card' }, [this.recordButton, this.stopButton, this.timer,
-                button(t('recordings.title'), () => this.props.router.navigate('recordings'))]),
+                button('studio-goto-recordings', t('recordings.title'), () => this.props.router.navigate('recordings'))]),
             this.owner ? null : signedOut({ next: 'studio' }), this.result, this.playerBox,
             el('div', { className: 'studio-toolbar ma-card' }, [field(t('studio.sourceLabel'), this.source), field(t('studio.deviceLabel'), this.device), this.connectButton]),
             this.connection,
             el('section', { className: 'studio-instrument ma-card', attrs: { 'aria-label': t('studio.keyboardLabel') } }, [
                 el('div', { className: 'studio-toolbar' }, [this.mode, this.level, this.pedal,
-                    button(t('studio.fullscreen'), () => this.fullscreen())]),
+                    button('studio-fullscreen', t('studio.fullscreen'), () => this.fullscreen())]),
                 this.currentNotes, this.roll, this.scroller,
                 el('p', { className: 'studio-muted', text: t('studio.keyboardHint') })
             ]),
             el('details', { className: 'studio-settings ma-card' }, [el('summary', { text: t('studio.settings') }),
-                el('div', { className: 'studio-toolbar' }, [field(t('studio.notation'), naming), field(t('studio.preview'), sound), button(t('studio.panic'), () => this.engine.panic())]),
+                el('div', { className: 'studio-toolbar' }, [field(t('studio.notation'), naming), field(t('studio.preview'), sound), button('studio-panic', t('studio.panic'), () => this.engine.panic())]),
                 el('p', { className: 'studio-muted', text: t('studio.previewNote') })]),
-            el('section', { className: 'ma-card studio-capture', attrs: { 'aria-label': t('studio.captureLabel') } }, [
+            el('section', { className: 'ma-card studio-capture', testid: 'studio-capture', attrs: { 'aria-label': t('studio.captureLabel') } }, [
                 notice(t('studio.captureNotice')),
                 el('div', { className: 'studio-fields' }, [field(t('studio.fieldTitle'), this.title), field(t('studio.fieldPiece'), this.piece), field(t('studio.fieldDescription'), this.description), field(t('tags.label'), this.tags)]),
             ]),
@@ -219,7 +219,7 @@ export class StudioView extends Component {
 
     showDraft(durable) {
         const hasNotes = this.draft.events.some(e => (e.data[0] & 0xf0) === 0x90 && e.data[2]);
-        const next = button(t('studio.newTake'), () => {
+        const next = button('studio-new-take', t('studio.newTake'), () => {
             this.player.stop();
             this.draft = null;
             this.message(t('studio.newTakeNote'));
@@ -229,7 +229,7 @@ export class StudioView extends Component {
         next.disabled = hasNotes && !durable;
         this.message(hasNotes ? (durable ? t('studio.draftLocal') : t('studio.draftLost')) : t('studio.draftEmpty'), !durable);
         if (hasNotes) {
-            const upload = button(t('studio.upload'), async () => {
+            const upload = button('studio-upload', t('studio.upload'), async () => {
                 upload.disabled = true;
                 next.disabled = true;
                 setText(upload, t('studio.uploading'));
@@ -239,7 +239,7 @@ export class StudioView extends Component {
                     if (!this.isMounted) return;
                     this.draft = null;
                     this.message(t('studio.uploaded'));
-                    this.result.append(button(t('studio.openRecordings'), () => this.props.router.navigate('recordings')));
+                    this.result.append(button('studio-open-recordings', t('studio.openRecordings'), () => this.props.router.navigate('recordings')));
                     this.recordButton.disabled = this.source.value === 'midi' && !this.engine.port;
                 } catch (error) {
                     if (!this.isMounted) return;
@@ -250,8 +250,8 @@ export class StudioView extends Component {
                 }
             }, true);
             this.result.append(el('div', { className: 'studio-toolbar' }, [upload,
-                button(t('recordings.play'), () => this.player.play(this.draft).catch(() => this.result.prepend(notice(t('player.failed'), true)))),
-                button(t('recordings.download'), () => downloadMidi(this.draft))]));
+                button('studio-play-draft', t('recordings.play'), () => this.player.play(this.draft).catch(() => this.result.prepend(notice(t('player.failed'), true)))),
+                button('studio-download-draft', t('recordings.download'), () => downloadMidi(this.draft))]));
         }
         this.result.append(next);
     }

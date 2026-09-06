@@ -22,7 +22,7 @@ function mountShellMarkup() {
         <div class="ma-dialog">
             <div class="ma-dialog-head">
                 <span class="ma-kicker" data-lang="settings.title"></span>
-                <button type="button" class="ma-iconbtn" data-shell-action="close-settings"
+                <button type="button" class="ma-iconbtn" data-testid="settings-close" data-shell-action="close-settings"
                     data-lang-aria="common.close">✕</button>
             </div>
             <div class="ma-dialog-body">
@@ -31,12 +31,12 @@ function mountShellMarkup() {
                         <div class="ma-setting-title" data-lang="settings.theme"></div>
                         <div class="ma-setting-hint" data-lang="settings.themeDesc"></div>
                     </div>
-                    <button type="button" class="ma-btn ma-btn-secondary ma-btn-sm" data-shell-action="toggle-theme"
+                    <button type="button" class="ma-btn ma-btn-secondary ma-btn-sm" data-testid="settings-theme" data-shell-action="toggle-theme"
                         data-lang-aria="nav.toggleTheme"><i id="themeIcon" class="fa-solid fa-circle-half-stroke"></i></button>
                 </div>
                 <div>
                     <div class="ma-shell-1 ma-setting-title" data-lang="settings.language"></div>
-                    <select id="languageSelect" class="ma-input">
+                    <select id="languageSelect" class="ma-input" data-testid="settings-language">
                         <option value="tr">Türkçe</option>
                         <option value="en">English</option>
                         <option value="ku">Kurdî (Kurmancî)</option>
@@ -55,7 +55,7 @@ function mountShellMarkup() {
                     <p class="ma-kicker" id="modalType"></p>
                     <h2 id="modalTitle" class="ma-dialog-title ma-truncate"></h2>
                 </div>
-                <button type="button" class="ma-iconbtn" data-shell-action="close-details"
+                <button type="button" class="ma-iconbtn" data-testid="details-close" data-shell-action="close-details"
                     data-lang-aria="common.close">✕</button>
             </div>
             <div class="ma-dialog-scroll" id="modalTracks"></div>
@@ -67,12 +67,12 @@ function mountShellMarkup() {
         <div class="ma-shell-5 ma-dialog">
             <div class="ma-dialog-head">
                 <span class="ma-kicker" data-lang="track.addToPlaylist"></span>
-                <button type="button" class="ma-iconbtn" data-shell-action="close-add-to-playlist"
+                <button type="button" class="ma-iconbtn" data-testid="add-to-playlist-close" data-shell-action="close-add-to-playlist"
                     data-lang-aria="common.close">✕</button>
             </div>
             <div class="ma-dialog-body">
                 <div id="playlistOptions" class="ma-shell-6"></div>
-                <button type="button" class="ma-shell-7 ma-btn ma-btn-secondary"
+                <button type="button" class="ma-shell-7 ma-btn ma-btn-secondary" data-testid="add-to-playlist-cancel"
                     data-shell-action="close-add-to-playlist" data-lang="common.cancel"></button>
             </div>
         </div>
@@ -84,17 +84,17 @@ function mountShellMarkup() {
         <div class="ma-shell-9 ma-dialog">
             <div class="ma-dialog-head">
                 <span class="ma-kicker" data-lang="playlist.create"></span>
-                <button type="button" class="ma-iconbtn" data-shell-action="close-create-playlist"
+                <button type="button" class="ma-iconbtn" data-testid="create-playlist-close" data-shell-action="close-create-playlist"
                     data-lang-aria="common.close">✕</button>
             </div>
             <div class="ma-dialog-body">
                 <p class="ma-shell-10 ma-setting-hint" data-lang="library.organize"></p>
-                <input type="text" id="newPlaylistName" class="ma-input"
+                <input type="text" id="newPlaylistName" class="ma-input" data-testid="create-playlist-name"
                     data-lang-placeholder="playlist.namePlaceholder">
                 <div class="ma-shell-11">
-                    <button type="button" class="ma-shell-12 ma-btn ma-btn-primary"
+                    <button type="button" class="ma-shell-12 ma-btn ma-btn-primary" data-testid="create-playlist-confirm"
                         data-shell-action="confirm-create-playlist" data-lang="playlist.createButton"></button>
-                    <button type="button" class="ma-shell-13 ma-btn ma-btn-secondary"
+                    <button type="button" class="ma-shell-13 ma-btn ma-btn-secondary" data-testid="create-playlist-cancel"
                         data-shell-action="close-create-playlist" data-lang="common.cancel"></button>
                 </div>
             </div>
@@ -109,8 +109,8 @@ function mountShellMarkup() {
                 <h3 class="ma-dialog-title" id="confirmTitle"></h3>
                 <p class="ma-shell-16 ma-setting-hint" id="confirmMessage"></p>
                 <div class="ma-shell-17">
-                    <button type="button" id="confirmYesBtn" class="ma-shell-18 ma-btn ma-btn-danger"></button>
-                    <button type="button" class="ma-shell-19 ma-btn ma-btn-secondary"
+                    <button type="button" id="confirmYesBtn" class="ma-shell-18 ma-btn ma-btn-danger" data-testid="confirm-yes"></button>
+                    <button type="button" class="ma-shell-19 ma-btn ma-btn-secondary" data-testid="confirm-cancel"
                         data-shell-action="close-confirm" data-lang="common.cancel"></button>
                 </div>
             </div>
@@ -123,15 +123,15 @@ function mountShellMarkup() {
         <div class="ma-shell-21 ma-dialog">
             <div class="ma-dialog-head">
                 <span class="ma-kicker" data-lang="cover.title"></span>
-                <button type="button" class="ma-iconbtn" data-shell-action="close-cover"
+                <button type="button" class="ma-iconbtn" data-testid="cover-close" data-shell-action="close-cover"
                     data-lang-aria="common.close">✕</button>
             </div>
             <div class="ma-dialog-body">
                 <p class="ma-shell-22 ma-setting-hint" data-lang="cover.subtitle"></p>
                 <div class="ma-shell-23">
-                    <button type="button" id="coverTabUpload" class="ma-shell-24 ma-pill is-active"
+                    <button type="button" id="coverTabUpload" class="ma-shell-24 ma-pill is-active" data-testid="cover-tab-upload"
                         data-shell-action="cover-tab-upload" data-lang="cover.upload"></button>
-                    <button type="button" id="coverTabUrl" class="ma-shell-25 ma-pill"
+                    <button type="button" id="coverTabUrl" class="ma-shell-25 ma-pill" data-testid="cover-tab-url"
                         data-shell-action="cover-tab-url" data-lang="cover.url"></button>
                 </div>
                 <div id="coverUploadSection">
@@ -140,11 +140,11 @@ function mountShellMarkup() {
                         <span class="ma-shell-27 ma-setting-hint" data-lang="cover.dropHint"></span>
                         <span class="ma-shell-28 ma-kicker"
                             data-lang="cover.formats"></span>
-                        <input type="file" id="coverFileInput" accept="image/*" hidden>
+                        <input type="file" id="coverFileInput" accept="image/*" data-testid="cover-file" hidden>
                     </label>
                 </div>
                 <div id="coverUrlSection" class="hidden">
-                    <input type="text" id="coverUrlInput" class="ma-input" placeholder="https://example.com/image.jpg">
+                    <input type="text" id="coverUrlInput" class="ma-input" data-testid="cover-url" placeholder="https://example.com/image.jpg">
                 </div>
                 <div id="coverPreviewContainer" class="ma-shell-29 hidden">
                     <p class="ma-kicker" data-lang="cover.preview"></p>
@@ -152,9 +152,9 @@ function mountShellMarkup() {
                         class="ma-shell-30">
                 </div>
                 <div class="ma-shell-31">
-                    <button type="button" class="ma-shell-32 ma-btn ma-btn-primary"
+                    <button type="button" class="ma-shell-32 ma-btn ma-btn-primary" data-testid="cover-save"
                         data-shell-action="confirm-cover" data-lang="common.save"></button>
-                    <button type="button" class="ma-shell-33 ma-btn ma-btn-secondary"
+                    <button type="button" class="ma-shell-33 ma-btn ma-btn-secondary" data-testid="cover-cancel"
                         data-shell-action="close-cover" data-lang="common.cancel"></button>
                 </div>
             </div>
@@ -166,7 +166,7 @@ function mountShellMarkup() {
         <aside id="trackDetailContent" class="ma-drawer" role="dialog" aria-modal="true">
             <div class="ma-drawer-head">
                 <span class="ma-kicker" data-lang="track.details"></span>
-                <button type="button" class="ma-shell-35 ma-iconbtn"
+                <button type="button" class="ma-shell-35 ma-iconbtn" data-testid="track-detail-close"
                     data-shell-action="close-track-detail" data-lang-aria="common.close">✕</button>
             </div>
             <div class="ma-drawer-body">
@@ -176,10 +176,10 @@ function mountShellMarkup() {
                         <div id="trackDetailName" class="ma-shell-38"></div>
                         <div id="trackDetailArtist" class="ma-shell-39"></div>
                         <div class="ma-shell-40">
-                            <button type="button" id="trackDetailPlayBtn" class="ma-btn ma-btn-secondary ma-btn-sm">
+                            <button type="button" id="trackDetailPlayBtn" class="ma-btn ma-btn-secondary ma-btn-sm" data-testid="track-play">
                                 <span data-lang="track.preview"></span>
                             </button>
-                            <button type="button" id="trackDetailLikeBtn" class="ma-btn ma-btn-secondary ma-btn-sm">
+                            <button type="button" id="trackDetailLikeBtn" class="ma-btn ma-btn-secondary ma-btn-sm" data-testid="track-like">
                                 <i id="trackDetailLikeIcon" class="fa-regular fa-heart"></i>
                                 <span id="trackDetailLikeText"></span>
                             </button>
@@ -197,14 +197,14 @@ function mountShellMarkup() {
 
                 <div class="ma-drawer-section-head">
                     <span class="ma-kicker" data-lang="track.note"></span>
-                    <button type="button" id="trackNoteSaveBtn" class="ma-btn ma-btn-ghost ma-btn-sm hidden"
+                    <button type="button" id="trackNoteSaveBtn" class="ma-btn ma-btn-ghost ma-btn-sm hidden" data-testid="track-note-save"
                         data-lang="common.save"></button>
                 </div>
-                <textarea id="trackDetailNote" class="ma-shell-44 ma-textarea"
+                <textarea id="trackDetailNote" class="ma-shell-44 ma-textarea" data-testid="track-note"
                     data-lang-placeholder="track.notePlaceholder"></textarea>
 
                 <div class="ma-shell-45 ma-kicker" data-lang="track.addToPlaylist"></div>
-                <button type="button" id="trackDetailAddBtn" class="ma-shell-46 ma-btn ma-btn-secondary"
+                <button type="button" id="trackDetailAddBtn" class="ma-shell-46 ma-btn ma-btn-secondary" data-testid="track-add-to-playlist"
                    >＋&nbsp;<span
                         data-lang="track.addToPlaylist"></span></button>
 
@@ -229,7 +229,7 @@ function mountShellMarkup() {
 
     <!-- Mini player -->
     <div id="miniPlayer" class="mini-player">
-        <div class="mini-player-progress" data-shell-action="seek">
+        <div class="mini-player-progress" data-testid="player-progress" data-shell-action="seek">
             <div id="miniPlayerProgress" class="mini-player-progress-bar"></div>
         </div>
         <div class="mini-player-body">
@@ -238,12 +238,12 @@ function mountShellMarkup() {
                 <p id="miniPlayerTitle" class="ma-shell-56 ma-truncate"></p>
                 <p id="miniPlayerArtist" class="ma-shell-57 ma-truncate"></p>
             </div>
-            <button type="button" id="miniPlayerPlayBtn" class="mini-player-play">
+            <button type="button" id="miniPlayerPlayBtn" class="mini-player-play" data-testid="player-toggle">
                 <i id="miniPlayerIcon" class="fa-solid fa-play"></i>
             </button>
             <span id="miniPlayerTime" class="mini-player-time">0:00 / 0:30</span>
             <span class="ma-shell-58 ma-tag">30 sn</span>
-            <button type="button" id="miniPlayerCloseBtn" class="ma-iconbtn" data-lang-aria="player.close">✕</button>
+            <button type="button" id="miniPlayerCloseBtn" class="ma-iconbtn" data-testid="player-close" data-lang-aria="player.close">✕</button>
         </div>
     </div>
 `);
