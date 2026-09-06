@@ -9,6 +9,7 @@ export async function browser() {
     let id = 0;
     const pending = new Map();
     const errors = [];
+    const logs = [];
     ws.addEventListener('message', event => {
         const msg = JSON.parse(event.data);
         if (msg.id) {
@@ -18,6 +19,7 @@ export async function browser() {
             clearTimeout(p.timeout);
             msg.error ? p.reject(new Error(JSON.stringify(msg.error))) : p.resolve(msg.result);
         } else if (msg.method === 'Runtime.exceptionThrown') errors.push(msg.params.exceptionDetails.exception?.description || msg.params.exceptionDetails.text);
+        else if (msg.method === 'Log.entryAdded') logs.push(msg.params.entry);
     });
     const send = (method, params = {}) => new Promise((resolve, reject) => {
         const next = ++id;
@@ -42,13 +44,14 @@ export async function browser() {
     };
     await send('Runtime.enable');
     await send('Page.enable');
+    await send('Log.enable');
     const reload = async () => {
         const marker = crypto.randomUUID();
         await run(`window.__reloadMarker = ${JSON.stringify(marker)}`);
         await send('Page.reload');
         await until(`window.__reloadMarker !== ${JSON.stringify(marker)} && Boolean(window.router)`);
     };
-    return { send, run, until, reload, errors, close: () => ws.close(),
+    return { send, run, until, reload, errors, logs, close: () => ws.close(),
         screenshot: async path => {
             const { data } = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
             await writeFile(path, Buffer.from(data, 'base64'));
